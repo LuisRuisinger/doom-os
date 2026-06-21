@@ -1,0 +1,8 @@
+.git
+.idea
+.vscode
+cmake-build-*
+build
+compile_commands.json
+*.iso
+*.elf
