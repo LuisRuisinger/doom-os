@@ -1,57 +1,45 @@
 #ifndef DOOM_OS_KERNEL_BOOT_INIT_GRAPH_HPP_
 #define DOOM_OS_KERNEL_BOOT_INIT_GRAPH_HPP_
 
+// =================================================================================================
+// Kernel files
+// =================================================================================================
+
 #include "kernel/boot/component.hpp"
-#include "kernel/core/utils/traits.hpp"
 
-namespace kernel::boot {
-
-using kernel::core::false_type;
-using kernel::core::integral_constant;
-using kernel::core::is_same_v;
-using kernel::core::true_type;
-
+namespace kernel::boot::detail {
 // =================================================================================================
-// Utility
+// Integral constant
 // =================================================================================================
 
-template <typename>
-inline constexpr bool always_false_v = false;
+template <typename T, T Value>
+struct integral_constant {
+    static constexpr T value = Value;
 
-// =================================================================================================
-// contains
-// =================================================================================================
+    using value_type = T;
+    using type = integral_constant<T, Value>;
 
-template <typename T, typename List>
-struct contains;
-
-template <typename T>
-struct contains<T, type_list<>> : false_type {};
-
-template <typename T, typename Head, typename... Tail>
-struct contains<T, type_list<Head, Tail...>>
-    : integral_constant<bool, is_same_v<T, Head> || contains<T, type_list<Tail...>>::value> {};
-
-template <typename T, typename List>
-inline constexpr bool contains_v = contains<T, List>::value;
-
-// =================================================================================================
-// push_back
-// =================================================================================================
-
-template <typename List, typename T>
-struct push_back;
-
-template <typename... Ts, typename T>
-struct push_back<type_list<Ts...>, T> {
-    using type = type_list<Ts..., T>;
+    constexpr operator value_type() const noexcept { return value; }
 };
 
-template <typename List, typename T>
-using push_back_t = typename push_back<List, T>::type;
+using true_type = integral_constant<bool, true>;
+using false_type = integral_constant<bool, false>;
 
 // =================================================================================================
-// push_back_unique
+// Is same
+// =================================================================================================
+
+template <typename A, typename B>
+struct is_same : false_type {};
+
+template <typename A>
+struct is_same<A, A> : true_type {};
+
+template <typename A, typename B>
+inline constexpr bool is_same_v = is_same<A, B>::value;
+
+// =================================================================================================
+// Conditional
 // =================================================================================================
 
 template <bool Condition, typename TrueType, typename FalseType>
@@ -67,106 +55,142 @@ struct conditional<false, TrueType, FalseType> {
 template <bool Condition, typename TrueType, typename FalseType>
 using conditional_t = typename conditional<Condition, TrueType, FalseType>::type;
 
-template <typename List, typename T>
-struct push_back_unique {
-    using type = conditional_t<
-        contains_v<T, List>,
-        List,
-        push_back_t<List, T>
-    >;
-};
-
-template <typename List, typename T>
-using push_back_unique_t = typename push_back_unique<List, T>::type;
-
 // =================================================================================================
-// Compile-time topological sort
+// Type list helpers
 // =================================================================================================
 
-template <typename Component, typename Sorted, typename Visiting>
-struct topo_visit;
+template <typename T, typename List>
+struct list_contains;
 
-template <typename List, typename Sorted, typename Visiting>
-struct topo_visit_list;
-
-template <typename Sorted, typename Visiting>
-struct topo_visit_list<type_list<>, Sorted, Visiting> {
-    using type = Sorted;
+template <typename T>
+struct list_contains<T, type_list<> > {
+    static constexpr bool value = false;
 };
 
-template <typename Head, typename... Tail, typename Sorted, typename Visiting>
-struct topo_visit_list<type_list<Head, Tail...>, Sorted, Visiting> {
-    using sorted_head = typename topo_visit<Head, Sorted, Visiting>::type;
-
-    using type = typename topo_visit_list<
-        type_list<Tail...>,
-        sorted_head,
-        Visiting
-    >::type;
+template <typename T, typename Head, typename... Tail>
+struct list_contains<T, type_list<Head, Tail...> > {
+    static constexpr bool value =
+        is_same_v<T, Head> || list_contains<T, type_list<Tail...> >::value;
 };
 
-template <
-    typename Component,
-    typename Sorted,
-    typename Visiting,
-    bool AlreadySorted,
-    bool IsCycle
->
-struct topo_visit_impl;
+template <typename List, typename T>
+struct list_append;
 
-template <typename Component, typename Sorted, typename Visiting, bool IsCycle>
-struct topo_visit_impl<Component, Sorted, Visiting, true, IsCycle> {
-    using type = Sorted;
+template <typename... Ts, typename T>
+struct list_append<type_list<Ts...>, T> {
+    using type = type_list<Ts..., T>;
 };
 
-template <typename Component, typename Sorted, typename Visiting>
-struct topo_visit_impl<Component, Sorted, Visiting, false, true> {
-    static_assert(
-        always_false_v<Component>,
-        "cycle in kernel init dependency graph"
-    );
-
-    using type = Sorted;
+template <typename List, typename T>
+struct list_append_unique {
+    using type =
+        conditional_t<list_contains<T, List>::value, List, typename list_append<List, T>::type>;
 };
 
-template <typename Component, typename Sorted, typename Visiting>
-struct topo_visit_impl<Component, Sorted, Visiting, false, false> {
-    using visiting_with_component = push_back_t<Visiting, Component>;
+template <typename A, typename B>
+struct list_concat_unique;
 
-    using sorted_deps = typename topo_visit_list<
-        typename Component::deps,
-        Sorted,
-        visiting_with_component
-    >::type;
-
-    using type = push_back_unique_t<sorted_deps, Component>;
+template <typename A>
+struct list_concat_unique<A, type_list<> > {
+    using type = A;
 };
 
-template <typename Component, typename Sorted, typename Visiting>
-struct topo_visit
-    : topo_visit_impl<
-          Component,
-          Sorted,
-          Visiting,
-          contains_v<Component, Sorted>,
-          contains_v<Component, Visiting>
-      > {};
+template <typename A, typename Head, typename... Tail>
+struct list_concat_unique<A, type_list<Head, Tail...> > {
+    using with_head = typename list_append_unique<A, Head>::type;
+
+    using type = typename list_concat_unique<with_head, type_list<Tail...> >::type;
+};
+
+// =================================================================================================
+// Topological sort
+// =================================================================================================
+
+template <typename Component, typename Visiting>
+struct topo_component;
+
+template <typename List, typename Visiting>
+struct topo_list;
+
+template <typename Visiting>
+struct topo_list<type_list<>, Visiting> {
+    using type = type_list<>;
+};
+
+template <typename Head, typename... Tail, typename Visiting>
+struct topo_list<type_list<Head, Tail...>, Visiting> {
+    using head_sorted = typename topo_component<Head, Visiting>::type;
+    using tail_sorted = typename topo_list<type_list<Tail...>, Visiting>::type;
+
+    using type = typename list_concat_unique<head_sorted, tail_sorted>::type;
+};
+
+template <typename Component, typename Visiting>
+struct topo_component {
+    static_assert(!list_contains<Component, Visiting>::value, "cycle detected in init graph");
+
+    using visiting_with_self = typename list_append<Visiting, Component>::type;
+    using deps_sorted = typename topo_list<typename Component::deps, visiting_with_self>::type;
+
+    using type = typename list_append_unique<deps_sorted, Component>::type;
+};
+
+// =================================================================================================
+// Sorted list runner
+// =================================================================================================
+
+template <typename Component, typename Context>
+bool run_component_silent(Context &context) {
+    return Component::run(context);
+}
+
+template <typename Component, typename Context, typename Logger>
+bool run_component_logged(Context &context, Logger &logger) {
+    logger.template begin<Component>(context);
+
+    if (!Component::run(context)) {
+        logger.template fail<Component>(context);
+        return false;
+    }
+
+    logger.template ok<Component>(context);
+    return true;
+}
+
+template <typename List>
+struct init_list_runner;
+
+template <typename... Components>
+struct init_list_runner<type_list<Components...> > {
+    template <typename Context>
+    static bool run_silent(Context &context) {
+        return (run_component_silent<Components>(context) && ...);
+    }
+
+    template <typename Context, typename Logger>
+    static bool run_logged(Context &context, Logger &logger) {
+        return (run_component_logged<Components>(context, logger) && ...);
+    }
+};
+
+// =================================================================================================
+// Init graph
+// =================================================================================================
 
 template <typename Roots>
-struct topo_sort;
+struct init_graph {
+    using sorted_components = typename topo_list<Roots, type_list<> >::type;
 
-template <typename... Roots>
-struct topo_sort<type_list<Roots...>> {
-    using type = typename topo_visit_list<
-        type_list<Roots...>,
-        type_list<>,
-        type_list<>
-    >::type;
+    template <typename Context>
+    static bool run_silent(Context &context) {
+        return init_list_runner<sorted_components>::run_silent(context);
+    }
+
+    template <typename Context, typename Logger>
+    static bool run_logged(Context &context, Logger &logger) {
+        return init_list_runner<sorted_components>::run_logged(context, logger);
+    }
 };
+}  // namespace kernel::boot::detail
 
-template <typename Roots>
-using topo_sort_t = typename topo_sort<Roots>::type;
-
-} // namespace kernel::boot
-
-#endif // DOOM_OS_KERNEL_BOOT_INIT_GRAPH_HPP_
+#endif  // DOOM_OS_KERNEL_BOOT_INIT_GRAPH_HPP_

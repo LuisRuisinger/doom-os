@@ -28,11 +28,13 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     make \
     git \
     bear \
+    clang-format \
     grub-common \
     grub-pc-bin \
     xorriso \
     mtools \
     qemu-system-x86 \
+    qemu-system-gui \
     gdb \
   && rm -rf /var/lib/apt/lists/*
 

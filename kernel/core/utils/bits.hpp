@@ -4,7 +4,6 @@
 #include "kernel/core/types.hpp"
 
 namespace kernel::core::utils {
-
 // =================================================================================================
 // Bit utilities
 // =================================================================================================
@@ -21,9 +20,7 @@ constexpr T all_bits() {
 
 template <typename T = u32>
 constexpr T bit(u32 index) {
-    return index >= bit_width<T>()
-        ? static_cast<T>(0)
-        : static_cast<T>(static_cast<T>(1) << index);
+    return index >= bit_width<T>() ? static_cast<T>(0) : static_cast<T>(static_cast<T>(1) << index);
 }
 
 template <typename T>
@@ -33,23 +30,18 @@ constexpr bool test_bit(T value, u32 index) {
 
 template <typename T>
 constexpr T set_bit(T value, u32 index) {
-    return index >= bit_width<T>()
-        ? value
-        : static_cast<T>(value | bit<T>(index));
+    return index >= bit_width<T>() ? value : static_cast<T>(value | bit<T>(index));
 }
 
 template <typename T>
 constexpr T clear_bit(T value, u32 index) {
-    return index >= bit_width<T>()
-        ? value
-        : static_cast<T>(value & static_cast<T>(~bit<T>(index)));
+    return index >= bit_width<T>() ? value : static_cast<T>(value & static_cast<T>(~bit<T>(index)));
 }
 
 template <typename T = u32>
 constexpr T mask(u32 bit_count) {
-    return bit_count >= bit_width<T>()
-        ? all_bits<T>()
-        : static_cast<T>(bit<T>(bit_count) - static_cast<T>(1));
+    return bit_count >= bit_width<T>() ? all_bits<T>()
+                                       : static_cast<T>(bit<T>(bit_count) - static_cast<T>(1));
 }
 
 // =================================================================================================
@@ -69,10 +61,7 @@ constexpr T align_down(T value, T alignment) {
 
 template <typename T = usize>
 constexpr T align_up(T value, T alignment) {
-    return align_down<T>(
-        static_cast<T>(value + alignment - static_cast<T>(1)),
-        alignment
-    );
+    return align_down<T>(static_cast<T>(value + alignment - static_cast<T>(1)), alignment);
 }
 
 template <typename T = usize>
@@ -207,7 +196,6 @@ static_assert(is_aligned(usize{16}, usize{8}));
 static_assert(is_aligned(usize{0x1000}, usize{0x1000}));
 static_assert(!is_aligned(usize{0x1001}, usize{0x1000}));
 static_assert(is_aligned(usize{0x2000}, usize{0x1000}));
+}  // namespace kernel::core::utils
 
-} // namespace kernel::core::utils
-
-#endif // DOOM_OS_KERNEL_CORE_BITS_HPP_
+#endif  // DOOM_OS_KERNEL_CORE_BITS_HPP_

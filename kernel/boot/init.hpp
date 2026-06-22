@@ -1,87 +1,96 @@
 #ifndef DOOM_OS_KERNEL_BOOT_INIT_HPP_
 #define DOOM_OS_KERNEL_BOOT_INIT_HPP_
 
+// =================================================================================================
+// Kernel files
+// =================================================================================================
+
+#include "kernel/boot/component.hpp"
 #include "kernel/boot/init_graph.hpp"
 #include "kernel/debug/kprint.hpp"
 
 namespace kernel::boot {
+// =================================================================================================
+// Default logger
+// =================================================================================================
+
+struct default_init_logger {
+    template <typename Component, typename Context>
+    void begin(Context &) {
+        KPRINTLN("[init] {}", Component::name);
+    }
+
+    template <typename Component, typename Context>
+    void ok(Context &) {
+        KPRINTLN("[init] {}: OK", Component::name);
+    }
+
+    template <typename Component, typename Context>
+    void fail(Context &) {
+        KPRINTLN("[init] {}: FAIL", Component::name);
+    }
+};
 
 // =================================================================================================
-// Init failure policy
+// Halt
 // =================================================================================================
 
-[[noreturn]] inline void halt_on_init_failure() {
+[[noreturn]] inline void halt_forever() {
     for (;;) {
         asm volatile("cli; hlt");
     }
 }
 
 // =================================================================================================
-// Component runner
+// Init graph with context
 // =================================================================================================
 
-template <typename Component>
-bool run_component_logged() {
-    KPRINTLN("[init] {}", Component::name);
-
-    if (!Component::run()) {
-        KPRINTLN("[init] {}: FAILED", Component::name);
-        return false;
-    }
-
-    KPRINTLN("[init] {}: OK", Component::name);
-    return true;
+template <typename Roots, typename Context>
+bool run_init_graph_silent(Context &context) {
+    return detail::init_graph<Roots>::run_silent(context);
 }
 
-template <typename Component>
-bool run_component_silent() {
-    return Component::run();
+template <typename Roots, typename Context, typename Logger>
+bool run_init_graph_logged(Context &context, Logger &logger) {
+    return detail::init_graph<Roots>::run_logged(context, logger);
+}
+
+template <typename Roots, typename Context>
+bool run_init_graph_logged(Context &context) {
+    default_init_logger logger{};
+    return run_init_graph_logged<Roots>(context, logger);
+}
+
+template <typename Roots, typename Context>
+void run_init_graph_or_halt(Context &context) {
+    if (run_init_graph_logged<Roots>(context)) {
+        return;
+    }
+
+    halt_forever();
 }
 
 // =================================================================================================
-// Init runner
+// Init graph without context
 // =================================================================================================
-
-template <typename List>
-struct init_runner_logged;
-
-template <typename... Components>
-struct init_runner_logged<type_list<Components...>> {
-    static bool run() {
-        return (run_component_logged<Components>() && ...);
-    }
-};
-
-template <typename List>
-struct init_runner_silent;
-
-template <typename... Components>
-struct init_runner_silent<type_list<Components...>> {
-    static bool run() {
-        return (run_component_silent<Components>() && ...);
-    }
-};
 
 template <typename Roots>
 bool run_init_graph_silent() {
-    using ordered_components = topo_sort_t<Roots>;
-    return init_runner_silent<ordered_components>::run();
+    no_context context{};
+    return run_init_graph_silent<Roots>(context);
 }
 
 template <typename Roots>
 bool run_init_graph_logged() {
-    using ordered_components = topo_sort_t<Roots>;
-    return init_runner_logged<ordered_components>::run();
+    no_context context{};
+    return run_init_graph_logged<Roots>(context);
 }
 
 template <typename Roots>
 void run_init_graph_or_halt() {
-    if (!run_init_graph_logged<Roots>()) {
-        KPRINTLN("[init] kernel initialization failed");
-        halt_on_init_failure();
-    }
+    no_context context{};
+    run_init_graph_or_halt<Roots>(context);
 }
+}  // namespace kernel::boot
 
-} // namespace kernel::boot
-
-#endif // DOOM_OS_KERNEL_BOOT_INIT_HPP_
+#endif  // DOOM_OS_KERNEL_BOOT_INIT_HPP_

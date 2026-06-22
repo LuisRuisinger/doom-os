@@ -5,7 +5,6 @@
 #include "kernel/core/types.hpp"
 
 namespace kernel::runtime {
-
 using kernel::core::i32;
 using kernel::core::u8;
 using kernel::core::usize;
@@ -14,9 +13,9 @@ using kernel::core::usize;
 // Memory functionality
 // =================================================================================================
 
-void* set(void* dest, i32 value, usize count) {
-    auto* d = static_cast<u8*>(dest);
-    auto v = static_cast<u8>(value);
+void *set(void *dest, i32 value, usize count) {
+    auto *d = static_cast<u8 *>(dest);
+    auto  v = static_cast<u8>(value);
 
     for (usize i = 0; i < count; ++i) {
         d[i] = v;
@@ -25,9 +24,9 @@ void* set(void* dest, i32 value, usize count) {
     return dest;
 }
 
-void* copy(void* dest, const void* src, usize count) {
-    auto* d = static_cast<u8*>(dest);
-    const auto* s = static_cast<const u8*>(src);
+void *copy(void *dest, const void *src, usize count) {
+    auto       *d = static_cast<u8 *>(dest);
+    const auto *s = static_cast<const u8 *>(src);
 
     for (usize i = 0; i < count; ++i) {
         d[i] = s[i];
@@ -36,9 +35,9 @@ void* copy(void* dest, const void* src, usize count) {
     return dest;
 }
 
-void* move(void* dest, const void* src, usize count) {
-    auto* d = static_cast<u8*>(dest);
-    const auto* s = static_cast<const u8*>(src);
+void *move(void *dest, const void *src, usize count) {
+    auto       *d = static_cast<u8 *>(dest);
+    const auto *s = static_cast<const u8 *>(src);
 
     if (d == s || count == 0) {
         return dest;
@@ -57,9 +56,9 @@ void* move(void* dest, const void* src, usize count) {
     return dest;
 }
 
-i32 compare(const void* lhs, const void* rhs, usize count) {
-    const auto* a = static_cast<const u8*>(lhs);
-    const auto* b = static_cast<const u8*>(rhs);
+i32 compare(const void *lhs, const void *rhs, usize count) {
+    const auto *a = static_cast<const u8 *>(lhs);
+    const auto *b = static_cast<const u8 *>(rhs);
 
     for (usize i = 0; i < count; ++i) {
         if (a[i] != b[i]) {
@@ -69,25 +68,24 @@ i32 compare(const void* lhs, const void* rhs, usize count) {
 
     return 0;
 }
-
-} // namespace kernel::runtime
+}  // namespace kernel::runtime
 
 // =================================================================================================
 // C ABI wrapper
 // =================================================================================================
 
-extern "C" void* memset(void* dest, kernel::core::i32 value, kernel::core::usize count) {
+extern "C" void *memset(void *dest, kernel::core::i32 value, kernel::core::usize count) {
     return kernel::runtime::set(dest, value, count);
 }
 
-extern "C" void* memcpy(void* dest, const void* src, kernel::core::usize count) {
+extern "C" void *memcpy(void *dest, const void *src, kernel::core::usize count) {
     return kernel::runtime::copy(dest, src, count);
 }
 
-extern "C" void* memmove(void* dest, const void* src, kernel::core::usize count) {
+extern "C" void *memmove(void *dest, const void *src, kernel::core::usize count) {
     return kernel::runtime::move(dest, src, count);
 }
 
-extern "C" kernel::core::i32 memcmp(const void* lhs, const void* rhs, kernel::core::usize count) {
+extern "C" kernel::core::i32 memcmp(const void *lhs, const void *rhs, kernel::core::usize count) {
     return kernel::runtime::compare(lhs, rhs, count);
 }

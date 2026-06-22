@@ -3,13 +3,11 @@
 #include "kernel/arch/x86_64/serial.hpp"
 
 namespace kernel::debug {
-
 namespace detail {
-
 using kernel::core::i32;
 using kernel::core::i64;
-using kernel::core::u8;
 using kernel::core::u64;
+using kernel::core::u8;
 using kernel::core::uptr;
 using kernel::core::usize;
 
@@ -17,11 +15,9 @@ using kernel::core::usize;
 // Backend
 // =================================================================================================
 
-void backend_emit_char(char value) {
-    arch::x86_64::serial::write_char(value);
-}
+void backend_emit_char(char value) { arch::x86_64::serial::write_char(value); }
 
-void backend_emit_bytes(const char* value, usize length) {
+void backend_emit_bytes(const char *value, usize length) {
     if (value == nullptr) {
         arch::x86_64::serial::write("<null>");
         return;
@@ -32,7 +28,7 @@ void backend_emit_bytes(const char* value, usize length) {
     }
 }
 
-void backend_emit_c_string(const char* value) {
+void backend_emit_c_string(const char *value) {
     if (value == nullptr) {
         arch::x86_64::serial::write("<null>");
         return;
@@ -42,7 +38,7 @@ void backend_emit_c_string(const char* value) {
 }
 
 void backend_emit_decimal_u64(u64 value) {
-    char buffer[32];
+    char  buffer[32];
     usize index = 0;
 
     if (value == 0) {
@@ -89,18 +85,14 @@ void backend_emit_hex_u64(u64 value) {
     }
 }
 
-void backend_emit_pointer(const volatile void* value) {
+void backend_emit_pointer(const volatile void *value) {
     backend_emit_hex_u64(static_cast<u64>(reinterpret_cast<uptr>(value)));
 }
-
-} // namespace detail
+}  // namespace detail
 
 // =================================================================================================
 // Public API
 // =================================================================================================
 
-void kprint_init() {
-     arch::x86_64::serial::init();
-}
-
-} // namespace kernel::debug
+void kprint_init() { arch::x86_64::serial::init(); }
+}  // namespace kernel::debug

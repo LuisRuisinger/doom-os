@@ -4,63 +4,69 @@
 
 #include "kernel/arch/x86_64/idt.hpp"
 
+#include "kernel/arch/x86_64/cpu.hpp"
 #include "kernel/arch/x86_64/gdt.hpp"
-#include "kernel/core/types.hpp"
 
 namespace kernel::arch::x86_64::idt {
-
-using kernel::core::u8;
 using kernel::core::u16;
 using kernel::core::u32;
 using kernel::core::u64;
+using kernel::core::u8;
 
 // =================================================================================================
-// External assembly
+// Assembly
 // =================================================================================================
 
-extern "C" void idt_load(const void* idt_pointer);
+extern "C" void idt_load(const void *idt_pointer);
 
 // =================================================================================================
-// IDT structures
+// Static checks
 // =================================================================================================
-
-struct [[gnu::packed]] entry {
-    u16 offset_low;
-    u16 selector;
-    u8 ist;
-    u8 type_attributes;
-    u16 offset_mid;
-    u32 offset_high;
-    u32 reserved;
-};
-
-struct [[gnu::packed]] pointer {
-    u16 limit;
-    u64 base;
-};
 
 static_assert(sizeof(entry) == 16);
 static_assert(sizeof(pointer) == 10);
 
 // =================================================================================================
-// IDT storage
+// Table
 // =================================================================================================
 
-alignas(16) static entry idt_entries[ENTRY_COUNT]{};
+void table::init() {
+    for (u16 i = 0; i < ENTRY_COUNT; ++i) {
+        entries_[i] = entry{
+            .offset_low = 0,
+            .selector = 0,
+            .ist = 0,
+            .type_attributes = 0,
+            .offset_mid = 0,
+            .offset_high = 0,
+            .reserved = 0,
+        };
+    }
 
-static pointer idt_pointer{
-    .limit = static_cast<u16>(sizeof(idt_entries) - 1),
-    .base = reinterpret_cast<u64>(&idt_entries[0]),
-};
+    pointer_ = pointer{
+        .limit = static_cast<u16>(sizeof(entries_) - 1),
+        .base = reinterpret_cast<u64>(&entries_[0]),
+    };
+}
 
-// =================================================================================================
-// IDT entry construction
-// =================================================================================================
+void table::load() const { idt_load(&pointer_); }
 
-static void set_gate(u8 vector, handler handler_address, u8 type_attributes, u8 ist = 0) {
+void table::set_interrupt_gate(u8 vector, handler handler_address, u8 ist) {
+    set_gate(vector, handler_address, GATE_TYPE_INTERRUPT, ist);
+}
+
+void table::set_trap_gate(u8 vector, handler handler_address, u8 ist) {
+    set_gate(vector, handler_address, GATE_TYPE_TRAP, ist);
+}
+
+void table::set_user_trap_gate(u8 vector, handler handler_address, u8 ist) {
+    set_gate(vector, handler_address, GATE_TYPE_USER_TRAP, ist);
+}
+
+void table::set_gate(u8 vector, handler handler_address, u8 type_attributes, u8 ist) {
     const auto address = reinterpret_cast<u64>(handler_address);
 
-    idt_entries[vector] = entry{
+    entries_[vector] = entry{
         .offset_low = static_cast<u16>(address & 0xFFFF),
         .selector = kernel::arch::x86_64::gdt::KERNEL_CODE_SELECTOR,
         .ist = static_cast<u8>(ist & 0x07),
@@ -72,24 +78,26 @@ static void set_gate(u8 vector, handler handler_address, u8 type_attributes, u8 
 }
 
 // =================================================================================================
-// Public API
+// IDT
 // =================================================================================================
 
-void init() {
-    idt_entries[0] = {};
-    idt_load(&idt_pointer);
-}
+void init_table(table &target) { target.init(); }
 
-void set_interrupt_gate(u8 vector, handler handler_address) {
-    set_gate(vector, handler_address, GATE_TYPE_INTERRUPT);
-}
+void load_table(const table &target) { target.load(); }
 
-void set_trap_gate(u8 vector, handler handler_address) {
-    set_gate(vector, handler_address, GATE_TYPE_TRAP);
-}
+// =================================================================================================
+// Core component
+// =================================================================================================
 
-void set_user_trap_gate(u8 vector, handler handler_address) {
-    set_gate(vector, handler_address, GATE_TYPE_USER_TRAP);
-}
+bool core_component::init_component(kernel::arch::x86_64::cpu::local_state &cpu) {
+    init_table(cpu.idt);
 
-} // namespace kernel::arch::x86_64::idt
+    /*
+     * Do not load the IDT yet.
+     *
+     * The table is still empty until the exceptions core component installs
+     * exception gates.
+     */
+    return true;
+}
+}  // namespace kernel::arch::x86_64::idt

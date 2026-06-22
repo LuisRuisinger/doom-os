@@ -1,27 +1,33 @@
-#ifndef DOOM_OS_KERNEL_BOOT_BOOT_PLAN_HPP_
-#define DOOM_OS_KERNEL_BOOT_BOOT_PLAN_HPP_
+#ifndef DOOM_OS_KERNEL_ARCH_X86_64_CORE_INIT_HPP_
+#define DOOM_OS_KERNEL_ARCH_X86_64_CORE_INIT_HPP_
 
 // =================================================================================================
 // Kernel files
 // =================================================================================================
 
-#include "kernel/arch/x86_64/core_init.hpp"
-#include "kernel/arch/x86_64/serial.hpp"
+#include "kernel/arch/x86_64/cpu.hpp"
 #include "kernel/boot/component.hpp"
 
-namespace kernel::boot {
+namespace kernel::arch::x86_64::core_init {
 // =================================================================================================
-// Early boot
-// =================================================================================================
-
-using early_boot_roots = type_list<kernel::arch::x86_64::serial::component>;
-
-// =================================================================================================
-// Main boot
+// Core initialization
 // =================================================================================================
 
-using boot_roots = type_list<kernel::arch::x86_64::core_init::component>;
+bool init_core(cpu::local_state &cpu);
 
-}  // namespace kernel::boot
+bool init_bsp();
 
-#endif  // DOOM_OS_KERNEL_BOOT_BOOT_PLAN_HPP_
+// =================================================================================================
+// Component
+// =================================================================================================
+
+struct component
+    : kernel::boot::component_base<component,
+                                   kernel::boot::type_list<kernel::arch::x86_64::cpu::component> > {
+    static constexpr const char *name = "CORE_INIT";
+
+    static bool init_component() { return init_bsp(); }
+};
+}  // namespace kernel::arch::x86_64::core_init
+
+#endif  // DOOM_OS_KERNEL_ARCH_X86_64_CORE_INIT_HPP_

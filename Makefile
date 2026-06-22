@@ -1,4 +1,5 @@
 # DoomOS Makefile
+# Assumes this is run inside the Dev Container / toolchain environment.
 
 TARGET      := x86_64-elf
 CROSS       := $(TARGET)-
@@ -15,8 +16,6 @@ ISO         := $(BUILD)/DoomOS.iso
 
 LINKER      := config/linker.ld
 GRUB_CFG    := config/grub.cfg
-
-DOCKER_IMAGE ?= doom-os-toolchain:latest
 
 # =================================================================================================
 # Flags
@@ -55,6 +54,12 @@ LDFLAGS := \
 LIBS := \
 	-lgcc
 
+QEMUFLAGS := \
+	-cdrom $(ISO) \
+	-serial stdio \
+	-no-reboot \
+	-no-shutdown
+
 # =================================================================================================
 # Sources
 # =================================================================================================
@@ -65,24 +70,6 @@ CXX_SRCS := $(shell find kernel -name '*.cpp' | sort)
 OBJS := \
 	$(patsubst %.S,$(BUILD)/%.o,$(ASM_SRCS)) \
 	$(patsubst %.cpp,$(BUILD)/%.o,$(CXX_SRCS))
-
-# =================================================================================================
-# Docker
-# =================================================================================================
-
-DOCKER_RUN := docker run --rm \
-	--user "$$(id -u):$$(id -g)" \
-	-e HOME=/tmp \
-	-v "$(CURDIR):$(CURDIR)" \
-	-w "$(CURDIR)" \
-	$(DOCKER_IMAGE)
-
-DOCKER_RUN_IT := docker run --rm -it \
-	--user "$$(id -u):$$(id -g)" \
-	-e HOME=/tmp \
-	-v "$(CURDIR):$(CURDIR)" \
-	-w "$(CURDIR)" \
-	$(DOCKER_IMAGE)
 
 # =================================================================================================
 # Default targets
@@ -129,27 +116,15 @@ check-multiboot2: $(KERNEL_ELF)
 	@echo "Multiboot2 header OK"
 
 run: iso
-	qemu-system-x86_64 \
-		-cdrom $(ISO) \
-		-serial stdio \
-		-no-reboot \
-		-no-shutdown
+	qemu-system-x86_64 $(QEMUFLAGS)
 
 debug: iso
-	qemu-system-x86_64 \
-		-cdrom $(ISO) \
-		-serial stdio \
-		-no-reboot \
-		-no-shutdown \
+	qemu-system-x86_64 $(QEMUFLAGS) \
 		-s \
 		-S
 
 qemu-log: iso
-	qemu-system-x86_64 \
-		-cdrom $(ISO) \
-		-serial stdio \
-		-no-reboot \
-		-no-shutdown \
+	qemu-system-x86_64 $(QEMUFLAGS) \
 		-d int,cpu_reset,guest_errors \
 		-D $(BUILD)/qemu.log
 
@@ -157,25 +132,12 @@ clean:
 	rm -rf $(BUILD)
 
 toolchain-check:
-	@command -v $(CC) >/dev/null || { echo "Missing $(CC). Use 'make docker-iso' or install the DoomOS cross toolchain."; exit 1; }
-	@command -v $(CXX) >/dev/null || { echo "Missing $(CXX). Use 'make docker-iso' or install the DoomOS cross toolchain."; exit 1; }
+	@command -v $(CC) >/dev/null || { echo "Missing $(CC). Open this project in the Dev Container or install the DoomOS cross toolchain."; exit 1; }
+	@command -v $(CXX) >/dev/null || { echo "Missing $(CXX). Open this project in the Dev Container or install the DoomOS cross toolchain."; exit 1; }
 
 compdb: toolchain-check
-	@command -v bear >/dev/null || { echo "Missing bear. Install it or use 'make docker-compdb'."; exit 1; }
+	@command -v bear >/dev/null || { echo "Missing bear. Open this project in the Dev Container or install bear."; exit 1; }
 	bear --output compile_commands.json -- $(MAKE) clean kernel
-
-# =================================================================================================
-# Docker targets
-# =================================================================================================
-
-docker-image:
-	docker build -t $(DOCKER_IMAGE) .
-
-docker-shell: docker-image
-	$(DOCKER_RUN_IT) bash
-
-docker-%: docker-image
-	$(DOCKER_RUN_IT) make $*
 
 # =================================================================================================
 # Phony targets
@@ -191,6 +153,4 @@ docker-%: docker-image
 	clean \
 	toolchain-check \
 	compdb \
-	check-multiboot2 \
-	docker-image \
-	docker-shell
+	check-multiboot2

@@ -3,10 +3,10 @@
 // =================================================================================================
 
 #include "kernel/debug/kpanic.hpp"
+
 #include "kernel/debug/kprint.hpp"
 
 namespace kernel::debug {
-
 // =================================================================================================
 // Halt
 // =================================================================================================
@@ -21,15 +21,14 @@ namespace kernel::debug {
 // Kernel panic
 // =================================================================================================
 
-[[noreturn]] void kpanic(const char* message) {
+[[noreturn]] void kpanic(const char *message) {
     KPRINTLN("[panic] {}", message);
     halt();
 }
 
-[[noreturn]] void kpanic_with_code(const char* message, u64 code) {
+[[noreturn]] void kpanic_with_code(const char *message, u64 code) {
     KPRINTLN("[panic] {}", message);
     KPRINTLN("[panic] code={:x}", code);
     halt();
 }
-
-} // namespace kernel::debug
+}  // namespace kernel::debug

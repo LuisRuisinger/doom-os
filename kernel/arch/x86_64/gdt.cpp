@@ -4,56 +4,36 @@
 
 #include "kernel/arch/x86_64/gdt.hpp"
 
-#include "kernel/core/types.hpp"
+#include "kernel/arch/x86_64/cpu.hpp"
 
 namespace kernel::arch::x86_64::gdt {
-
-using kernel::core::u8;
 using kernel::core::u16;
 using kernel::core::u32;
-using kernel::core::u64;
+using kernel::core::u8;
 
 // =================================================================================================
-// External assembly
+// Assembly
 // =================================================================================================
 
-extern "C" void gdt_load(const void* gdt_pointer, u16 code_selector, u16 data_selector);
+extern "C" void gdt_load(const void *gdt_pointer, u16 code_selector, u16 data_selector);
 
 // =================================================================================================
-// GDT structures
+// Descriptor constants
 // =================================================================================================
-
-struct [[gnu::packed]] descriptor {
-    u16 limit_low;
-    u16 base_low;
-    u8 base_mid;
-    u8 access;
-    u8 limit_high_flags;
-    u8 base_high;
-};
-
-struct [[gnu::packed]] pointer {
-    u16 limit;
-    u64 base;
-};
 
 static_assert(sizeof(descriptor) == 8);
 static_assert(sizeof(pointer) == 10);
 
-// =================================================================================================
-// GDT flags
-// =================================================================================================
-
-static constexpr u8 ACCESS_PRESENT    = 0x80;
-static constexpr u8 ACCESS_RING_0     = 0x00;
-static constexpr u8 ACCESS_RING_3     = 0x60;
+static constexpr u8 ACCESS_PRESENT = 0x80;
+static constexpr u8 ACCESS_RING_0 = 0x00;
+static constexpr u8 ACCESS_RING_3 = 0x60;
 static constexpr u8 ACCESS_DESCRIPTOR = 0x10;
 static constexpr u8 ACCESS_EXECUTABLE = 0x08;
 static constexpr u8 ACCESS_READ_WRITE = 0x02;
 
 static constexpr u8 FLAGS_GRANULARITY_4K = 0x80;
-static constexpr u8 FLAGS_32_BIT         = 0x40;
-static constexpr u8 FLAGS_64_BIT         = 0x20;
+static constexpr u8 FLAGS_32_BIT = 0x40;
+static constexpr u8 FLAGS_64_BIT = 0x20;
 
 static constexpr u32 FLAT_BASE = 0;
 static constexpr u32 FLAT_LIMIT = 0xFFFFF;
@@ -74,52 +54,64 @@ static constexpr descriptor make_descriptor(u32 base, u32 limit, u8 access, u8 f
 }
 
 // =================================================================================================
-// GDT storage
+// Table
 // =================================================================================================
 
-alignas(8) static descriptor gdt_entries[] = {
-    make_descriptor(0, 0, 0, 0),
+void table::init() {
+    for (u16 i = 0; i < ENTRY_COUNT; ++i) {
+        entries_[i] = make_descriptor(0, 0, 0, 0);
+    }
 
-    make_descriptor(
-        FLAT_BASE,
-        FLAT_LIMIT,
+    entries_[0] = make_descriptor(0, 0, 0, 0);
+
+    entries_[1] = make_descriptor(
+        FLAT_BASE, FLAT_LIMIT,
         ACCESS_PRESENT | ACCESS_RING_0 | ACCESS_DESCRIPTOR | ACCESS_EXECUTABLE | ACCESS_READ_WRITE,
-        FLAGS_GRANULARITY_4K | FLAGS_64_BIT
-    ),
+        FLAGS_GRANULARITY_4K | FLAGS_64_BIT);
 
-    make_descriptor(
-        FLAT_BASE,
-        FLAT_LIMIT,
-        ACCESS_PRESENT | ACCESS_RING_0 | ACCESS_DESCRIPTOR | ACCESS_READ_WRITE,
-        FLAGS_GRANULARITY_4K | FLAGS_32_BIT
-    ),
+    entries_[2] =
+        make_descriptor(FLAT_BASE, FLAT_LIMIT,
+                        ACCESS_PRESENT | ACCESS_RING_0 | ACCESS_DESCRIPTOR | ACCESS_READ_WRITE,
+                        FLAGS_GRANULARITY_4K | FLAGS_32_BIT);
 
-    make_descriptor(
-        FLAT_BASE,
-        FLAT_LIMIT,
-        ACCESS_PRESENT | ACCESS_RING_3 | ACCESS_DESCRIPTOR | ACCESS_READ_WRITE,
-        FLAGS_GRANULARITY_4K | FLAGS_32_BIT
-    ),
+    entries_[3] =
+        make_descriptor(FLAT_BASE, FLAT_LIMIT,
+                        ACCESS_PRESENT | ACCESS_RING_3 | ACCESS_DESCRIPTOR | ACCESS_READ_WRITE,
+                        FLAGS_GRANULARITY_4K | FLAGS_32_BIT);
 
-    make_descriptor(
-        FLAT_BASE,
-        FLAT_LIMIT,
+    entries_[4] = make_descriptor(
+        FLAT_BASE, FLAT_LIMIT,
         ACCESS_PRESENT | ACCESS_RING_3 | ACCESS_DESCRIPTOR | ACCESS_EXECUTABLE | ACCESS_READ_WRITE,
-        FLAGS_GRANULARITY_4K | FLAGS_64_BIT
-    ),
-};
+        FLAGS_GRANULARITY_4K | FLAGS_64_BIT);
 
-static pointer gdt_pointer{
-    .limit = static_cast<u16>(sizeof(gdt_entries) - 1),
-    .base = reinterpret_cast<u64>(&gdt_entries[0]),
-};
+    /*
+     * entries_[5] and entries_[6] are reserved for the future 64-bit TSS descriptor.
+     * A 64-bit TSS descriptor consumes two GDT slots.
+     */
 
-// =================================================================================================
-// Public API
-// =================================================================================================
-
-void init() {
-    gdt_load(&gdt_pointer, KERNEL_CODE_SELECTOR, KERNEL_DATA_SELECTOR);
+    pointer_ = pointer{
+        .limit = static_cast<u16>(sizeof(entries_) - 1),
+        .base = reinterpret_cast<kernel::core::u64>(&entries_[0]),
+    };
 }
 
-} // namespace kernel::arch::x86_64::gdt
+void table::load() const { gdt_load(&pointer_, KERNEL_CODE_SELECTOR, KERNEL_DATA_SELECTOR); }
+
+// =================================================================================================
+// GDT
+// =================================================================================================
+
+void init_table(table &target) { target.init(); }
+
+void load_table(const table &target) { target.load(); }
+
+// =================================================================================================
+// Core component
+// =================================================================================================
+
+bool core_component::init_component(kernel::arch::x86_64::cpu::local_state &cpu) {
+    init_table(cpu.gdt);
+    load_table(cpu.gdt);
+    return true;
+}
+}  // namespace kernel::arch::x86_64::gdt
