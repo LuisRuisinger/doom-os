@@ -5,6 +5,7 @@
 // Kernel files
 // =================================================================================================
 
+#include "kernel/arch/x86_64/tss.hpp"
 #include "kernel/boot/component.hpp"
 #include "kernel/core/types.hpp"
 
@@ -74,8 +75,9 @@ void load_table(const table &table);
 // Core component
 // =================================================================================================
 
-struct core_component
-    : kernel::boot::context_component_base<core_component, kernel::arch::x86_64::cpu::local_state> {
+struct core_component : kernel::boot::context_component_base<
+                            core_component, kernel::arch::x86_64::cpu::local_state,
+                            kernel::boot::type_list<kernel::arch::x86_64::tss::core_component> > {
     static constexpr const char *name = "GDT";
 
     static bool init_component(kernel::arch::x86_64::cpu::local_state &cpu);

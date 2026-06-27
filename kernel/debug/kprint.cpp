@@ -73,15 +73,9 @@ void backend_emit_hex_u64(u64 value) {
 
     arch::x86_64::serial::write("0x");
 
-    bool started = false;
-
     for (i32 shift = 60; shift >= 0; shift -= 4) {
         const u8 nibble = static_cast<u8>((value >> shift) & 0xFULL);
-
-        if (nibble != 0 || started || shift == 0) {
-            started = true;
-            arch::x86_64::serial::write_char(digits[nibble]);
-        }
+        arch::x86_64::serial::write_char(digits[nibble]);
     }
 }
 

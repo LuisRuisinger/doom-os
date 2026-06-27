@@ -54,6 +54,11 @@ struct [[gnu::packed]] pointer {
 };
 
 class table {
+    alignas(16) entry entries_[ENTRY_COUNT]{};
+    pointer pointer_{};
+
+    void set_gate(u8 vector, handler handler_address, u8 type_attributes, u8 ist);
+
    public:
     void init();
 
@@ -64,12 +69,6 @@ class table {
     void set_trap_gate(u8 vector, handler handler_address, u8 ist = 0);
 
     void set_user_trap_gate(u8 vector, handler handler_address, u8 ist = 0);
-
-   private:
-    void set_gate(u8 vector, handler handler_address, u8 type_attributes, u8 ist);
-
-    alignas(16) entry entries_[ENTRY_COUNT]{};
-    pointer pointer_{};
 };
 
 // =================================================================================================

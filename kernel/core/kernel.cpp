@@ -5,6 +5,7 @@
 #include "kernel/boot/boot_plan.hpp"
 #include "kernel/boot/init.hpp"
 #include "kernel/core/types.hpp"
+#include "kernel/debug/kpanic.hpp"
 #include "kernel/debug/kprint.hpp"
 
 namespace kernel::core {
@@ -32,8 +33,9 @@ void kernel_main64(u64 mb2_magic [[maybe_unused]], u64 mb2_info [[maybe_unused]]
     // KPRINTLN("[boot] mb2_info={:x}", mb2_info);
 
     kernel::boot::run_init_graph_or_halt<kernel::boot::boot_roots>();
-    KPRINTLN("\n{}", BOOT_BANNER);
+    // KPRINTLN("\n{}", BOOT_BANNER);
 
+    KPANIC();
     for (;;) {
         asm volatile("hlt");
     }
