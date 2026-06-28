@@ -2,6 +2,7 @@
 #define DOOM_OS_KERNEL_CORE_TYPE_TRAITS_HPP_
 
 namespace kernel::core {
+
 // =================================================================================================
 // integral_constant
 // =================================================================================================
@@ -33,6 +34,65 @@ struct is_same<T, T> : true_type {};
 
 template <typename A, typename B>
 inline constexpr bool is_same_v = is_same<A, B>::value;
+
+// =================================================================================================
+// enable_if_t
+// =================================================================================================
+
+template <bool Condition, typename T = void>
+struct enable_if {};
+
+template <typename T>
+struct enable_if<true, T> {
+    using type = T;
+};
+
+template <bool Pred, typename T = void>
+using enable_if_t = typename enable_if<Pred, T>::type;
+
+// =================================================================================================
+// Void type
+// =================================================================================================
+
+template <typename...>
+using void_T = void;
+
+// =================================================================================================
+// Is default constructible
+// =================================================================================================
+
+namespace detail {
+
+template <typename T, typename = void>
+struct is_default_constructible_impl : false_type {};
+
+template <typename T>
+struct is_default_constructible_impl<T, void_T<decltype(T())>> : true_type {};
+
+}  // namespace detail
+
+template <typename T>
+struct is_default_constructible : detail::is_default_constructible_impl<T> {};
+
+template <typename T>
+inline constexpr bool is_default_constructible_v = is_default_constructible<T>::value;
+
+// =================================================================================================
+// Conditional
+// =================================================================================================
+
+template <bool Condition, typename TrueType, typename FalseType>
+struct conditional {
+    using type = TrueType;
+};
+
+template <typename TrueType, typename FalseType>
+struct conditional<false, TrueType, FalseType> {
+    using type = FalseType;
+};
+
+template <bool Condition, typename TrueType, typename FalseType>
+using conditional_t = typename conditional<Condition, TrueType, FalseType>::type;
 
 // =================================================================================================
 // remove_reference
@@ -88,7 +148,7 @@ using remove_volatile_t = typename remove_volatile<T>::type;
 
 template <typename T>
 struct remove_cv {
-    using type = remove_volatile_t<remove_const_t<T> >;
+    using type = remove_volatile_t<remove_const_t<T>>;
 };
 
 template <typename T>
@@ -96,7 +156,7 @@ using remove_cv_t = typename remove_cv<T>::type;
 
 template <typename T>
 struct remove_cvref {
-    using type = remove_cv_t<remove_reference_t<T> >;
+    using type = remove_cv_t<remove_reference_t<T>>;
 };
 
 template <typename T>
@@ -169,7 +229,7 @@ template <>
 struct is_signed_integer_base<long long> : true_type {};
 
 template <typename T>
-struct is_signed_integer : is_signed_integer_base<remove_cvref_t<T> > {};
+struct is_signed_integer : is_signed_integer_base<remove_cvref_t<T>> {};
 
 template <typename T>
 inline constexpr bool is_signed_integer_v = is_signed_integer<T>::value;
@@ -193,13 +253,13 @@ template <>
 struct is_unsigned_integer_base<unsigned long long> : true_type {};
 
 template <typename T>
-struct is_unsigned_integer : is_unsigned_integer_base<remove_cvref_t<T> > {};
+struct is_unsigned_integer : is_unsigned_integer_base<remove_cvref_t<T>> {};
 
 template <typename T>
 inline constexpr bool is_unsigned_integer_v = is_unsigned_integer<T>::value;
 
 template <typename T>
-struct is_integer : integral_constant<bool, is_signed_integer_v<T> || is_unsigned_integer_v<T> > {};
+struct is_integer : integral_constant<bool, is_signed_integer_v<T> || is_unsigned_integer_v<T>> {};
 
 template <typename T>
 inline constexpr bool is_integer_v = is_integer<T>::value;
@@ -215,7 +275,7 @@ template <typename T>
 struct is_pointer_base<T *> : true_type {};
 
 template <typename T>
-struct is_pointer : is_pointer_base<remove_cv_t<T> > {};
+struct is_pointer : is_pointer_base<remove_cv_t<T>> {};
 
 template <typename T>
 inline constexpr bool is_pointer_v = is_pointer<T>::value;

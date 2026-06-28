@@ -6,54 +6,9 @@
 // =================================================================================================
 
 #include "kernel/boot/component.hpp"
+#include "kernel/utils/traits.hpp"
 
 namespace kernel::boot::detail {
-// =================================================================================================
-// Integral constant
-// =================================================================================================
-
-template <typename T, T Value>
-struct integral_constant {
-    static constexpr T value = Value;
-
-    using value_type = T;
-    using type = integral_constant<T, Value>;
-
-    constexpr operator value_type() const noexcept { return value; }
-};
-
-using true_type = integral_constant<bool, true>;
-using false_type = integral_constant<bool, false>;
-
-// =================================================================================================
-// Is same
-// =================================================================================================
-
-template <typename A, typename B>
-struct is_same : false_type {};
-
-template <typename A>
-struct is_same<A, A> : true_type {};
-
-template <typename A, typename B>
-inline constexpr bool is_same_v = is_same<A, B>::value;
-
-// =================================================================================================
-// Conditional
-// =================================================================================================
-
-template <bool Condition, typename TrueType, typename FalseType>
-struct conditional {
-    using type = TrueType;
-};
-
-template <typename TrueType, typename FalseType>
-struct conditional<false, TrueType, FalseType> {
-    using type = FalseType;
-};
-
-template <bool Condition, typename TrueType, typename FalseType>
-using conditional_t = typename conditional<Condition, TrueType, FalseType>::type;
 
 // =================================================================================================
 // Type list helpers
@@ -70,7 +25,7 @@ struct list_contains<T, type_list<> > {
 template <typename T, typename Head, typename... Tail>
 struct list_contains<T, type_list<Head, Tail...> > {
     static constexpr bool value =
-        is_same_v<T, Head> || list_contains<T, type_list<Tail...> >::value;
+        kernel::core::is_same_v<T, Head> || list_contains<T, type_list<Tail...> >::value;
 };
 
 template <typename List, typename T>
@@ -83,8 +38,8 @@ struct list_append<type_list<Ts...>, T> {
 
 template <typename List, typename T>
 struct list_append_unique {
-    using type =
-        conditional_t<list_contains<T, List>::value, List, typename list_append<List, T>::type>;
+    using type = kernel::core::conditional_t<list_contains<T, List>::value, List,
+                                             typename list_append<List, T>::type>;
 };
 
 template <typename A, typename B>

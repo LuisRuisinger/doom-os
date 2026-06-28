@@ -2,7 +2,7 @@
 
 #include "kernel/arch/x86_64/io.hpp"
 #include "kernel/core/types.hpp"
-#include "kernel/core/utils/bits.hpp"
+#include "kernel/utils/bits.hpp"
 
 namespace kernel::arch::x86_64::serial {
 using kernel::core::u16;
@@ -60,9 +60,7 @@ void init() {
 bool can_write() { return (inb(LINE_STATUS) & LINE_STATUS_TX_EMPTY) != 0; }
 
 void write_char(char c) {
-    while (!can_write()) {
-        asm volatile("pause");
-    }
+    while (!can_write()) asm volatile("pause");
 
     outb(DATA_PORT, static_cast<u8>(c));
 }
@@ -74,12 +72,12 @@ void write(const char *s) {
     }
 
     while (*s != '\0') {
-        if (*s == '\n') {
+        if (*s == '\n')
             write_char('\r');
-        }
 
         write_char(*s);
         ++s;
     }
 }
+
 }  // namespace kernel::arch::x86_64::serial

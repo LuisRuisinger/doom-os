@@ -74,7 +74,6 @@ enum class cpu_register : u32 {
 };
 
 static constexpr usize CPU_REGISTER_COUNT = static_cast<usize>(cpu_register::COUNT);
-
 using cpu_register_reader = u64 (*)();
 
 struct cpu_register_descriptor {
@@ -91,11 +90,9 @@ struct cpu_register_value {
 
 extern const cpu_register_descriptor cpu_register_descriptors[CPU_REGISTER_COUNT];
 
-u64 read_current_register(cpu_register reg);
-
+u64         read_current_register(cpu_register reg);
 const char *cpu_register_name(cpu_register reg);
-
-usize read_current_registers(cpu_register_value *out, usize capacity);
+usize       read_current_registers(cpu_register_value *out, usize capacity);
 
 // =================================================================================================
 // CPU-local stack descriptor
@@ -147,20 +144,25 @@ struct local_state {
 // CPU state storage
 // =================================================================================================
 
-void init_bsp();
-
+void         init_bsp();
 local_state &bsp();
-
 local_state *get(u32 logical_id);
+u32          online_count();
 
-u32 online_count();
+static inline void relax() {
+#if defined(__x86_64__) || defined(__i386__)
+    __builtin_ia32_pause();
+#else
+    asm volatile("" ::: "memory");
+#endif
+}
 
 // =================================================================================================
 // Component
 // =================================================================================================
 
 struct component : kernel::boot::component_base<component> {
-    static constexpr const char *name = "CPU";
+    static constexpr auto *name = "CPU";
 
     static bool init_component() {
         init_bsp();

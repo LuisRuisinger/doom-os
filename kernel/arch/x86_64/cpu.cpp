@@ -3,6 +3,7 @@
 // =================================================================================================
 
 #include "kernel/arch/x86_64/cpu.hpp"
+
 #include "kernel/sync/atomic.hpp"
 
 namespace kernel::arch::x86_64::cpu {
@@ -11,8 +12,8 @@ namespace kernel::arch::x86_64::cpu {
 // Storage
 // =================================================================================================
 
-static local_state bsp_state{};
-static kernel::sync::atomic<u32> current_online_count = 0;
+static local_state               bsp_state{};
+static kernel::sync::atomic<u32> current_online_count{};
 
 // =================================================================================================
 // CPU register readers
@@ -100,29 +101,20 @@ const cpu_register_descriptor cpu_register_descriptors[CPU_REGISTER_COUNT] = {
 };
 
 u64 read_current_register(cpu_register reg) {
-    const usize index = static_cast<usize>(reg);
+    const auto index = static_cast<usize>(reg);
 
-    if (index >= CPU_REGISTER_COUNT) {
-        return 0;
-    }
-
-    return cpu_register_descriptors[index].read();
+    return index < CPU_REGISTER_COUNT ? cpu_register_descriptors[index].read() : 0;
 }
 
 const char *cpu_register_name(cpu_register reg) {
-    const usize index = static_cast<usize>(reg);
+    const auto index = static_cast<usize>(reg);
 
-    if (index >= CPU_REGISTER_COUNT) {
-        return "unknown";
-    }
-
-    return cpu_register_descriptors[index].name;
+    return index < CPU_REGISTER_COUNT ? cpu_register_descriptors[index].name : "unknown";
 }
 
 usize read_current_registers(cpu_register_value *out, usize capacity) {
-    if (!out || capacity < CPU_REGISTER_COUNT) {
+    if (!out || capacity < CPU_REGISTER_COUNT)
         return CPU_REGISTER_COUNT;
-    }
 
     for (usize i = 0; i < CPU_REGISTER_COUNT; ++i) {
         const cpu_register_descriptor &descriptor = cpu_register_descriptors[i];

@@ -9,14 +9,19 @@
 #include "kernel/core/types.hpp"
 
 namespace kernel::arch::x86_64::cpu {
+
 struct local_state;
+
 }  // namespace kernel::arch::x86_64::cpu
 
 namespace kernel::arch::x86_64::gdt {
+
 struct core_component;
+
 }  // namespace kernel::arch::x86_64::gdt
 
 namespace kernel::arch::x86_64::idt {
+
 using kernel::core::u16;
 using kernel::core::u32;
 using kernel::core::u64;
@@ -61,13 +66,10 @@ class table {
 
    public:
     void init();
-
     void load() const;
 
     void set_interrupt_gate(u8 vector, handler handler_address, u8 ist = 0);
-
     void set_trap_gate(u8 vector, handler handler_address, u8 ist = 0);
-
     void set_user_trap_gate(u8 vector, handler handler_address, u8 ist = 0);
 };
 
@@ -76,7 +78,6 @@ class table {
 // =================================================================================================
 
 void init_table(table &table);
-
 void load_table(const table &table);
 
 // =================================================================================================
@@ -85,8 +86,8 @@ void load_table(const table &table);
 
 struct core_component : kernel::boot::context_component_base<
                             core_component, kernel::arch::x86_64::cpu::local_state,
-                            kernel::boot::type_list<kernel::arch::x86_64::gdt::core_component> > {
-    static constexpr const char *name = "IDT";
+                            kernel::boot::type_list<kernel::arch::x86_64::gdt::core_component>> {
+    static constexpr auto *name = "IDT";
 
     static bool init_component(kernel::arch::x86_64::cpu::local_state &cpu);
 };

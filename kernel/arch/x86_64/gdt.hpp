@@ -53,14 +53,13 @@ struct [[gnu::packed]] pointer {
 };
 
 class table {
+    alignas(8) descriptor entries_[ENTRY_COUNT]{};
+    pointer pointer_{};
+
    public:
     void init();
 
     void load() const;
-
-   private:
-    alignas(8) descriptor entries_[ENTRY_COUNT]{};
-    pointer pointer_{};
 };
 
 // =================================================================================================
@@ -68,7 +67,6 @@ class table {
 // =================================================================================================
 
 void init_table(table &table);
-
 void load_table(const table &table);
 
 // =================================================================================================
@@ -77,8 +75,8 @@ void load_table(const table &table);
 
 struct core_component : kernel::boot::context_component_base<
                             core_component, kernel::arch::x86_64::cpu::local_state,
-                            kernel::boot::type_list<kernel::arch::x86_64::tss::core_component> > {
-    static constexpr const char *name = "GDT";
+                            kernel::boot::type_list<kernel::arch::x86_64::tss::core_component>> {
+    static constexpr auto *name = "GDT";
 
     static bool init_component(kernel::arch::x86_64::cpu::local_state &cpu);
 };

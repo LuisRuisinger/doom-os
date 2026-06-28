@@ -81,23 +81,18 @@ struct stack_config {
 };
 
 class state {
+    segment layout_m{};
+
    public:
+    void init(const stack_config &config);
     void clear();
 
     bool set_privilege_stack(u8 privilege_level, u64 stack_top);
-
     bool set_interrupt_stack(interrupt_stack stack, u64 stack_top);
 
-    void init(const stack_config &config);
-
-    const segment &layout() const;
-
-    u64 base() const;
-
+    const segment       &layout() const;
+    u64                  base() const;
     static constexpr u16 limit() { return sizeof(segment) - 1; }
-
-   private:
-    segment layout_m{};
 };
 
 // =================================================================================================
@@ -106,7 +101,7 @@ class state {
 
 struct core_component
     : kernel::boot::context_component_base<core_component, kernel::arch::x86_64::cpu::local_state> {
-    static constexpr const char *name = "TSS";
+    static constexpr auto *name = "TSS";
 
     static bool init_component(kernel::arch::x86_64::cpu::local_state &cpu);
 };

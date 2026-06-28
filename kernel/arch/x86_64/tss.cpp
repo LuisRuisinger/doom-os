@@ -3,8 +3,8 @@
 // =================================================================================================
 
 #include "kernel/arch/x86_64/tss.hpp"
-#include "kernel/arch/x86_64/cpu.hpp"
 
+#include "kernel/arch/x86_64/cpu.hpp"
 
 namespace kernel::arch::x86_64::tss {
 

@@ -2,7 +2,7 @@
 #define DOOM_OS_KERNEL_DEBUG_KPRINT_HPP_
 
 #include "kernel/core/types.hpp"
-#include "kernel/core/utils/traits.hpp"
+#include "kernel/utils/traits.hpp"
 
 namespace kernel::debug {
 namespace detail {
