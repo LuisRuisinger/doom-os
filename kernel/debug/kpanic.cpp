@@ -47,17 +47,16 @@ static void dump_panic_registers(const panic_register_frame &r) {
                          const char *function) noexcept {
     asm volatile("cli" ::: "memory");
 
-    if (message) {
-        KPRINTLN("[panic] {}", message);
-    }
+    static constexpr auto *panic_prefix = "\x1b[1;31m[panic]\x1b[0m";
+    if (message)
+        KPRINTLN("{} {}", panic_prefix, message);
 
-    KPRINTLN("[panic] at {}:{} in {}", file, line, function);
+    KPRINTLN("{} at {}:{} in {}", panic_prefix, file, line, function);
 
-    if (frame) {
+    if (frame)
         dump_panic_registers(*static_cast<const panic_register_frame *>(frame));
-    }
 
-    KPRINTLN("[panic] halt");
+    KPRINTLN("{} halt", panic_prefix);
     halt();
 }
 

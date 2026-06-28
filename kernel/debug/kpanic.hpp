@@ -107,14 +107,14 @@ struct panic_register_frame {
 
 #define KPANIC_0()                                                                      \
     do {                                                                                \
-        ::kernel::debug::panic_register_frame __panic_frame;                            \
+        ::kernel::debug::panic_register_frame __panic_frame{};                          \
         DOOM_OS_KPANIC_CAPTURE();                                                       \
         ::kernel::debug::kpanic(nullptr, &__panic_frame, __FILE__, __LINE__, __func__); \
     } while (0)
 
 #define KPANIC_1(message)                                                                 \
     do {                                                                                  \
-        ::kernel::debug::panic_register_frame __panic_frame;                              \
+        ::kernel::debug::panic_register_frame __panic_frame{};                            \
         DOOM_OS_KPANIC_CAPTURE();                                                         \
         ::kernel::debug::kpanic((message), &__panic_frame, __FILE__, __LINE__, __func__); \
     } while (0)

@@ -1,4 +1,5 @@
 #include "kernel/arch/x86_64/serial/serial.hpp"
+
 #include "kernel/arch/x86_64/serial/io.hpp"
 #include "kernel/core/types.hpp"
 #include "kernel/utils/bits.hpp"

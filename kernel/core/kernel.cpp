@@ -7,20 +7,23 @@
 #include "kernel/core/types.hpp"
 #include "kernel/debug/kpanic.hpp"
 #include "kernel/debug/kprint.hpp"
+#include "kernel/runtime/init.hpp"
 
 namespace kernel::core {
-static constexpr auto *BOOT_BANNER =
-    R"banner(
-============================================================
-  DDDDD    OOOOO    OOOOO   MM     MM   OOOOO    SSSSS
-  DD  DD  OO   OO  OO   OO  MMM   MMM  OO   OO  SS
-  DD  DD  OO   OO  OO   OO  MM M M MM  OO   OO   SSSS
-  DD  DD  OO   OO  OO   OO  MM  M  MM  OO   OO      SS
-  DDDDD    OOOOO    OOOOO   MM     MM   OOOOO   SSSSS
 
-                    DoomOS kernel
-============================================================
-)banner";
+struct base {
+    virtual void f() = 0;
+    virtual ~base();
+};
+
+struct derived : base {
+    void f() override {}
+    ~derived() override = default;
+};
+
+[[gnu::noinline]] static void call_virtual(base *object) { object->f(); }
+
+base::~base() { call_virtual(this); }
 
 // =================================================================================================
 // Kernel longmode entry point
@@ -28,18 +31,14 @@ static constexpr auto *BOOT_BANNER =
 
 void kernel_main64(u64 mb2_magic [[maybe_unused]], u64 mb2_info [[maybe_unused]]) {
     kernel::boot::run_init_graph_silent<kernel::boot::early_boot_roots>();
-    KPRINTLN("kernel boot");
-    // KPRINTLN("[boot] mb2_magic={:x}", mb2_magic);
-    // KPRINTLN("[boot] mb2_info={:x}", mb2_info);
+    KPRINTLN("KERNEL BOOT");
 
+    kernel::runtime::call_global_constructors();
     kernel::boot::run_init_graph_or_halt<kernel::boot::boot_roots>();
-    // KPRINTLN("\n{}", BOOT_BANNER);
 
     KPANIC();
-    for (;;) {
-        asm volatile("hlt");
-    }
 }
+
 }  // namespace kernel::core
 
 // =================================================================================================

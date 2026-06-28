@@ -10,6 +10,7 @@
 #include <stdint.h>  // uint8_t, uint16_t, uint32_t, uint64_t
 
 namespace kernel::core {
+
 using u8 = uint8_t;
 using u16 = uint16_t;
 using u32 = uint32_t;
@@ -28,6 +29,7 @@ using iptr = intptr_t;
 
 using paddr_t = u64;
 using vaddr_t = u64;
+
 }  // namespace kernel::core
 
 #endif  // DOOM_OS_KERNEL_CORE_TYPES_HPP_
