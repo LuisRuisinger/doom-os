@@ -4,7 +4,7 @@
 
 #include "kernel/debug/kpanic.hpp"
 
-#include "kernel/arch/x86_64/cpu.hpp"
+#include "../arch/x86_64/cpu/cpu.hpp"
 #include "kernel/debug/kprint.hpp"
 
 namespace kernel::debug {

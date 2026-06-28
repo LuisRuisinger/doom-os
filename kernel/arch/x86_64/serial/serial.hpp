@@ -1,6 +1,10 @@
 #ifndef DOOM_OS_KERNEL_ARCH_X86_64_SERIAL_HPP_
 #define DOOM_OS_KERNEL_ARCH_X86_64_SERIAL_HPP_
 
+// =================================================================================================
+// Kernel files
+// =================================================================================================
+
 #include "kernel/boot/component.hpp"
 
 namespace kernel::arch::x86_64::serial {

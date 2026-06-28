@@ -5,8 +5,8 @@
 // Kernel files
 // =================================================================================================
 
-#include "kernel/arch/x86_64/gdt.hpp"
-#include "kernel/arch/x86_64/idt.hpp"
+#include "gdt/gdt.hpp"
+#include "idt/idt.hpp"
 #include "kernel/boot/component.hpp"
 
 namespace kernel::arch::x86_64::core_plan {

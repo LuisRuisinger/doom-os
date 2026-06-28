@@ -5,7 +5,7 @@
 // Kernel files
 // =================================================================================================
 
-#include "kernel/arch/x86_64/cpu.hpp"
+#include "cpu/cpu.hpp"
 #include "kernel/boot/component.hpp"
 
 namespace kernel::arch::x86_64::core_init {

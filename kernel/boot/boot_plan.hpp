@@ -5,8 +5,8 @@
 // Kernel files
 // =================================================================================================
 
+#include "../arch/x86_64/serial/serial.hpp"
 #include "kernel/arch/x86_64/core_init.hpp"
-#include "kernel/arch/x86_64/serial.hpp"
 #include "kernel/boot/component.hpp"
 
 namespace kernel::boot {

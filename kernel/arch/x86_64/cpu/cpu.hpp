@@ -5,9 +5,9 @@
 // Kernel files
 // =================================================================================================
 
-#include "kernel/arch/x86_64/gdt.hpp"
-#include "kernel/arch/x86_64/idt.hpp"
-#include "kernel/arch/x86_64/tss.hpp"
+#include "../gdt/gdt.hpp"
+#include "../idt/idt.hpp"
+#include "../tss/tss.hpp"
 #include "kernel/boot/component.hpp"
 #include "kernel/core/types.hpp"
 

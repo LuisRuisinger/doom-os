@@ -1,10 +1,10 @@
-#include "kernel/arch/x86_64/serial.hpp"
-
-#include "kernel/arch/x86_64/io.hpp"
+#include "kernel/arch/x86_64/serial/serial.hpp"
+#include "kernel/arch/x86_64/serial/io.hpp"
 #include "kernel/core/types.hpp"
 #include "kernel/utils/bits.hpp"
 
 namespace kernel::arch::x86_64::serial {
+
 using kernel::core::u16;
 using kernel::core::u32;
 using kernel::core::u8;

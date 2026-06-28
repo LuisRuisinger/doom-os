@@ -2,9 +2,9 @@
 // Kernel files
 // =================================================================================================
 
-#include "kernel/arch/x86_64/gdt.hpp"
+#include "gdt.hpp"
 
-#include "kernel/arch/x86_64/cpu.hpp"
+#include "../cpu/cpu.hpp"
 
 namespace kernel::arch::x86_64::gdt {
 using kernel::core::u16;

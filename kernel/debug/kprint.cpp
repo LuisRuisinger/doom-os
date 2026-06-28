@@ -1,6 +1,6 @@
 #include "kernel/debug/kprint.hpp"
 
-#include "kernel/arch/x86_64/serial.hpp"
+#include "../arch/x86_64/serial/serial.hpp"
 
 namespace kernel::debug {
 namespace detail {

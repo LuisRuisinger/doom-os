@@ -5,7 +5,7 @@
 // Kernel files
 // =================================================================================================
 
-#include "kernel/arch/x86_64/tss.hpp"
+#include "../tss/tss.hpp"
 #include "kernel/boot/component.hpp"
 #include "kernel/core/types.hpp"
 

@@ -2,9 +2,9 @@
 // Kernel files
 // =================================================================================================
 
-#include "kernel/arch/x86_64/tss.hpp"
+#include "kernel/arch/x86_64/tss/tss.hpp"
 
-#include "kernel/arch/x86_64/cpu.hpp"
+#include "kernel/arch/x86_64/cpu/cpu.hpp"
 
 namespace kernel::arch::x86_64::tss {
 

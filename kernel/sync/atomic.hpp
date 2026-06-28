@@ -5,7 +5,6 @@
 // Kernel files
 // =================================================================================================
 
-#include "kernel/arch/x86_64/atomic.hpp"
 #include "kernel/core/types.hpp"
 #include "kernel/utils/traits.hpp"
 
@@ -22,12 +21,12 @@ using kernel::core::u8;
 // =================================================================================================
 
 enum class memory_order : u8 {
-    RELAXED,
-    CONSUME,
-    ACQUIRE,
-    RELEASE,
-    ACQ_REL,
-    SEQ_CST,
+    RELAXED = __ATOMIC_RELAXED,
+    CONSUME = __ATOMIC_CONSUME,
+    ACQUIRE = __ATOMIC_ACQUIRE,
+    RELEASE = __ATOMIC_RELEASE,
+    ACQ_REL = __ATOMIC_ACQ_REL,
+    SEQ_CST = __ATOMIC_SEQ_CST,
 };
 
 // =================================================================================================
@@ -36,66 +35,38 @@ enum class memory_order : u8 {
 
 namespace detail {
 
-constexpr kernel::arch::x86_64::atomic::memory_order to_arch_order(memory_order order) {
-    using arch_order = kernel::arch::x86_64::atomic::memory_order;
+constexpr int to_builtin_order(memory_order order) { return static_cast<int>(order); }
 
+constexpr int to_load_order(memory_order order) {
     switch (order) {
         case memory_order::RELAXED:
-            return arch_order::RELAXED;
         case memory_order::CONSUME:
-            return arch_order::CONSUME;
         case memory_order::ACQUIRE:
-            return arch_order::ACQUIRE;
-        case memory_order::RELEASE:
-            return arch_order::RELEASE;
-        case memory_order::ACQ_REL:
-            return arch_order::ACQ_REL;
         case memory_order::SEQ_CST:
-            return arch_order::SEQ_CST;
+            return to_builtin_order(order);
+
+        case memory_order::RELEASE:
+        case memory_order::ACQ_REL:
+            return __ATOMIC_SEQ_CST;
     }
 
-    return arch_order::SEQ_CST;
+    return __ATOMIC_SEQ_CST;
 }
 
-constexpr kernel::arch::x86_64::atomic::memory_order to_arch_load_order(memory_order order) {
-    using arch_order = kernel::arch::x86_64::atomic::memory_order;
-
+constexpr int to_store_order(memory_order order) {
     switch (order) {
         case memory_order::RELAXED:
-            return arch_order::RELAXED;
-        case memory_order::CONSUME:
-            return arch_order::CONSUME;
-        case memory_order::ACQUIRE:
-            return arch_order::ACQUIRE;
-        case memory_order::SEQ_CST:
-            return arch_order::SEQ_CST;
-
         case memory_order::RELEASE:
-        case memory_order::ACQ_REL:
-            return arch_order::SEQ_CST;
-    }
-
-    return arch_order::SEQ_CST;
-}
-
-constexpr kernel::arch::x86_64::atomic::memory_order to_arch_store_order(memory_order order) {
-    using arch_order = kernel::arch::x86_64::atomic::memory_order;
-
-    switch (order) {
-        case memory_order::RELAXED:
-            return arch_order::RELAXED;
-        case memory_order::RELEASE:
-            return arch_order::RELEASE;
         case memory_order::SEQ_CST:
-            return arch_order::SEQ_CST;
+            return to_builtin_order(order);
 
         case memory_order::CONSUME:
         case memory_order::ACQUIRE:
         case memory_order::ACQ_REL:
-            return arch_order::SEQ_CST;
+            return __ATOMIC_SEQ_CST;
     }
 
-    return arch_order::SEQ_CST;
+    return __ATOMIC_SEQ_CST;
 }
 
 constexpr memory_order default_failure_order(memory_order success_order) {
@@ -117,45 +88,29 @@ constexpr memory_order default_failure_order(memory_order success_order) {
     return memory_order::SEQ_CST;
 }
 
-constexpr kernel::arch::x86_64::atomic::memory_order to_arch_failure_order(memory_order order) {
-    using arch_order = kernel::arch::x86_64::atomic::memory_order;
-
+constexpr int to_failure_order(memory_order order) {
     switch (order) {
         case memory_order::RELAXED:
-            return arch_order::RELAXED;
         case memory_order::CONSUME:
-            return arch_order::CONSUME;
         case memory_order::ACQUIRE:
-            return arch_order::ACQUIRE;
         case memory_order::SEQ_CST:
-            return arch_order::SEQ_CST;
+            return to_builtin_order(order);
+
         case memory_order::RELEASE:
-            return arch_order::RELAXED;
+            return __ATOMIC_RELAXED;
         case memory_order::ACQ_REL:
-            return arch_order::ACQUIRE;
+            return __ATOMIC_ACQUIRE;
     }
 
-    return arch_order::SEQ_CST;
+    return __ATOMIC_SEQ_CST;
 }
 
 // =================================================================================================
 // Inline atomic storage
-// =================================================================================================
 //
 // The public atomic<T> supports object sizes from 1 to 8 bytes for now.
 // Non-power-of-two object sizes are stored in the next larger native atomic storage word.
-//
-// Examples:
-//   sizeof(T) == 1 -> u8
-//   sizeof(T) == 2 -> u16
-//   sizeof(T) == 3 -> u32
-//   sizeof(T) == 4 -> u32
-//   sizeof(T) == 5 -> u64
-//   sizeof(T) == 6 -> u64
-//   sizeof(T) == 7 -> u64
-//   sizeof(T) == 8 -> u64
-//
-// Larger objects should later use a lock-backed fallback.
+// =================================================================================================
 
 template <u64 Size>
 struct inline_atomic_storage {
@@ -200,7 +155,10 @@ inline constexpr bool supports_atomic_object_ops_v = supports_atomic_object_ops<
 // =================================================================================================
 
 template <typename T>
-struct supports_arithmetic_ops : kernel::core::is_integer<T> {};
+struct supports_arithmetic_ops
+    : kernel::core::integral_constant<
+          bool, kernel::core::is_integer_v<T> &&
+                    !kernel::core::is_same_v<kernel::core::remove_cvref_t<T>, bool>> {};
 
 template <typename T>
 inline constexpr bool supports_arithmetic_ops_v = supports_arithmetic_ops<T>::value;
@@ -265,8 +223,6 @@ constexpr inline_atomic_storage_t<T> encode_atomic_value(T value) {
 
 template <typename T>
 constexpr T decode_atomic_value(inline_atomic_storage_t<T> storage) {
-    using storage_type = inline_atomic_storage_t<T>;
-
     if constexpr (supports_direct_storage_cast_v<T>) {
         return static_cast<T>(storage);
     } else {
@@ -277,22 +233,40 @@ constexpr T decode_atomic_value(inline_atomic_storage_t<T> storage) {
     }
 }
 
+template <typename T>
+constexpr T add_atomic_values(T lhs, T rhs) {
+    using storage_type = inline_atomic_storage_t<T>;
+
+    const storage_type lhs_storage = encode_atomic_value(lhs);
+    const storage_type rhs_storage = encode_atomic_value(rhs);
+
+    return decode_atomic_value<T>(static_cast<storage_type>(lhs_storage + rhs_storage));
+}
+
+template <typename T>
+constexpr T sub_atomic_values(T lhs, T rhs) {
+    using storage_type = inline_atomic_storage_t<T>;
+
+    const storage_type lhs_storage = encode_atomic_value(lhs);
+    const storage_type rhs_storage = encode_atomic_value(rhs);
+
+    return decode_atomic_value<T>(static_cast<storage_type>(lhs_storage - rhs_storage));
+}
+
 }  // namespace detail
 
 // =================================================================================================
 // Barriers
 // =================================================================================================
 
-inline void compiler_barrier() { kernel::arch::x86_64::atomic::compiler_barrier(); }
-
-inline void cpu_relax() { kernel::arch::x86_64::atomic::cpu_relax(); }
+inline void compiler_barrier() { asm volatile("" ::: "memory"); }
 
 inline void thread_fence(memory_order order = memory_order::SEQ_CST) {
-    kernel::arch::x86_64::atomic::thread_fence(detail::to_arch_order(order));
+    __atomic_thread_fence(detail::to_builtin_order(order));
 }
 
 inline void signal_fence(memory_order order = memory_order::SEQ_CST) {
-    kernel::arch::x86_64::atomic::signal_fence(detail::to_arch_order(order));
+    __atomic_signal_fence(detail::to_builtin_order(order));
 }
 
 // =================================================================================================
@@ -334,8 +308,7 @@ class atomic {
     explicit operator T() const { return load(); }
 
     T load(memory_order order = memory_order::SEQ_CST) const {
-        const storage_type storage =
-            kernel::arch::x86_64::atomic::load(&value_m, detail::to_arch_load_order(order));
+        const storage_type storage = __atomic_load_n(&value_m, detail::to_load_order(order));
 
         return detail::decode_atomic_value<T>(storage);
     }
@@ -343,13 +316,13 @@ class atomic {
     void store(T value, memory_order order = memory_order::SEQ_CST) {
         const storage_type storage = detail::encode_atomic_value(value);
 
-        kernel::arch::x86_64::atomic::store(&value_m, storage, detail::to_arch_store_order(order));
+        __atomic_store_n(&value_m, storage, detail::to_store_order(order));
     }
 
     T exchange(T value, memory_order order = memory_order::SEQ_CST) {
         const storage_type desired = detail::encode_atomic_value(value);
         const storage_type old =
-            kernel::arch::x86_64::atomic::exchange(&value_m, desired, detail::to_arch_order(order));
+            __atomic_exchange_n(&value_m, desired, detail::to_builtin_order(order));
 
         return detail::decode_atomic_value<T>(old);
     }
@@ -365,9 +338,9 @@ class atomic {
         storage_type       expected_storage = detail::encode_atomic_value(expected);
         const storage_type desired_storage = detail::encode_atomic_value(desired);
 
-        const bool exchanged = kernel::arch::x86_64::atomic::compare_exchange_strong(
-            &value_m, &expected_storage, desired_storage, detail::to_arch_order(success_order),
-            detail::to_arch_failure_order(failure_order));
+        const bool exchanged = __atomic_compare_exchange_n(
+            &value_m, &expected_storage, desired_storage, false,
+            detail::to_builtin_order(success_order), detail::to_failure_order(failure_order));
 
         if (!exchanged)
             expected = detail::decode_atomic_value<T>(expected_storage);
@@ -386,9 +359,9 @@ class atomic {
         storage_type       expected_storage = detail::encode_atomic_value(expected);
         const storage_type desired_storage = detail::encode_atomic_value(desired);
 
-        const bool exchanged = kernel::arch::x86_64::atomic::compare_exchange_weak(
-            &value_m, &expected_storage, desired_storage, detail::to_arch_order(success_order),
-            detail::to_arch_failure_order(failure_order));
+        const bool exchanged = __atomic_compare_exchange_n(
+            &value_m, &expected_storage, desired_storage, true,
+            detail::to_builtin_order(success_order), detail::to_failure_order(failure_order));
 
         if (!exchanged)
             expected = detail::decode_atomic_value<T>(expected_storage);
@@ -400,8 +373,8 @@ class atomic {
               kernel::core::enable_if_t<detail::supports_arithmetic_ops_v<U>, i32> = 0>
     T fetch_add(T value, memory_order order = memory_order::SEQ_CST) {
         const storage_type encoded_value = detail::encode_atomic_value(value);
-        const storage_type old = kernel::arch::x86_64::atomic::fetch_add(
-            &value_m, encoded_value, detail::to_arch_order(order));
+        const storage_type old =
+            __atomic_fetch_add(&value_m, encoded_value, detail::to_builtin_order(order));
 
         return detail::decode_atomic_value<T>(old);
     }
@@ -410,8 +383,8 @@ class atomic {
               kernel::core::enable_if_t<detail::supports_arithmetic_ops_v<U>, i32> = 0>
     T fetch_sub(T value, memory_order order = memory_order::SEQ_CST) {
         const storage_type encoded_value = detail::encode_atomic_value(value);
-        const storage_type old = kernel::arch::x86_64::atomic::fetch_sub(
-            &value_m, encoded_value, detail::to_arch_order(order));
+        const storage_type old =
+            __atomic_fetch_sub(&value_m, encoded_value, detail::to_builtin_order(order));
 
         return detail::decode_atomic_value<T>(old);
     }
@@ -420,8 +393,8 @@ class atomic {
               kernel::core::enable_if_t<detail::supports_arithmetic_ops_v<U>, i32> = 0>
     T fetch_and(T value, memory_order order = memory_order::SEQ_CST) {
         const storage_type encoded_value = detail::encode_atomic_value(value);
-        const storage_type old = kernel::arch::x86_64::atomic::fetch_and(
-            &value_m, encoded_value, detail::to_arch_order(order));
+        const storage_type old =
+            __atomic_fetch_and(&value_m, encoded_value, detail::to_builtin_order(order));
 
         return detail::decode_atomic_value<T>(old);
     }
@@ -430,8 +403,8 @@ class atomic {
               kernel::core::enable_if_t<detail::supports_arithmetic_ops_v<U>, i32> = 0>
     T fetch_or(T value, memory_order order = memory_order::SEQ_CST) {
         const storage_type encoded_value = detail::encode_atomic_value(value);
-        const storage_type old = kernel::arch::x86_64::atomic::fetch_or(
-            &value_m, encoded_value, detail::to_arch_order(order));
+        const storage_type old =
+            __atomic_fetch_or(&value_m, encoded_value, detail::to_builtin_order(order));
 
         return detail::decode_atomic_value<T>(old);
     }
@@ -440,8 +413,8 @@ class atomic {
               kernel::core::enable_if_t<detail::supports_arithmetic_ops_v<U>, i32> = 0>
     T fetch_xor(T value, memory_order order = memory_order::SEQ_CST) {
         const storage_type encoded_value = detail::encode_atomic_value(value);
-        const storage_type old = kernel::arch::x86_64::atomic::fetch_xor(
-            &value_m, encoded_value, detail::to_arch_order(order));
+        const storage_type old =
+            __atomic_fetch_xor(&value_m, encoded_value, detail::to_builtin_order(order));
 
         return detail::decode_atomic_value<T>(old);
     }
@@ -449,7 +422,7 @@ class atomic {
     template <typename U = T,
               kernel::core::enable_if_t<detail::supports_arithmetic_ops_v<U>, i32> = 0>
     T operator++() {
-        return fetch_add(static_cast<T>(1)) + static_cast<T>(1);
+        return detail::add_atomic_values(fetch_add(static_cast<T>(1)), static_cast<T>(1));
     }
 
     template <typename U = T,
@@ -461,7 +434,7 @@ class atomic {
     template <typename U = T,
               kernel::core::enable_if_t<detail::supports_arithmetic_ops_v<U>, i32> = 0>
     T operator--() {
-        return fetch_sub(static_cast<T>(1)) - static_cast<T>(1);
+        return detail::sub_atomic_values(fetch_sub(static_cast<T>(1)), static_cast<T>(1));
     }
 
     template <typename U = T,
@@ -473,31 +446,34 @@ class atomic {
     template <typename U = T,
               kernel::core::enable_if_t<detail::supports_arithmetic_ops_v<U>, i32> = 0>
     T operator+=(T value) {
-        return fetch_add(value) + value;
+        return detail::add_atomic_values(fetch_add(value), value);
     }
 
     template <typename U = T,
               kernel::core::enable_if_t<detail::supports_arithmetic_ops_v<U>, i32> = 0>
     T operator-=(T value) {
-        return fetch_sub(value) - value;
+        return detail::sub_atomic_values(fetch_sub(value), value);
     }
 
     template <typename U = T,
               kernel::core::enable_if_t<detail::supports_arithmetic_ops_v<U>, i32> = 0>
     T operator&=(T value) {
-        return fetch_and(value) & value;
+        return detail::decode_atomic_value<T>(static_cast<storage_type>(
+            detail::encode_atomic_value(fetch_and(value)) & detail::encode_atomic_value(value)));
     }
 
     template <typename U = T,
               kernel::core::enable_if_t<detail::supports_arithmetic_ops_v<U>, i32> = 0>
     T operator|=(T value) {
-        return fetch_or(value) | value;
+        return detail::decode_atomic_value<T>(static_cast<storage_type>(
+            detail::encode_atomic_value(fetch_or(value)) | detail::encode_atomic_value(value)));
     }
 
     template <typename U = T,
               kernel::core::enable_if_t<detail::supports_arithmetic_ops_v<U>, i32> = 0>
     T operator^=(T value) {
-        return fetch_xor(value) ^ value;
+        return detail::decode_atomic_value<T>(static_cast<storage_type>(
+            detail::encode_atomic_value(fetch_xor(value)) ^ detail::encode_atomic_value(value)));
     }
 };
 

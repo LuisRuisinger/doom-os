@@ -76,6 +76,33 @@ class spinlock_guard {
     spinlock_guard &operator=(spinlock_guard &&) = delete;
 };
 
+// =================================================================================================
+// Try spinlock guard
+// =================================================================================================
+
+class try_spinlock_guard {
+    spinlock &lock_m;
+    bool      locked_m{};
+
+   public:
+    explicit try_spinlock_guard(spinlock &lock) : lock_m(lock), locked_m(lock_m.try_lock()) {}
+
+    ~try_spinlock_guard() {
+        if (locked_m)
+            lock_m.unlock();
+    }
+
+    try_spinlock_guard(const try_spinlock_guard &) = delete;
+    try_spinlock_guard &operator=(const try_spinlock_guard &) = delete;
+
+    try_spinlock_guard(try_spinlock_guard &&) = delete;
+    try_spinlock_guard &operator=(try_spinlock_guard &&) = delete;
+
+    bool locked() const { return locked_m; }
+
+    explicit operator bool() const { return locked_m; }
+};
+
 }  // namespace kernel::sync
 
 #endif  // DOOM_OS_KERNEL_SYNC_SPINLOCK_HPP_
