@@ -11,20 +11,6 @@
 
 namespace kernel::core {
 
-struct base {
-    virtual void f() = 0;
-    virtual ~base();
-};
-
-struct derived : base {
-    void f() override {}
-    ~derived() override = default;
-};
-
-[[gnu::noinline]] static void call_virtual(base *object) { object->f(); }
-
-base::~base() { call_virtual(this); }
-
 // =================================================================================================
 // Kernel longmode entry point
 // =================================================================================================

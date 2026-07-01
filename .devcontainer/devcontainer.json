@@ -1,5 +1,6 @@
 {
   "name": "DoomOS",
+
   "build": {
     "context": "..",
     "dockerfile": "../Dockerfile",
@@ -10,18 +11,41 @@
       "GCC_VERSION": "15.3.0"
     }
   },
+
   "workspaceFolder": "/workspace/DoomOS",
   "workspaceMount": "source=${localWorkspaceFolder},target=/workspace/DoomOS,type=bind",
+
   "remoteUser": "root",
+
+  "overrideCommand": true,
+  "shutdownAction": "stopContainer",
+
   "runArgs": [
     "--init",
     "--cap-add=SYS_PTRACE",
     "--security-opt=seccomp=unconfined",
+    "--env=PATH=/opt/cross/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin",
     "--env=DISPLAY=${localEnv:DISPLAY}",
     "--volume=/tmp/.X11-unix:/tmp/.X11-unix:rw"
   ],
-  "mounts": [
-    "source=${localEnv:HOME}/.bashrc,target=/root/.bashrc,type=bind,readonly"
+
+  "forwardPorts": [
+    1234
   ],
-  "postCreateCommand": "x86_64-elf-gcc --version && x86_64-elf-g++ --version && grub-mkrescue --version && qemu-system-x86_64 --version"
+
+  "portsAttributes": {
+    "1234": {
+      "label": "QEMU GDB Stub",
+      "requireLocalPort": true,
+      "onAutoForward": "notify"
+    }
+  },
+
+  "containerEnv": {
+    "TARGET": "x86_64-elf",
+    "PREFIX": "/opt/cross",
+    "PATH": "/opt/cross/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin"
+  },
+
+  "postCreateCommand": "echo Devcontainer ready && echo PATH=$PATH && command -v sleep && command -v x86_64-elf-gcc && command -v x86_64-elf-g++ && command -v grub-file && command -v grub-mkrescue && command -v qemu-system-x86_64 && command -v gdb"
 }
