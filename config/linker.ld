@@ -5,10 +5,16 @@ ENTRY(_start32)
 KERNEL_LMA = 0x00100000;
 KERNEL_VMA = 0xffffffff80000000;
 
+PF_X = 0x1;
+PF_W = 0x2;
+PF_R = 0x4;
+
 PHDRS
 {
-    boot   PT_LOAD FLAGS(0x7);
-    kernel PT_LOAD FLAGS(0x7);
+    boot   PT_LOAD FLAGS(PF_R | PF_W | PF_X);
+    text   PT_LOAD FLAGS(PF_R | PF_X);
+    rodata PT_LOAD FLAGS(PF_R);
+    data   PT_LOAD FLAGS(PF_R | PF_W);
 }
 
 SECTIONS
@@ -19,6 +25,8 @@ SECTIONS
 
     .boot ALIGN(4K) : AT(ADDR(.boot))
     {
+        . = ALIGN(8);
+
         KEEP(*(.multiboot2))
 
         *(.boot.text .boot.text.*)
@@ -44,19 +52,25 @@ SECTIONS
     {
         *(.text .text.*)
         *(.gnu.linkonce.t.*)
-    } :kernel
+    } :text
 
     .rodata ALIGN(4K) : AT(ADDR(.rodata) - KERNEL_VMA)
     {
         *(.rodata .rodata.*)
         *(.gnu.linkonce.r.*)
-    } :kernel
+    } :rodata
 
+    /*
+     * Keep these writable for now.
+     * They are often logically read-only after relocation/init,
+     * but for a freestanding kernel bring-up it is safer not to
+     * make them R-only yet.
+     */
     .data.rel.ro ALIGN(4K) : AT(ADDR(.data.rel.ro) - KERNEL_VMA)
     {
         *(.data.rel.ro .data.rel.ro.*)
         *(.data.rel.ro.local .data.rel.ro.local.*)
-    } :kernel
+    } :data
 
     .init_array ALIGN(8) : AT(ADDR(.init_array) - KERNEL_VMA)
     {
@@ -64,7 +78,7 @@ SECTIONS
         KEEP(*(SORT_BY_INIT_PRIORITY(.init_array.*)))
         KEEP(*(.init_array))
         __init_array_end = .;
-    } :kernel
+    } :data
 
     .fini_array ALIGN(8) : AT(ADDR(.fini_array) - KERNEL_VMA)
     {
@@ -72,13 +86,16 @@ SECTIONS
         KEEP(*(SORT_BY_INIT_PRIORITY(.fini_array.*)))
         KEEP(*(.fini_array))
         __fini_array_end = .;
-    } :kernel
+    } :data
 
     .data ALIGN(4K) : AT(ADDR(.data) - KERNEL_VMA)
     {
         *(.data .data.*)
         *(.gnu.linkonce.d.*)
-    } :kernel
+
+        *(.got .got.*)
+        *(.got.plt .got.plt.*)
+    } :data
 
     .bss ALIGN(4K) : AT(ADDR(.bss) - KERNEL_VMA)
     {
@@ -89,7 +106,7 @@ SECTIONS
         *(.gnu.linkonce.b.*)
 
         __bss_end = .;
-    } :kernel
+    } :data
 
     . = ALIGN(4K);
     kernel_end = .;
@@ -103,5 +120,6 @@ SECTIONS
         *(.eh_frame_hdr)
         *(.comment)
         *(.note .note.*)
+        *(.note.GNU-stack)
     }
 }

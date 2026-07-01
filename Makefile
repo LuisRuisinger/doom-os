@@ -1,129 +1,156 @@
 # DoomOS Makefile
-# Run inside the Dev Container.
+# Assumes this is run inside the Dev Container / toolchain environment.
 
-TARGET := x86_64-elf
-CROSS  := $(TARGET)-
+TARGET      := x86_64-elf
+CROSS       := $(TARGET)-
 
-CXX  := $(CROSS)g++
-AS   := $(CROSS)gcc
-QEMU := qemu-system-x86_64
-GDB  ?= gdb
+CXX         := $(CROSS)g++
+CC          := $(CROSS)gcc
+AS          := $(CROSS)gcc
 
-BUILD   := build
-ISO_DIR := $(BUILD)/iso
+BUILD       := build
+ISO_DIR     := $(BUILD)/iso
 
-KERNEL := $(BUILD)/kernel.elf
-ISO    := $(BUILD)/DoomOS.iso
+KERNEL_ELF  := $(BUILD)/kernel.elf
+ISO         := $(BUILD)/DoomOS.iso
 
-LINKER   := config/linker.ld
-GRUB_CFG := config/grub.cfg
+LINKER      := config/linker.ld
+GRUB_CFG    := config/grub.cfg
 
-GDB_HOST ?= 127.0.0.1
-GDB_PORT ?= 1234
+# =================================================================================================
+# Flags
+# =================================================================================================
+
+INCLUDES := \
+	-I$(CURDIR)
+
+CXXFLAGS := \
+	-std=c++20 \
+	-ffreestanding \
+	-fno-exceptions \
+	-fno-rtti \
+	-fno-stack-protector \
+	-fno-use-cxa-atexit \
+	-fno-threadsafe-statics \
+	-mno-red-zone \
+	-mcmodel=kernel \
+	-nostdlib \
+	-Wall \
+	-Wextra \
+	-Wpedantic \
+	$(INCLUDES)
+
+ASFLAGS := \
+	-ffreestanding \
+	-mno-red-zone \
+	-nostdlib \
+	$(INCLUDES)
+
+LDFLAGS := \
+	-nostdlib \
+	-T $(LINKER) \
+	-Wl,-z,max-page-size=0x1000
+
+LIBS := \
+	-lgcc
+
+QEMUFLAGS := \
+	-cdrom $(ISO) \
+	-serial stdio \
+	-no-reboot \
+	-no-shutdown
+
+# =================================================================================================
+# Sources
+# =================================================================================================
 
 ASM_SRCS := $(shell find kernel -name '*.S' | sort)
 CXX_SRCS := $(shell find kernel -name '*.cpp' | sort)
 
 OBJS := \
-	$(ASM_SRCS:%.S=$(BUILD)/%.o) \
-	$(CXX_SRCS:%.cpp=$(BUILD)/%.o)
+	$(patsubst %.S,$(BUILD)/%.o,$(ASM_SRCS)) \
+	$(patsubst %.cpp,$(BUILD)/%.o,$(CXX_SRCS))
 
-DEPS := $(OBJS:.o=.d)
-
-INCLUDES := -I$(CURDIR)
-
-COMMON_FLAGS := \
-	-ffreestanding \
-	-fno-stack-protector \
-	-fno-pic \
-	-fno-pie \
-	-mno-red-zone \
-	-mcmodel=kernel \
-	-nostdlib \
-	-g3 \
-	-O0 \
-	-fno-omit-frame-pointer \
-	-MMD \
-	-MP \
-	$(INCLUDES)
-
-CXXFLAGS := \
-	-std=c++20 \
-	$(COMMON_FLAGS) \
-	-fno-exceptions \
-	-fno-rtti \
-	-fno-use-cxa-atexit \
-	-fno-threadsafe-statics \
-	-Wall \
-	-Wextra \
-	-Wpedantic
-
-ASFLAGS := $(COMMON_FLAGS)
-
-LDFLAGS := \
-	-nostdlib \
-	-no-pie \
-	-T $(LINKER) \
-	-Wl,-z,max-page-size=0x1000
-
-LIBS := -lgcc
-
-QEMUFLAGS := \
-	-cdrom $(ISO) \
-	-serial stdio \
-	-display none \
-	-no-reboot \
-	-no-shutdown
-
-.PHONY: all kernel iso run debug qemu-gdb gdb compdb check clean
+# =================================================================================================
+# Default targets
+# =================================================================================================
 
 all: iso
 
-kernel: $(KERNEL)
+kernel: toolchain-check $(KERNEL_ELF)
 
-iso: $(ISO)
+iso: toolchain-check $(ISO)
+
+# =================================================================================================
+# Build rules
+# =================================================================================================
+
+$(BUILD):
+	mkdir -p $(BUILD)
 
 $(BUILD)/%.o: %.S
-	@mkdir -p $(dir $@)
+	mkdir -p $(dir $@)
 	$(AS) $(ASFLAGS) -c $< -o $@
 
 $(BUILD)/%.o: %.cpp
-	@mkdir -p $(dir $@)
+	mkdir -p $(dir $@)
 	$(CXX) $(CXXFLAGS) -c $< -o $@
 
-$(KERNEL): $(OBJS) $(LINKER)
-	@mkdir -p $(dir $@)
+$(KERNEL_ELF): $(OBJS) $(LINKER)
+	mkdir -p $(dir $@)
 	$(CXX) $(CXXFLAGS) $(LDFLAGS) $(OBJS) $(LIBS) -o $@
 
-$(ISO): $(KERNEL) $(GRUB_CFG)
-	grub-file --is-x86-multiboot2 $(KERNEL)
-	rm -rf $(ISO_DIR)
+$(ISO): $(KERNEL_ELF) $(GRUB_CFG)
+	grub-file --is-x86-multiboot2 $(KERNEL_ELF)
 	mkdir -p $(ISO_DIR)/boot/grub
-	cp $(KERNEL) $(ISO_DIR)/boot/kernel.elf
+	cp $(KERNEL_ELF) $(ISO_DIR)/boot/kernel.elf
 	cp $(GRUB_CFG) $(ISO_DIR)/boot/grub/grub.cfg
 	grub-mkrescue -o $(ISO) $(ISO_DIR)
 
-run: iso
-	$(QEMU) $(QEMUFLAGS)
+# =================================================================================================
+# Utility targets
+# =================================================================================================
 
-qemu-gdb: iso
-	$(QEMU) $(QEMUFLAGS) -S -gdb tcp:$(GDB_HOST):$(GDB_PORT)
-
-debug: qemu-gdb
-
-gdb: $(KERNEL)
-	$(GDB) $(KERNEL) -ex "target remote 127.0.0.1:$(GDB_PORT)"
-
-compdb:
-	bear --output compile_commands.json -- $(MAKE) clean kernel
-
-check: $(KERNEL)
-	grub-file --is-x86-multiboot2 $(KERNEL)
+check-multiboot2: $(KERNEL_ELF)
+	grub-file --is-x86-multiboot2 $(KERNEL_ELF)
 	@echo "Multiboot2 header OK"
+
+run: iso
+	qemu-system-x86_64 $(QEMUFLAGS)
+
+debug: iso
+	qemu-system-x86_64 $(QEMUFLAGS) \
+		-s \
+		-S
+
+qemu-log: iso
+	qemu-system-x86_64 $(QEMUFLAGS) \
+		-d int,cpu_reset,guest_errors \
+		-D $(BUILD)/qemu.log
 
 clean:
 	rm -rf $(BUILD)
 
--include $(DEPS)
+toolchain-check:
+	@command -v $(CC) >/dev/null || { echo "Missing $(CC). Open this project in the Dev Container or install the DoomOS cross toolchain."; exit 1; }
+	@command -v $(CXX) >/dev/null || { echo "Missing $(CXX). Open this project in the Dev Container or install the DoomOS cross toolchain."; exit 1; }
 
-.DELETE_ON_ERROR:
+compdb: toolchain-check
+	@command -v bear >/dev/null || { echo "Missing bear. Open this project in the Dev Container or install bear."; exit 1; }
+	bear --output compile_commands.json -- $(MAKE) clean kernel
+
+# =================================================================================================
+# Phony targets
+# =================================================================================================
+
+.PHONY: \
+	all \
+	kernel \
+	iso \
+	run \
+	debug \
+	qemu-log \
+	clean \
+	toolchain-check \
+	compdb \
+	check-multiboot2
