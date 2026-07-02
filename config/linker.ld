@@ -1,4 +1,4 @@
-/* kernel/arch/x86_64/linker.ld */
+/* config/linker.ld */
 
 ENTRY(_start32)
 
@@ -11,7 +11,12 @@ PF_R = 0x4;
 
 PHDRS
 {
-    boot   PT_LOAD FLAGS(PF_R | PF_W | PF_X);
+    /*
+     * FILEHDR PHDRS makes the first PT_LOAD segment include the ELF header
+     * and program headers. This prevents the first loadable section from
+     * being pushed too far into the file.
+     */
+    boot   PT_LOAD FILEHDR PHDRS FLAGS(PF_R | PF_W | PF_X);
     text   PT_LOAD FLAGS(PF_R | PF_X);
     rodata PT_LOAD FLAGS(PF_R);
     data   PT_LOAD FLAGS(PF_R | PF_W);
@@ -19,15 +24,26 @@ PHDRS
 
 SECTIONS
 {
-    . = KERNEL_LMA;
+    /*
+     * Start after the ELF/program headers inside the first PT_LOAD segment.
+     * The Multiboot2 header below must still appear within the first 32 KiB
+     * of the final kernel image.
+     */
+    . = KERNEL_LMA + SIZEOF_HEADERS;
 
     boot_start = .;
 
-    .boot ALIGN(4K) : AT(ADDR(.boot))
+    .boot ALIGN(8) : AT(ADDR(.boot))
     {
         . = ALIGN(8);
 
+        /*
+         * GRUB requires the full Multiboot2 header to be 8-byte aligned and
+         * fully contained within the first 32 KiB of the image.
+         */
+        KEEP(*(.multiboot2_header))
         KEEP(*(.multiboot2))
+        KEEP(*(.multiboot))
 
         *(.boot.text .boot.text.*)
         *(.boot.rodata .boot.rodata.*)

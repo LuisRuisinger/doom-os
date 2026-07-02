@@ -23,7 +23,8 @@ extern "C" init_function __fini_array_end[];
 // =================================================================================================
 
 void call_global_constructors() {
-    for (init_function *fn = __init_array_start; fn != __init_array_end; ++fn) (*fn)();
+    for (init_function *fn = __init_array_start; fn != __init_array_end; ++fn)
+        (*fn)();
 }
 
 // =================================================================================================

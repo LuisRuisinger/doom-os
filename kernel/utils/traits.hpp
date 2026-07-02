@@ -95,6 +95,50 @@ template <bool Condition, typename TrueType, typename FalseType>
 using conditional_t = typename conditional<Condition, TrueType, FalseType>::type;
 
 // =================================================================================================
+// Index sequence
+// =================================================================================================
+
+template <usize... Is>
+struct index_sequence {
+    static constexpr usize size() { return sizeof...(Is); }
+};
+
+namespace detail {
+
+template <typename Lhs, typename Rhs>
+struct index_sequence_concat;
+
+template <usize... Lhs, usize... Rhs>
+struct index_sequence_concat<index_sequence<Lhs...>, index_sequence<Rhs...>> {
+    using type = index_sequence<Lhs..., (sizeof...(Lhs) + Rhs)...>;
+};
+
+template <usize N>
+struct make_index_sequence_impl {
+   private:
+    using left = typename make_index_sequence_impl<N / 2>::type;
+    using right = typename make_index_sequence_impl<N - N / 2>::type;
+
+   public:
+    using type = typename index_sequence_concat<left, right>::type;
+};
+
+template <>
+struct make_index_sequence_impl<0> {
+    using type = index_sequence<>;
+};
+
+template <>
+struct make_index_sequence_impl<1> {
+    using type = index_sequence<0>;
+};
+
+}  // namespace detail
+
+template <usize N>
+using make_index_sequence = typename detail::make_index_sequence_impl<N>::type;
+
+// =================================================================================================
 // remove_reference
 // =================================================================================================
 

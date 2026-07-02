@@ -14,5 +14,6 @@ AlignConsecutiveDeclarations:
   AcrossEmptyLines: false
   AcrossComments: false
 
+AllowShortLoopsOnASingleLine: false
 AllowShortIfStatementsOnASingleLine: Never
 AlignArrayOfStructures: Left

@@ -53,12 +53,11 @@ struct [[gnu::packed]] pointer {
 };
 
 class table {
-    alignas(8) descriptor entries_[ENTRY_COUNT]{};
-    pointer pointer_{};
+    alignas(8) descriptor entries_m[ENTRY_COUNT]{};
+    pointer ptr_m{};
 
    public:
-    void init();
-
+    void init(const kernel::arch::x86_64::tss::state &task_state_segment);
     void load() const;
 };
 
@@ -66,8 +65,9 @@ class table {
 // GDT
 // =================================================================================================
 
-void init_table(table &table);
+void init_table(table &table, const kernel::arch::x86_64::tss::state &task_state_segment);
 void load_table(const table &table);
+void load_task_register(u16 selector);
 
 // =================================================================================================
 // Core component
@@ -80,6 +80,7 @@ struct core_component : kernel::boot::context_component_base<
 
     static bool init_component(kernel::arch::x86_64::cpu::local_state &cpu);
 };
+
 }  // namespace kernel::arch::x86_64::gdt
 
 #endif  // DOOM_OS_KERNEL_ARCH_X86_64_GDT_HPP_

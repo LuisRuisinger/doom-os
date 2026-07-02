@@ -90,9 +90,9 @@ class state {
     bool set_privilege_stack(u8 privilege_level, u64 stack_top);
     bool set_interrupt_stack(interrupt_stack stack, u64 stack_top);
 
-    const segment       &layout() const;
-    u64                  base() const;
-    static constexpr u16 limit() { return sizeof(segment) - 1; }
+    [[nodiscard]] const segment &layout() const;
+    [[nodiscard]] u64            base() const;
+    static constexpr u16         limit() { return sizeof(segment) - 1; }
 };
 
 // =================================================================================================

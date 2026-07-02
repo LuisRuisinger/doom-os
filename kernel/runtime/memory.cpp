@@ -18,7 +18,8 @@ void *set(void *dest, i32 value, usize count) noexcept {
     auto *d = static_cast<u8 *>(dest);
     auto  v = static_cast<u8>(value);
 
-    for (usize i = 0; i < count; ++i) d[i] = v;
+    for (usize i = 0; i < count; ++i)
+        d[i] = v;
 
     return dest;
 }
@@ -27,7 +28,8 @@ void *copy(void *dest, const void *src, usize count) noexcept {
     auto       *d = static_cast<u8 *>(dest);
     const auto *s = static_cast<const u8 *>(src);
 
-    for (usize i = 0; i < count; ++i) d[i] = s[i];
+    for (usize i = 0; i < count; ++i)
+        d[i] = s[i];
 
     return dest;
 }
@@ -43,9 +45,11 @@ void *move(void *dest, const void *src, usize count) noexcept {
     const auto s_addr = reinterpret_cast<usize>(s);
 
     if (d_addr < s_addr) {
-        for (usize i = 0; i < count; ++i) d[i] = s[i];
+        for (usize i = 0; i < count; ++i)
+            d[i] = s[i];
     } else {
-        for (usize i = count; i > 0; --i) d[i - 1] = s[i - 1];
+        for (usize i = count; i > 0; --i)
+            d[i - 1] = s[i - 1];
     }
 
     return dest;

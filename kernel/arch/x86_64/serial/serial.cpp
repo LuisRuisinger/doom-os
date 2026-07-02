@@ -61,7 +61,8 @@ void init() {
 bool can_write() { return (inb(LINE_STATUS) & LINE_STATUS_TX_EMPTY) != 0; }
 
 void write_char(char c) {
-    while (!can_write()) asm volatile("pause");
+    while (!can_write())
+        asm volatile("pause");
 
     outb(DATA_PORT, static_cast<u8>(c));
 }
