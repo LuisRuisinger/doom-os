@@ -50,7 +50,7 @@ SECTIONS
         *(.boot.data .boot.data.*)
     } :boot
 
-    .boot.bss ALIGN(4K) : AT(ADDR(.boot.bss))
+    .boot.bss ALIGN(4K) (NOLOAD) : AT(ADDR(.boot.bss))
     {
         boot_bss_start = .;
         *(.boot.bss .boot.bss.*)
@@ -60,7 +60,7 @@ SECTIONS
     . = ALIGN(4K);
     boot_end = .;
 
-    . = KERNEL_VMA + (boot_end - KERNEL_LMA);
+    . = KERNEL_VMA + boot_end;
 
     kernel_start = .;
 

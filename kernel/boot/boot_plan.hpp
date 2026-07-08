@@ -5,8 +5,9 @@
 // Kernel files
 // =================================================================================================
 
-#include "../arch/x86_64/serial/serial.hpp"
 #include "kernel/arch/x86_64/core_init.hpp"
+#include "kernel/arch/x86_64/serial/serial.hpp"
+#include "kernel/boot/boot_info.hpp"
 #include "kernel/boot/component.hpp"
 
 namespace kernel::boot {
@@ -20,7 +21,8 @@ using early_boot_roots = type_list<kernel::arch::x86_64::serial::component>;
 // Main boot
 // =================================================================================================
 
-using boot_roots = type_list<kernel::arch::x86_64::core_init::component>;
+using boot_roots =
+    type_list<kernel::boot::boot_info::component, kernel::arch::x86_64::core_init::component>;
 
 }  // namespace kernel::boot
 

@@ -46,6 +46,10 @@ ASFLAGS := \
 	-nostdlib \
 	$(INCLUDES)
 
+DEPFLAGS := \
+	-MMD \
+	-MP
+
 LDFLAGS := \
 	-nostdlib \
 	-T $(LINKER) \
@@ -71,6 +75,8 @@ OBJS := \
 	$(patsubst %.S,$(BUILD)/%.o,$(ASM_SRCS)) \
 	$(patsubst %.cpp,$(BUILD)/%.o,$(CXX_SRCS))
 
+DEPS := $(OBJS:.o=.d)
+
 # =================================================================================================
 # Default targets
 # =================================================================================================
@@ -88,13 +94,13 @@ iso: toolchain-check $(ISO)
 $(BUILD):
 	mkdir -p $(BUILD)
 
-$(BUILD)/%.o: %.S
+$(BUILD)/%.o: %.S Makefile
 	mkdir -p $(dir $@)
-	$(AS) $(ASFLAGS) -c $< -o $@
+	$(AS) $(ASFLAGS) $(DEPFLAGS) -c $< -o $@
 
-$(BUILD)/%.o: %.cpp
+$(BUILD)/%.o: %.cpp Makefile
 	mkdir -p $(dir $@)
-	$(CXX) $(CXXFLAGS) -c $< -o $@
+	$(CXX) $(CXXFLAGS) $(DEPFLAGS) -c $< -o $@
 
 $(KERNEL_ELF): $(OBJS) $(LINKER)
 	mkdir -p $(dir $@)
@@ -154,3 +160,5 @@ compdb: toolchain-check
 	toolchain-check \
 	compdb \
 	check-multiboot2
+
+-include $(DEPS)

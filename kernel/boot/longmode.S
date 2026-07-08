@@ -231,7 +231,7 @@ gdt64_pointer32:
 // Temporary page tables and stack
 // =================================================================================================
 
-.section .boot.bss
+.section .boot.bss, "aw", @nobits
 
 .align 4096
 pml4_table:

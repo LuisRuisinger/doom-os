@@ -6,7 +6,7 @@
 // 32-bit bootstrap stack
 // =================================================================================================
 
-.section .boot.bss
+.section .boot.bss, "aw", @nobits
 
 .align 16
 stack_bottom:

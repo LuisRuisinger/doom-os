@@ -2,10 +2,17 @@
 #define DOOM_OS_KERNEL_DEBUG_KPANIC_HPP_
 
 #include "kernel/core/types.hpp"
+#include "kernel/debug/kprint.hpp"
 
 namespace kernel::debug {
 
 using kernel::core::u64;
+
+namespace detail {
+
+inline constexpr const char *PANIC_PREFIX = "\x1b[1;31m[panic]\x1b[0m";
+
+}  // namespace detail
 
 // =================================================================================================
 // Panic register frame
@@ -59,6 +66,18 @@ struct panic_register_frame {
 
 [[noreturn]] void kpanic(const char *message, void *frame, const char *file, int line,
                          const char *function) noexcept;
+
+template <detail::fixed_string FMT, typename... Args>
+[[noreturn]] inline void kpanic_fmt(void *frame, const char *file, int line, const char *function,
+                                    const Args &...args) noexcept {
+    asm volatile("cli" ::: "memory");
+
+    detail::backend_emit_c_string(detail::PANIC_PREFIX);
+    detail::backend_emit_char(' ');
+    kprintln_ct<FMT>(args...);
+
+    kpanic(nullptr, frame, file, line, function);
+}
 
 }  // namespace kernel::debug
 
@@ -119,8 +138,22 @@ struct panic_register_frame {
         ::kernel::debug::kpanic((message), &__panic_frame, __FILE__, __LINE__, __func__); \
     } while (0)
 
-#define KPANIC_SELECT(_0, _1, NAME, ...) NAME
+#define KPANIC_FMT(fmt__, ...)                                                     \
+    do {                                                                           \
+        ::kernel::debug::panic_register_frame __panic_frame{};                     \
+        DOOM_OS_KPANIC_CAPTURE();                                                  \
+        ::kernel::debug::kpanic_fmt<::kernel::debug::detail::fixed_string{fmt__}>( \
+            &__panic_frame, __FILE__, __LINE__, __func__, __VA_ARGS__);            \
+    } while (0)
 
-#define KPANIC(...) KPANIC_SELECT(_ __VA_OPT__(, ) __VA_ARGS__, KPANIC_1, KPANIC_0)(__VA_ARGS__)
+#define KPANIC_SELECT(_0, _1, _2, _3, _4, _5, _6, _7, _8, _9, _10, _11, _12, _13, _14, _15, _16, \
+                      NAME, ...)                                                                 \
+    NAME
+
+#define KPANIC(...)                                                                             \
+    KPANIC_SELECT(_ __VA_OPT__(, ) __VA_ARGS__, KPANIC_FMT, KPANIC_FMT, KPANIC_FMT, KPANIC_FMT, \
+                  KPANIC_FMT, KPANIC_FMT, KPANIC_FMT, KPANIC_FMT, KPANIC_FMT, KPANIC_FMT,       \
+                  KPANIC_FMT, KPANIC_FMT, KPANIC_FMT, KPANIC_FMT, KPANIC_FMT, KPANIC_1,         \
+                  KPANIC_0)(__VA_ARGS__)
 
 #endif  // DOOM_OS_KERNEL_DEBUG_KPANIC_HPP_

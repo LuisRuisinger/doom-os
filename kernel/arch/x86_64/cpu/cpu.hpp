@@ -146,6 +146,7 @@ struct local_state {
 
 void         init_bsp();
 local_state &bsp();
+local_state &current();
 local_state *get(u32 logical_id);
 u32          online_count();
 

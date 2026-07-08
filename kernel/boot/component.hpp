@@ -29,7 +29,10 @@ struct component_base {
 
     static constexpr bool dump_debug_state_on_failure = false;
 
-    static bool run(no_context &) { return Derived::init_component(); }
+    template <typename Context>
+    static bool run(Context &) {
+        return Derived::init_component();
+    }
 };
 
 // =================================================================================================
@@ -46,6 +49,7 @@ struct context_component_base {
 
     static bool run(Context &context) { return Derived::init_component(context); }
 };
+
 }  // namespace kernel::boot
 
 #endif  // DOOM_OS_KERNEL_BOOT_COMPONENT_HPP_

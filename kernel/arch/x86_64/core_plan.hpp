@@ -5,8 +5,7 @@
 // Kernel files
 // =================================================================================================
 
-#include "gdt/gdt.hpp"
-#include "idt/idt.hpp"
+#include "exceptions/exceptions.hpp"
 #include "kernel/boot/component.hpp"
 
 namespace kernel::arch::x86_64::core_plan {
@@ -15,7 +14,7 @@ namespace kernel::arch::x86_64::core_plan {
 // Core roots
 // =================================================================================================
 
-using core_roots = kernel::boot::type_list<kernel::arch::x86_64::idt::core_component>;
+using core_roots = kernel::boot::type_list<kernel::arch::x86_64::exceptions::core_component>;
 
 }  // namespace kernel::arch::x86_64::core_plan
 
