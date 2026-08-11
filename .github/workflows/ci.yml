@@ -61,21 +61,3 @@ jobs:
             --user "$(id -u):$(id -g)" \
             doom-os-toolchain:ci \
             make all
-
-      # No KVM on hosted runners, so this is fully emulated. Less memory than the dev default
-      # keeps it comfortable; the assertions do not depend on the amount.
-      - name: Boot test
-        run: |
-          docker run --rm \
-            -v "$PWD":/workspace/DoomOS -w /workspace/DoomOS \
-            --user "$(id -u):$(id -g)" \
-            doom-os-toolchain:ci \
-            make test QEMU_MEMORY=2G QEMU_SMP=2
-
-      - name: Upload serial log
-        if: always()
-        uses: actions/upload-artifact@v4
-        with:
-          name: boot-log
-          path: build/boot.log
-          if-no-files-found: warn

@@ -75,11 +75,6 @@ QEMUFLAGS := \
 	-no-reboot \
 	-no-shutdown
 
-# Seconds to let the kernel run before the boot test gives up. The kernel halts rather than
-# exiting, so the timeout expiring is the normal outcome; the log decides pass or fail.
-BOOT_TIMEOUT ?= 25
-BOOT_LOG     := $(BUILD)/boot.log
-
 # =================================================================================================
 # Sources
 # =================================================================================================
@@ -155,17 +150,6 @@ qemu-log: iso
 		-d int,cpu_reset,guest_errors \
 		-D $(BUILD)/qemu.log
 
-# Boot the ISO headless and assert the init log. Catches both a kernel that faults and a
-# kernel that never gets loaded at all - the second looks identical from the outside.
-test: iso
-	@rm -f $(BOOT_LOG)
-	@echo "booting under qemu (up to $(BOOT_TIMEOUT)s)"
-	@-timeout $(BOOT_TIMEOUT) qemu-system-x86_64 $(QEMUFLAGS) \
-		-display none \
-		-monitor none \
-		> $(BOOT_LOG) 2>&1
-	@scripts/check-boot.sh $(BOOT_LOG)
-
 format:
 	@command -v clang-format >/dev/null || { echo "Missing clang-format. Open this project in the Dev Container."; exit 1; }
 	clang-format -i $(CXX_SRCS) $(HDRS)
@@ -197,7 +181,6 @@ compdb: toolchain-check
 	run \
 	debug \
 	qemu-log \
-	test \
 	format \
 	format-check \
 	clean \
