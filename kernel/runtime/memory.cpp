@@ -4,17 +4,22 @@
 
 #include "kernel/runtime/memory.hpp"
 
-namespace kernel::runtime {
+namespace {
 
 using kernel::core::i32;
 using kernel::core::u8;
 using kernel::core::usize;
 
+}  // namespace
+
 // =================================================================================================
-// Memory functionality
+// Freestanding libc memory functions
+//
+// GCC emits calls to these regardless of -ffreestanding - a struct copy or a zero-initialised
+// array is enough - so they have to exist as global C symbols with exactly these names.
 // =================================================================================================
 
-void *set(void *dest, i32 value, usize count) noexcept
+extern "C" void *memset(void *dest, i32 value, usize count) noexcept
 {
     auto *d = static_cast<u8 *>(dest);
     auto  v = static_cast<u8>(value);
@@ -25,7 +30,7 @@ void *set(void *dest, i32 value, usize count) noexcept
     return dest;
 }
 
-void *copy(void *dest, const void *src, usize count) noexcept
+extern "C" void *memcpy(void *dest, const void *src, usize count) noexcept
 {
     auto       *d = static_cast<u8 *>(dest);
     const auto *s = static_cast<const u8 *>(src);
@@ -36,7 +41,7 @@ void *copy(void *dest, const void *src, usize count) noexcept
     return dest;
 }
 
-void *move(void *dest, const void *src, usize count) noexcept
+extern "C" void *memmove(void *dest, const void *src, usize count) noexcept
 {
     auto       *d = static_cast<u8 *>(dest);
     const auto *s = static_cast<const u8 *>(src);
@@ -58,7 +63,7 @@ void *move(void *dest, const void *src, usize count) noexcept
     return dest;
 }
 
-i32 compare(const void *lhs, const void *rhs, usize count) noexcept
+extern "C" i32 memcmp(const void *lhs, const void *rhs, usize count) noexcept
 {
     const auto *a = static_cast<const u8 *>(lhs);
     const auto *b = static_cast<const u8 *>(rhs);
@@ -69,31 +74,4 @@ i32 compare(const void *lhs, const void *rhs, usize count) noexcept
     }
 
     return 0;
-}
-
-}  // namespace kernel::runtime
-
-// =================================================================================================
-// C ABI wrappers
-// =================================================================================================
-
-extern "C" void *memset(void *dest, kernel::core::i32 value, kernel::core::usize count) noexcept
-{
-    return kernel::runtime::set(dest, value, count);
-}
-
-extern "C" void *memcpy(void *dest, const void *src, kernel::core::usize count) noexcept
-{
-    return kernel::runtime::copy(dest, src, count);
-}
-
-extern "C" void *memmove(void *dest, const void *src, kernel::core::usize count) noexcept
-{
-    return kernel::runtime::move(dest, src, count);
-}
-
-extern "C" kernel::core::i32 memcmp(const void *lhs, const void *rhs,
-                                    kernel::core::usize count) noexcept
-{
-    return kernel::runtime::compare(lhs, rhs, count);
 }

@@ -7,24 +7,11 @@
 
 #include "kernel/core/types.hpp"
 
-namespace kernel::runtime {
-
-using kernel::core::i32;
-using kernel::core::usize;
-
 // =================================================================================================
-// Memory functionality
-// =================================================================================================
-
-void *set(void *dest, i32 value, usize count) noexcept;
-void *copy(void *dest, const void *src, usize count) noexcept;
-void *move(void *dest, const void *src, usize count) noexcept;
-i32 compare(const void *lhs, const void *rhs, usize count) noexcept;
-
-}  // namespace kernel::runtime
-
-// =================================================================================================
-// C ABI wrappers
+// Freestanding libc memory functions
+//
+// Not an API to call by preference - these exist because the compiler assumes they do. Include
+// this header when you need the declarations in scope; the definitions live in memory.cpp.
 // =================================================================================================
 
 extern "C" void *memset(void *dest, kernel::core::i32 value, kernel::core::usize count) noexcept;
