@@ -56,6 +56,11 @@ RUN mkdir build-binutils  \
     && make -j"$(nproc)" \
     && make install
 
+# libstdc++ is built in freestanding mode (--disable-hosted-libstdcxx). That installs only
+# the subset C++20 requires of a freestanding implementation - <type_traits>, <concepts>,
+# <bit>, <limits>, <new>, <exception>, <cstddef>, <cstdint> and friends. All of it is
+# header-only template machinery: nothing allocates, nothing calls into an OS, and nothing is
+# emitted unless used, so the kernel keeps linking with -nostdlib.
 RUN mkdir build-gcc \
     && cd build-gcc \
     && "../gcc-${GCC_VERSION}/configure" \
@@ -70,10 +75,15 @@ RUN mkdir build-gcc \
       --disable-libgomp \
       --disable-libquadmath \
       --disable-libatomic \
+      --disable-hosted-libstdcxx \
+      --disable-libstdcxx-verbose \
+      --disable-libstdcxx-pch \
     && make -j"$(nproc)" all-gcc \
     && make -j"$(nproc)" all-target-libgcc \
     && make install-gcc \
-    && make install-target-libgcc
+    && make install-target-libgcc \
+    && make -j"$(nproc)" all-target-libstdc++-v3 \
+    && make install-target-libstdc++-v3
 
 RUN x86_64-elf-gcc --version \
     && x86_64-elf-g++ --version \
