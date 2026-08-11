@@ -1,4 +1,0 @@
-[submodule "third_party/result"]
-	path = third_party/result
-	url = https://github.com/LuisRuisinger/result.git
-	branch = experimental/rewrite-freestanding-propagation

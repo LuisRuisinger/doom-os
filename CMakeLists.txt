@@ -42,9 +42,26 @@ file(GLOB_RECURSE KERNEL_HEADERS CONFIGURE_DEPENDS ${CMAKE_SOURCE_DIR}/kernel/*.
 
 # =================================================================================================
 # Dependencies
+#
+# Pinned to a commit rather than a branch: the branch is experimental and moves, and a floating
+# GIT_TAG would silently change what the kernel was built against between configures.
+#
+# To work against a local checkout instead, without editing this file:
+#   cmake --preset default -DFETCHCONTENT_SOURCE_DIR_RESULT=/path/to/result
 # =================================================================================================
 
-add_subdirectory(third_party/result EXCLUDE_FROM_ALL)
+include(FetchContent)
+
+# result calls include(CTest), which defaults BUILD_TESTING to ON, and its tests are hosted
+# code - they include <cstdio> and <cassert>, which do not exist on a freestanding target.
+# CMP0077 makes option() respect this, so the tests are never added.
+set(BUILD_TESTING OFF)
+
+FetchContent_Declare(result
+        GIT_REPOSITORY https://github.com/LuisRuisinger/result.git
+        GIT_TAG c5f66e342e3b40a8b86733a5d5cc689c663645f7)
+
+FetchContent_MakeAvailable(result)
 
 # =================================================================================================
 # Linker script
