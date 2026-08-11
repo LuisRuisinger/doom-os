@@ -23,5 +23,5 @@
   "mounts": [
     "source=${localEnv:HOME}/.bashrc,target=/home/ubuntu/.bashrc,type=bind,readonly"
   ],
-  "postCreateCommand": "x86_64-elf-gcc --version && x86_64-elf-g++ --version && grub-mkrescue --version && qemu-system-x86_64 --version"
+  "postCreateCommand": "x86_64-elf-gcc --version && x86_64-elf-g++ --version && cmake --version && ninja --version && clang-format --version && grub-mkrescue --version && qemu-system-x86_64 --version"
 }

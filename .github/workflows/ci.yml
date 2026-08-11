@@ -44,6 +44,14 @@ jobs:
             docker build -t doom-os-toolchain:ci .
           fi
 
+      - name: Configure
+        run: |
+          docker run --rm \
+            -v "$PWD":/workspace/DoomOS -w /workspace/DoomOS \
+            --user "$(id -u):$(id -g)" \
+            doom-os-toolchain:ci \
+            cmake --preset default
+
       # .clang-format needs clang-format 20; older releases reject the file outright rather
       # than degrading, so this also catches the image drifting off the pinned version.
       - name: Check formatting
@@ -52,7 +60,7 @@ jobs:
             -v "$PWD":/workspace/DoomOS -w /workspace/DoomOS \
             --user "$(id -u):$(id -g)" \
             doom-os-toolchain:ci \
-            make format-check
+            cmake --build build --target format-check
 
       - name: Build kernel and ISO
         run: |
@@ -60,4 +68,4 @@ jobs:
             -v "$PWD":/workspace/DoomOS -w /workspace/DoomOS \
             --user "$(id -u):$(id -g)" \
             doom-os-toolchain:ci \
-            make all
+            cmake --build build

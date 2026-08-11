@@ -105,8 +105,9 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     libisl-dev \
     libzstd-dev \
     make \
+    cmake \
+    ninja-build \
     git \
-    bear \
     gdb \
     wget \
     gnupg \
@@ -140,7 +141,9 @@ RUN x86_64-elf-gcc --version \
     && x86_64-elf-g++ --version \
     && grub-mkrescue --version \
     && qemu-system-x86_64 --version \
-    && clang-format --version
+    && clang-format --version \
+    && cmake --version \
+    && ninja --version
 
 # =================================================================================================
 # Unprivileged user
