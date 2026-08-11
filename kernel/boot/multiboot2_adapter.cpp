@@ -191,27 +191,27 @@ void translate_acpi(const tag_header &tag, kernel::core::u8 revision, kernel::bo
 // Multiboot2 adapter
 // =================================================================================================
 
-kernel::boot::init_result adapter::parse(const kernel::boot::handoff &source,
+kernel::core::init_result adapter::parse(const kernel::boot::handoff &source,
                                          kernel::boot::info          &out)
 {
-    using kernel::boot::init_error;
+    using kernel::core::init_error;
 
     if (source.magic != BOOTLOADER_MAGIC)
-        return kernel::boot::Err(init_error::INVALID_BOOT_DATA);
+        return kernel::core::Err(init_error::INVALID_BOOT_DATA);
 
     if (source.address == 0)
-        return kernel::boot::Err(init_error::INVALID_BOOT_DATA);
+        return kernel::core::Err(init_error::INVALID_BOOT_DATA);
 
     const auto *header =
         reinterpret_cast<const fixed_header *>(static_cast<uptr>(source.address));
 
     if (header->total_size < sizeof(*header))
-        return kernel::boot::Err(init_error::INVALID_BOOT_DATA);
+        return kernel::core::Err(init_error::INVALID_BOOT_DATA);
 
     const auto *begin = reinterpret_cast<const u8 *>(header);
 
     if (header->total_size > static_cast<usize>(~uptr{0}) - reinterpret_cast<uptr>(begin))
-        return kernel::boot::Err(init_error::INVALID_BOOT_DATA);
+        return kernel::core::Err(init_error::INVALID_BOOT_DATA);
 
     // The buffer we are about to read from is physical memory the bootloader owns. Record it
     // so it is never handed out, even though nothing points into it once parsing is done.
@@ -227,34 +227,34 @@ kernel::boot::init_result adapter::parse(const kernel::boot::handoff &source,
         const auto *tag_begin = reinterpret_cast<const u8 *>(tag);
 
         if (static_cast<usize>(end - tag_begin) < sizeof(*tag))
-            return kernel::boot::Err(init_error::INVALID_BOOT_DATA);
+            return kernel::core::Err(init_error::INVALID_BOOT_DATA);
 
         if (tag->size < sizeof(*tag))
-            return kernel::boot::Err(init_error::INVALID_BOOT_DATA);
+            return kernel::core::Err(init_error::INVALID_BOOT_DATA);
 
         if (tag->size > static_cast<usize>(end - tag_begin))
-            return kernel::boot::Err(init_error::INVALID_BOOT_DATA);
+            return kernel::core::Err(init_error::INVALID_BOOT_DATA);
 
         if (static_cast<tag_type>(tag->type) == tag_type::END) {
             if (tag->size != sizeof(tag_header))
-                return kernel::boot::Err(init_error::INVALID_BOOT_DATA);
+                return kernel::core::Err(init_error::INVALID_BOOT_DATA);
 
-            return kernel::boot::Ok();
+            return kernel::core::Ok();
         }
 
         if (!translate_tag(*tag, end, out))
-            return kernel::boot::Err(init_error::INVALID_BOOT_DATA);
+            return kernel::core::Err(init_error::INVALID_BOOT_DATA);
 
         const auto *next = next_tag(*tag);
 
         if (reinterpret_cast<const u8 *>(next) <= tag_begin)
-            return kernel::boot::Err(init_error::INVALID_BOOT_DATA);
+            return kernel::core::Err(init_error::INVALID_BOOT_DATA);
 
         tag = next;
     }
 
     // Ran off the end without an END tag.
-    return kernel::boot::Err(init_error::INVALID_BOOT_DATA);
+    return kernel::core::Err(init_error::INVALID_BOOT_DATA);
 }
 
 }  // namespace kernel::boot::multiboot2

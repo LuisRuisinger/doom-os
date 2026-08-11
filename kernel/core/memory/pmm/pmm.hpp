@@ -6,7 +6,7 @@
 // =================================================================================================
 
 #include "kernel/boot/boot_info.hpp"
-#include "kernel/boot/component.hpp"
+#include "kernel/core/component.hpp"
 #include "kernel/core/types.hpp"
 
 namespace kernel::core::memory::pmm {
@@ -81,14 +81,14 @@ bool contains(paddr_t address);
 // Component
 // =================================================================================================
 
-struct component : kernel::boot::component<component, kernel::boot::no_resource,
+struct component : kernel::core::component<component, kernel::core::no_resource,
                                            kernel::boot::boot_info::component> {
     static constexpr auto *name = "PMM";
 
-    static kernel::boot::init_result init_allocator();
+    static kernel::core::init_result init_allocator();
 
     template <typename View>
-    static kernel::boot::init_result init(View)
+    static kernel::core::init_result init(View)
     {
         return init_allocator();
     }

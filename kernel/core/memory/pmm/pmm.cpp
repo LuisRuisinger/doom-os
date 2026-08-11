@@ -926,14 +926,14 @@ bool contains(paddr_t address)
     return address < g_allocator.managed_limit;
 }
 
-kernel::boot::init_result component::init_allocator()
+kernel::core::init_result component::init_allocator()
 {
-    using kernel::boot::init_error;
+    using kernel::core::init_error;
 
     const auto &boot = kernel::boot::boot_info::current();
 
     if (!boot.valid)
-        return kernel::boot::Err(init_error::DEPENDENCY_UNAVAILABLE);
+        return kernel::core::Err(init_error::DEPENDENCY_UNAVAILABLE);
 
     const paddr_t managed_limit = managed_limit_from_boot_memory(boot);
     const u64     page_count = managed_limit / PAGE_SIZE;
@@ -941,24 +941,24 @@ kernel::boot::init_result component::init_allocator()
     u64           metadata_length = 0;
 
     if (page_count > MAX_MANAGED_PAGES)
-        return kernel::boot::Err(init_error::CAPACITY_EXCEEDED);
+        return kernel::core::Err(init_error::CAPACITY_EXCEEDED);
 
     if (!choose_metadata_storage(boot, managed_limit, page_count, metadata_base, metadata_length))
-        return kernel::boot::Err(init_error::METADATA_STORAGE_UNAVAILABLE);
+        return kernel::core::Err(init_error::METADATA_STORAGE_UNAVAILABLE);
 
     reset_allocator(managed_limit, reinterpret_cast<page *>(metadata_base), page_count,
                     metadata_base, metadata_length);
 
     if (!add_boot_usable_memory(boot))
-        return kernel::boot::Err(init_error::NO_USABLE_MEMORY);
+        return kernel::core::Err(init_error::NO_USABLE_MEMORY);
 
     if (!reserve_boot_ranges(boot))
-        return kernel::boot::Err(init_error::RESERVATION_FAILED);
+        return kernel::core::Err(init_error::RESERVATION_FAILED);
 
     g_allocator.initialized = true;
     log_allocatable_memory();
 
-    return kernel::boot::Ok();
+    return kernel::core::Ok();
 }
 
 }  // namespace kernel::core::memory::pmm

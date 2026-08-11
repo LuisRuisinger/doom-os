@@ -5,7 +5,7 @@
 // Kernel files
 // =================================================================================================
 
-#include "kernel/boot/component.hpp"
+#include "kernel/core/component.hpp"
 #include "kernel/core/types.hpp"
 
 namespace kernel::arch::x86_64::cpu {
@@ -74,14 +74,14 @@ public:
 // Core component
 // =================================================================================================
 
-struct stacks_component : kernel::boot::component<stacks_component, stack_set> {
+struct stacks_component : kernel::core::component<stacks_component, stack_set> {
     static constexpr auto *name = "STACKS";
 
     template <typename View>
-    static kernel::boot::init_result init(View view)
+    static kernel::core::init_result init(View view)
     {
         own(view).init();
-        return kernel::boot::Ok();
+        return kernel::core::Ok();
     }
 };
 

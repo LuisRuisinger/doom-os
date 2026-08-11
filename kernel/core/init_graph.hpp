@@ -1,5 +1,5 @@
-#ifndef DOOM_OS_KERNEL_BOOT_INIT_GRAPH_HPP_
-#define DOOM_OS_KERNEL_BOOT_INIT_GRAPH_HPP_
+#ifndef DOOM_OS_KERNEL_CORE_INIT_GRAPH_HPP_
+#define DOOM_OS_KERNEL_CORE_INIT_GRAPH_HPP_
 
 // =================================================================================================
 // Cpp stdlib files
@@ -11,9 +11,9 @@
 // Kernel files
 // =================================================================================================
 
-#include "kernel/boot/component.hpp"
+#include "kernel/core/component.hpp"
 
-namespace kernel::boot::detail {
+namespace kernel::core::detail {
 
 // =================================================================================================
 // Type list helpers
@@ -170,6 +170,6 @@ struct init_graph {
     }
 };
 
-}  // namespace kernel::boot::detail
+}  // namespace kernel::core::detail
 
-#endif  // DOOM_OS_KERNEL_BOOT_INIT_GRAPH_HPP_
+#endif  // DOOM_OS_KERNEL_CORE_INIT_GRAPH_HPP_

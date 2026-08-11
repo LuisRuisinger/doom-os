@@ -1,5 +1,5 @@
-#ifndef DOOM_OS_KERNEL_BOOT_COMPONENT_HPP_
-#define DOOM_OS_KERNEL_BOOT_COMPONENT_HPP_
+#ifndef DOOM_OS_KERNEL_CORE_COMPONENT_HPP_
+#define DOOM_OS_KERNEL_CORE_COMPONENT_HPP_
 
 // =================================================================================================
 // Cpp stdlib files
@@ -14,7 +14,7 @@
 #include "kernel/core/result.hpp"
 #include "kernel/core/types.hpp"
 
-namespace kernel::boot {
+namespace kernel::core {
 // =================================================================================================
 // Type list
 // =================================================================================================
@@ -33,7 +33,7 @@ using no_deps = type_list<>;
 // and convert at the boundary with RESULT_ERROR_CONVERSION.
 // =================================================================================================
 
-enum class init_error : core::u8 {
+enum class init_error : u8 {
     UNSPECIFIED,
     DEPENDENCY_UNAVAILABLE,
     INVALID_BOOT_DATA,
@@ -68,10 +68,7 @@ inline const char *describe(init_error error)
     return "unknown error";
 }
 
-using init_result = core::Result<void, init_error>;
-
-using core::Err;
-using core::Ok;
+using init_result = Result<void, init_error>;
 
 // =================================================================================================
 // Backing stores
@@ -164,6 +161,6 @@ protected:
     }
 };
 
-}  // namespace kernel::boot
+}  // namespace kernel::core
 
-#endif  // DOOM_OS_KERNEL_BOOT_COMPONENT_HPP_
+#endif  // DOOM_OS_KERNEL_CORE_COMPONENT_HPP_

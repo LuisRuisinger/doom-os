@@ -6,7 +6,7 @@
 // =================================================================================================
 
 #include "kernel/arch/x86_64/tss/tss.hpp"
-#include "kernel/boot/component.hpp"
+#include "kernel/core/component.hpp"
 #include "kernel/core/types.hpp"
 
 namespace kernel::arch::x86_64::gdt {
@@ -70,11 +70,11 @@ void load_task_register(u16 selector);
 // =================================================================================================
 
 struct core_component
-    : kernel::boot::component<core_component, table, kernel::arch::x86_64::tss::core_component> {
+    : kernel::core::component<core_component, table, kernel::arch::x86_64::tss::core_component> {
     static constexpr auto *name = "GDT";
 
     template <typename View>
-    static kernel::boot::init_result init(View view)
+    static kernel::core::init_result init(View view)
     {
         table &self = own(view);
 
@@ -82,7 +82,7 @@ struct core_component
         self.load();
         load_task_register(TSS_SELECTOR);
 
-        return kernel::boot::Ok();
+        return kernel::core::Ok();
     }
 };
 

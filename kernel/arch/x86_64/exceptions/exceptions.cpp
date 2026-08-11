@@ -416,11 +416,11 @@ static void describe_exception_gates(kernel::arch::x86_64::idt::gate_table &gate
     (describe_exception_gate<Vectors>(gates), ...);
 }
 
-kernel::boot::init_result core_component::describe_gates(
+kernel::core::init_result core_component::describe_gates(
     kernel::arch::x86_64::idt::gate_table &gates)
 {
     describe_exception_gates(gates, exception_vector_sequence{});
-    return kernel::boot::Ok();
+    return kernel::core::Ok();
 }
 
 }  // namespace kernel::arch::x86_64::exceptions

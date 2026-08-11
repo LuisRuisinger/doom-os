@@ -7,7 +7,7 @@
 
 #include "kernel/arch/x86_64/cpu/cpu.hpp"
 #include "kernel/arch/x86_64/exceptions/exceptions.hpp"
-#include "kernel/boot/component.hpp"
+#include "kernel/core/component.hpp"
 
 // =================================================================================================
 // Resource bindings
@@ -17,7 +17,7 @@
 // where it sits. Nothing else may reach local_state's members.
 // =================================================================================================
 
-namespace kernel::boot {
+namespace kernel::core {
 
 #define DOOM_OS_BIND_CORE_RESOURCE(component_type, resource_type, member)             \
     template <>                                                                       \
@@ -45,7 +45,7 @@ DOOM_OS_BIND_CORE_RESOURCE(kernel::arch::x86_64::idt::core_component,
 
 #undef DOOM_OS_BIND_CORE_RESOURCE
 
-}  // namespace kernel::boot
+}  // namespace kernel::core
 
 // =================================================================================================
 // Core roots
@@ -56,7 +56,7 @@ DOOM_OS_BIND_CORE_RESOURCE(kernel::arch::x86_64::idt::core_component,
 
 namespace kernel::arch::x86_64::core_wiring {
 
-using core_roots = kernel::boot::type_list<kernel::arch::x86_64::idt::core_component>;
+using core_roots = kernel::core::type_list<kernel::arch::x86_64::idt::core_component>;
 
 }  // namespace kernel::arch::x86_64::core_wiring
 

@@ -8,7 +8,7 @@
 #include "kernel/arch/x86_64/core_init.hpp"
 #include "kernel/arch/x86_64/serial/serial.hpp"
 #include "kernel/boot/boot_info.hpp"
-#include "kernel/boot/component.hpp"
+#include "kernel/core/component.hpp"
 #include "kernel/core/memory/pmm/pmm.hpp"
 
 namespace kernel::boot {
@@ -16,7 +16,7 @@ namespace kernel::boot {
 // Early boot
 // =================================================================================================
 
-using early_boot_roots = type_list<kernel::arch::x86_64::serial::component>;
+using early_boot_roots = kernel::core::type_list<kernel::arch::x86_64::serial::component>;
 
 // =================================================================================================
 // Platform boot
@@ -25,7 +25,7 @@ using early_boot_roots = type_list<kernel::arch::x86_64::serial::component>;
 // IDT is live an exception is a triple fault: silent reset, no panic, no register dump.
 // =================================================================================================
 
-using platform_roots = type_list<kernel::arch::x86_64::core_init::component>;
+using platform_roots = kernel::core::type_list<kernel::arch::x86_64::core_init::component>;
 
 // =================================================================================================
 // Main boot
@@ -36,7 +36,7 @@ using platform_roots = type_list<kernel::arch::x86_64::core_init::component>;
 // is the kind of ordering nobody writes down and everybody eventually breaks.
 // =================================================================================================
 
-using boot_roots = type_list<kernel::core::memory::pmm::component>;
+using boot_roots = kernel::core::type_list<kernel::core::memory::pmm::component>;
 
 }  // namespace kernel::boot
 

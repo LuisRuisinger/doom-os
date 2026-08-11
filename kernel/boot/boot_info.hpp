@@ -5,7 +5,7 @@
 // Kernel files
 // =================================================================================================
 
-#include "kernel/boot/component.hpp"
+#include "kernel/core/component.hpp"
 #include "kernel/boot/protocol.hpp"
 
 namespace kernel::boot::boot_info {
@@ -37,13 +37,13 @@ bool available();
 // Component
 // =================================================================================================
 
-struct component : kernel::boot::component<component, kernel::boot::no_resource> {
+struct component : kernel::core::component<component, kernel::core::no_resource> {
     static constexpr auto *name = "BOOT_INFO";
 
-    static init_result parse();
+    static kernel::core::init_result parse();
 
     template <typename View>
-    static init_result init(View)
+    static kernel::core::init_result init(View)
     {
         return parse();
     }

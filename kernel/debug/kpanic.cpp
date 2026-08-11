@@ -4,19 +4,10 @@
 
 #include "kernel/debug/kpanic.hpp"
 
+#include "kernel/core/halt.hpp"
 #include "kernel/debug/kprint.hpp"
 
 namespace kernel::debug {
-
-// =================================================================================================
-// Halt
-// =================================================================================================
-
-[[noreturn]] static void halt()
-{
-    for (;;)
-        asm volatile("cli; hlt");
-}
 
 // =================================================================================================
 // Kernel panic
@@ -52,7 +43,7 @@ static void dump_panic_registers(const panic_register_frame &r)
         dump_panic_registers(*static_cast<const panic_register_frame *>(frame));
 
     KPRINTLN("{} halt", detail::PANIC_PREFIX);
-    halt();
+    kernel::core::halt_forever();
 }
 
 }  // namespace kernel::debug

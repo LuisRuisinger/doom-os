@@ -59,7 +59,7 @@ bool available()
 // much to stage on the kernel stack.
 // =================================================================================================
 
-init_result component::parse()
+kernel::core::init_result component::parse()
 {
     g_info.reset();
 
@@ -71,7 +71,7 @@ init_result component::parse()
     }
 
     g_info.valid = true;
-    return kernel::boot::Ok();
+    return kernel::core::Ok();
 }
 
 }  // namespace kernel::boot::boot_info

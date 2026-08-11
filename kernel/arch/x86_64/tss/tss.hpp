@@ -6,7 +6,7 @@
 // =================================================================================================
 
 #include "kernel/arch/x86_64/cpu/stacks.hpp"
-#include "kernel/boot/component.hpp"
+#include "kernel/core/component.hpp"
 #include "kernel/core/types.hpp"
 
 namespace kernel::arch::x86_64::tss {
@@ -98,11 +98,11 @@ public:
 // =================================================================================================
 
 struct core_component
-    : kernel::boot::component<core_component, state, kernel::arch::x86_64::cpu::stacks_component> {
+    : kernel::core::component<core_component, state, kernel::arch::x86_64::cpu::stacks_component> {
     static constexpr auto *name = "TSS";
 
     template <typename View>
-    static kernel::boot::init_result init(View view)
+    static kernel::core::init_result init(View view)
     {
         const kernel::arch::x86_64::cpu::stack_set &stacks =
             dep<kernel::arch::x86_64::cpu::stacks_component>(view);
@@ -114,7 +114,7 @@ struct core_component
             .ist3 = stacks.machine_check().top,
         });
 
-        return kernel::boot::Ok();
+        return kernel::core::Ok();
     }
 };
 

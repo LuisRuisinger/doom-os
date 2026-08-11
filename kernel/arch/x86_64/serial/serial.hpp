@@ -5,7 +5,7 @@
 // Kernel files
 // =================================================================================================
 
-#include "kernel/boot/component.hpp"
+#include "kernel/core/component.hpp"
 
 namespace kernel::arch::x86_64::serial {
 // =================================================================================================
@@ -24,14 +24,14 @@ void write(const char *s);
 // Boot component
 // =================================================================================================
 
-struct component : kernel::boot::component<component, kernel::boot::no_resource> {
+struct component : kernel::core::component<component, kernel::core::no_resource> {
     static constexpr const char *name = "SERIAL";
 
     template <typename View>
-    static kernel::boot::init_result init(View)
+    static kernel::core::init_result init(View)
     {
         kernel::arch::x86_64::serial::init();
-        return kernel::boot::Ok();
+        return kernel::core::Ok();
     }
 };
 }  // namespace kernel::arch::x86_64::serial

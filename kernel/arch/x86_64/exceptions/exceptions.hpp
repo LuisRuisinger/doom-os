@@ -6,7 +6,7 @@
 // =================================================================================================
 
 #include "kernel/arch/x86_64/idt/idt.hpp"
-#include "kernel/boot/component.hpp"
+#include "kernel/core/component.hpp"
 #include "kernel/core/types.hpp"
 
 namespace kernel::arch::x86_64::cpu {
@@ -102,13 +102,13 @@ using exception_handler = void (*)(cpu::local_state &cpu, exception_frame &frame
 // this table and installs it; nothing here reaches into the IDT's own state.
 // =================================================================================================
 
-struct core_component : kernel::boot::component<core_component, idt::gate_table> {
+struct core_component : kernel::core::component<core_component, idt::gate_table> {
     static constexpr auto *name = "EXCEPTIONS";
 
-    static kernel::boot::init_result describe_gates(idt::gate_table &gates);
+    static kernel::core::init_result describe_gates(idt::gate_table &gates);
 
     template <typename View>
-    static kernel::boot::init_result init(View view)
+    static kernel::core::init_result init(View view)
     {
         return describe_gates(own(view));
     }

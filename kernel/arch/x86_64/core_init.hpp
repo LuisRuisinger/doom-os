@@ -6,7 +6,7 @@
 // =================================================================================================
 
 #include "kernel/arch/x86_64/cpu/cpu.hpp"
-#include "kernel/boot/component.hpp"
+#include "kernel/core/component.hpp"
 
 namespace kernel::arch::x86_64::core_init {
 
@@ -21,20 +21,20 @@ bool init_bsp();
 // Component
 // =================================================================================================
 
-struct component : kernel::boot::component<component, kernel::boot::no_resource,
+struct component : kernel::core::component<component, kernel::core::no_resource,
                                            kernel::arch::x86_64::cpu::component> {
     static constexpr auto *name = "CORE_INIT";
 
     template <typename View>
-    static kernel::boot::init_result init(View)
+    static kernel::core::init_result init(View)
     {
         // The per-core graph logs whichever component failed and why, so there is nothing
         // more specific to add here.
         if (!init_bsp()) {
-            return kernel::boot::Err(kernel::boot::init_error::UNSPECIFIED);
+            return kernel::core::Err(kernel::core::init_error::UNSPECIFIED);
         }
 
-        return kernel::boot::Ok();
+        return kernel::core::Ok();
     }
 };
 

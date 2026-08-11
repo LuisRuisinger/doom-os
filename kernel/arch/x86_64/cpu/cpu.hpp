@@ -9,7 +9,7 @@
 #include "kernel/arch/x86_64/gdt/gdt.hpp"
 #include "kernel/arch/x86_64/idt/idt.hpp"
 #include "kernel/arch/x86_64/tss/tss.hpp"
-#include "kernel/boot/component.hpp"
+#include "kernel/core/component.hpp"
 #include "kernel/core/types.hpp"
 
 namespace kernel::arch::x86_64::cpu {
@@ -55,7 +55,7 @@ class local_state {
     idt::table      idt_m{};
 
     template <typename, typename>
-    friend struct kernel::boot::resource_binding;
+    friend struct kernel::core::resource_binding;
 
     friend void init_bsp();
 
@@ -108,14 +108,14 @@ static inline void relax()
 // Component
 // =================================================================================================
 
-struct component : kernel::boot::component<component, kernel::boot::no_resource> {
+struct component : kernel::core::component<component, kernel::core::no_resource> {
     static constexpr auto *name = "CPU";
 
     template <typename View>
-    static kernel::boot::init_result init(View)
+    static kernel::core::init_result init(View)
     {
         init_bsp();
-        return kernel::boot::Ok();
+        return kernel::core::Ok();
     }
 };
 

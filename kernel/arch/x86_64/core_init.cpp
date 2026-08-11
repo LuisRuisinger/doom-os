@@ -5,7 +5,7 @@
 #include "kernel/arch/x86_64/core_init.hpp"
 
 #include "kernel/arch/x86_64/core_wiring.hpp"
-#include "kernel/boot/init.hpp"
+#include "kernel/core/init.hpp"
 #include "kernel/debug/kprint.hpp"
 
 namespace kernel::arch::x86_64::core_init {
@@ -27,10 +27,10 @@ struct core_logger {
     }
 
     template <typename Component>
-    void fail(cpu::local_state &cpu, kernel::boot::init_error error)
+    void fail(cpu::local_state &cpu, kernel::core::init_error error)
     {
         KPRINTLN("[init][core {}] {}: FAIL ({})", cpu.logical_id(), Component::name,
-                 kernel::boot::describe(error));
+                 kernel::core::describe(error));
     }
 };
 
@@ -42,7 +42,7 @@ bool init_core(cpu::local_state &cpu)
 {
     core_logger logger{};
 
-    return kernel::boot::run_init_graph<kernel::arch::x86_64::core_wiring::core_roots>(cpu, logger);
+    return kernel::core::run_init_graph<kernel::arch::x86_64::core_wiring::core_roots>(cpu, logger);
 }
 
 bool init_bsp()
