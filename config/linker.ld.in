@@ -1,14 +1,21 @@
-/* config/linker.ld */
+/*
+ * config/linker.ld.in
+ *
+ * Preprocessed into build/linker.ld. The addresses come from config/layout.h, which the early
+ * boot assembly includes as well, so the two cannot drift apart.
+ */
+
+#include "config/layout.h"
 
 ENTRY(_start32)
 
-KERNEL_LMA = 0x00100000;
-KERNEL_VMA = 0xffffffff80000000;
+KERNEL_LMA = DOOM_OS_KERNEL_LMA;
+KERNEL_VMA = DOOM_OS_KERNEL_VMA;
 
 /*
- * longmode.S builds the higher-half page tables from its own copy of this address. If the two
- * ever disagree the kernel links at one address and gets mapped at another, which shows up as
- * a triple fault on the jump to the higher half and nothing else. Fail at link time instead.
+ * Both sides take this from config/layout.h now, so they agree by construction - but a stale
+ * build/linker.ld would not, and a kernel linked at one address and mapped at another shows up
+ * as a triple fault on the jump to the higher half and nothing else. Cheap to keep checking.
  */
 ASSERT(ASM_KERNEL_VMA == KERNEL_VMA,
        "KERNEL_VMA disagrees between config/linker.ld and kernel/boot/longmode.S")

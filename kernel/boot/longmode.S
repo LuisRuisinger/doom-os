@@ -8,13 +8,14 @@
 // Constants
 // =================================================================================================
 
-.set KERNEL_VMA, 0xffffffff80000000
+#include "config/layout.h"
+
+.set KERNEL_VMA, DOOM_OS_KERNEL_VMA
 
 /*
  * Paging indices derived from KERNEL_VMA rather than written out, so moving the kernel means
- * changing one number. The linker script has to agree on that number; it exports its own and
- * asserts against ASM_KERNEL_VMA below, which turns a mismatch into a link error instead of a
- * triple fault on the jump to the higher half.
+ * changing one number in config/layout.h. ASM_KERNEL_VMA is exported for the linker script to
+ * assert against, which catches a stale generated script.
  */
 .set PML4_INDEX, (KERNEL_VMA >> 39) & 0x1FF
 .set PDPT_INDEX, (KERNEL_VMA >> 30) & 0x1FF

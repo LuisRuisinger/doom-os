@@ -14,7 +14,12 @@ ISO_DIR     := $(BUILD)/iso
 KERNEL_ELF  := $(BUILD)/kernel.elf
 ISO         := $(BUILD)/DoomOS.iso
 
-LINKER      := config/linker.ld
+# The linker script is preprocessed so it and the early boot assembly can share the addresses
+# in config/layout.h instead of each carrying their own copy.
+LINKER_IN   := config/linker.ld.in
+LAYOUT      := config/layout.h
+LINKER      := $(BUILD)/linker.ld
+
 GRUB_CFG    := config/grub.cfg
 
 # =================================================================================================
@@ -113,6 +118,10 @@ $(BUILD)/%.o: %.S Makefile
 $(BUILD)/%.o: %.cpp Makefile
 	mkdir -p $(dir $@)
 	$(CXX) $(CXXFLAGS) $(DEPFLAGS) -c $< -o $@
+
+$(LINKER): $(LINKER_IN) $(LAYOUT) Makefile
+	mkdir -p $(dir $@)
+	$(CC) -E -P -x c $(INCLUDES) $(LINKER_IN) -o $@
 
 $(KERNEL_ELF): $(OBJS) $(LINKER)
 	mkdir -p $(dir $@)
