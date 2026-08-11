@@ -4,9 +4,9 @@
 
 #include "kernel/core/memory/pmm/pmm.hpp"
 
+#include "kernel/core/bits.hpp"
 #include "kernel/debug/kprint.hpp"
 #include "kernel/sync/spinlock.hpp"
-#include "kernel/core/bits.hpp"
 
 namespace kernel::core::memory::pmm {
 
@@ -190,8 +190,8 @@ public:
         if (region.kind != memory_kind::USABLE)
             continue;
 
-        const paddr_t end = align_up_saturating(
-            range_end_saturating(region.base, region.length), PAGE_SIZE);
+        const paddr_t end =
+            align_up_saturating(range_end_saturating(region.base, region.length), PAGE_SIZE);
         limit = max_address(limit, min_address(end, MAX_MANAGED_MEMORY_BYTES));
     }
 

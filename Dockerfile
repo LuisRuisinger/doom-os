@@ -90,6 +90,7 @@ ARG DEBIAN_FRONTEND=noninteractive
 
 ARG TARGET=x86_64-elf
 ARG PREFIX=/opt/cross
+ARG CLANG_FORMAT_VERSION=20
 
 ENV TARGET=${TARGET}
 ENV PREFIX=${PREFIX}
@@ -106,8 +107,9 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     make \
     git \
     bear \
-    clang-format \
     gdb \
+    wget \
+    gnupg \
     ca-certificates \
     grub-common \
     grub-pc-bin \
@@ -117,11 +119,26 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     qemu-system-gui \
   && rm -rf /var/lib/apt/lists/*
 
+# .clang-format uses AlignFunctionDeclarations, which only exists from clang-format 20 - older
+# releases reject the whole file with "unknown key" and format nothing. Ubuntu 24.04 ships 18,
+# so take it from apt.llvm.org and pin the version, otherwise the container and the IDE format
+# the same file differently.
+RUN wget -qO- https://apt.llvm.org/llvm-snapshot.gpg.key \
+      | gpg --dearmor -o /usr/share/keyrings/llvm.gpg \
+    && echo "deb [signed-by=/usr/share/keyrings/llvm.gpg]" \
+       "http://apt.llvm.org/noble/ llvm-toolchain-noble-${CLANG_FORMAT_VERSION} main" \
+       > /etc/apt/sources.list.d/llvm.list \
+    && apt-get update \
+    && apt-get install -y --no-install-recommends "clang-format-${CLANG_FORMAT_VERSION}" \
+    && ln -sf "/usr/bin/clang-format-${CLANG_FORMAT_VERSION}" /usr/bin/clang-format \
+    && rm -rf /var/lib/apt/lists/*
+
 COPY --from=toolchain /opt/cross /opt/cross
 
 RUN x86_64-elf-gcc --version \
     && x86_64-elf-g++ --version \
     && grub-mkrescue --version \
-    && qemu-system-x86_64 --version
+    && qemu-system-x86_64 --version \
+    && clang-format --version
 
 WORKDIR /workspace

@@ -35,6 +35,16 @@ jobs:
           cache-from: type=gha
           cache-to: type=gha,mode=max
 
+      # .clang-format needs clang-format 20; older releases reject the file outright rather
+      # than degrading, so this also catches the container drifting off the pinned version.
+      - name: Check formatting
+        run: |
+          docker run --rm \
+            -v "$PWD":/workspace/DoomOS -w /workspace/DoomOS \
+            --user "$(id -u):$(id -g)" \
+            doom-os-toolchain:ci \
+            make format-check
+
       - name: Build kernel and ISO
         run: |
           docker run --rm \

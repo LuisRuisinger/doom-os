@@ -202,8 +202,7 @@ kernel::core::init_result adapter::parse(const kernel::boot::handoff &source,
     if (source.address == 0)
         return kernel::core::Err(init_error::INVALID_BOOT_DATA);
 
-    const auto *header =
-        reinterpret_cast<const fixed_header *>(static_cast<uptr>(source.address));
+    const auto *header = reinterpret_cast<const fixed_header *>(static_cast<uptr>(source.address));
 
     if (header->total_size < sizeof(*header))
         return kernel::core::Err(init_error::INVALID_BOOT_DATA);

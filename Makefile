@@ -81,6 +81,7 @@ BOOT_LOG     := $(BUILD)/boot.log
 
 ASM_SRCS := $(shell find kernel -name '*.S' | sort)
 CXX_SRCS := $(shell find kernel -name '*.cpp' | sort)
+HDRS     := $(shell find kernel -name '*.hpp' | sort)
 
 OBJS := \
 	$(patsubst %.S,$(BUILD)/%.o,$(ASM_SRCS)) \
@@ -156,6 +157,15 @@ test: iso
 		> $(BOOT_LOG) 2>&1
 	@scripts/check-boot.sh $(BOOT_LOG)
 
+format:
+	@command -v clang-format >/dev/null || { echo "Missing clang-format. Open this project in the Dev Container."; exit 1; }
+	clang-format -i $(CXX_SRCS) $(HDRS)
+
+format-check:
+	@command -v clang-format >/dev/null || { echo "Missing clang-format. Open this project in the Dev Container."; exit 1; }
+	@clang-format --dry-run --Werror $(CXX_SRCS) $(HDRS)
+	@echo "Formatting OK"
+
 clean:
 	rm -rf $(BUILD)
 
@@ -179,6 +189,8 @@ compdb: toolchain-check
 	debug \
 	qemu-log \
 	test \
+	format \
+	format-check \
 	clean \
 	toolchain-check \
 	compdb \

@@ -5,8 +5,8 @@
 // Kernel files
 // =================================================================================================
 
-#include "kernel/core/component.hpp"
 #include "kernel/boot/protocol.hpp"
+#include "kernel/core/component.hpp"
 
 namespace kernel::boot::boot_info {
 

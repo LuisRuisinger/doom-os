@@ -245,18 +245,18 @@ static const cpu::stack &fatal_exception_stack(cpu::local_state &cpu, u8 vector)
 // - then override every field the exception frame actually recorded.
 // =================================================================================================
 
-#define DOOM_OS_READ_SEGMENT_REGISTER(field__, asm_name__)             \
-    do {                                                               \
-        kernel::core::u16 value__;                                     \
-        asm volatile("mov %%" asm_name__ ", %0" : "=r"(value__));      \
-        out.field__ = value__;                                         \
+#define DOOM_OS_READ_SEGMENT_REGISTER(field__, asm_name__)        \
+    do {                                                          \
+        kernel::core::u16 value__;                                \
+        asm volatile("mov %%" asm_name__ ", %0" : "=r"(value__)); \
+        out.field__ = value__;                                    \
     } while (0);
 
-#define DOOM_OS_READ_CONTROL_REGISTER(field__, asm_name__)             \
-    do {                                                               \
-        u64 value__;                                                   \
-        asm volatile("mov %%" asm_name__ ", %0" : "=r"(value__));      \
-        out.field__ = value__;                                         \
+#define DOOM_OS_READ_CONTROL_REGISTER(field__, asm_name__)        \
+    do {                                                          \
+        u64 value__;                                              \
+        asm volatile("mov %%" asm_name__ ", %0" : "=r"(value__)); \
+        out.field__ = value__;                                    \
     } while (0);
 
 static void capture_ambient_registers(kernel::debug::panic_register_frame &out)
@@ -328,23 +328,23 @@ DOOM_OS_WEAK_DEFAULT_EXCEPTION_VECTORS(DOOM_OS_DEFINE_WEAK_EXCEPTION_HANDLER)
 
 #undef DOOM_OS_DEFINE_WEAK_EXCEPTION_HANDLER
 
-#define DOOM_OS_DEFINE_FATAL_EXCEPTION_HANDLER(vector_id, reason)                                \
-    DEFINE_EXCEPTION_HANDLER(vector_id)                                                          \
-    {                                                                                            \
-        static_assert(vector_id < CPU_EXCEPTION_COUNT);                                          \
-        const char *fatal_reason = reason;                                                       \
-        const auto &fatal_stack = fatal_exception_stack(cpu, vector_id);                         \
-                                                                                                 \
-        validate_handler_vector(frame, vector_id);                                               \
-                                                                                                 \
-        auto fatal_dump = panic_frame_from(frame);                                               \
-                                                                                                 \
-        KPANIC_WITH_FRAME(                                                                       \
-            fatal_dump,                                                                          \
-            "[exception] fatal {}: {} vector={} error={:#018X} "                                 \
-            "stack=[{:#018X}, {:#018X}) size={}",                                                \
-            exception_name(static_cast<u8>(frame.vector)), fatal_reason, frame.vector,           \
-            frame.error_code, fatal_stack.bottom, fatal_stack.top, fatal_stack.size);            \
+#define DOOM_OS_DEFINE_FATAL_EXCEPTION_HANDLER(vector_id, reason)                              \
+    DEFINE_EXCEPTION_HANDLER(vector_id)                                                        \
+    {                                                                                          \
+        static_assert(vector_id < CPU_EXCEPTION_COUNT);                                        \
+        const char *fatal_reason = reason;                                                     \
+        const auto &fatal_stack = fatal_exception_stack(cpu, vector_id);                       \
+                                                                                               \
+        validate_handler_vector(frame, vector_id);                                             \
+                                                                                               \
+        auto fatal_dump = panic_frame_from(frame);                                             \
+                                                                                               \
+        KPANIC_WITH_FRAME(fatal_dump,                                                          \
+                          "[exception] fatal {}: {} vector={} error={:#018X} "                 \
+                          "stack=[{:#018X}, {:#018X}) size={}",                                \
+                          exception_name(static_cast<u8>(frame.vector)), fatal_reason,         \
+                          frame.vector, frame.error_code, fatal_stack.bottom, fatal_stack.top, \
+                          fatal_stack.size);                                                   \
     }
 
 DOOM_OS_DEFINE_FATAL_EXCEPTION_HANDLER(2, "non-maskable interrupt")
