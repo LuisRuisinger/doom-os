@@ -21,6 +21,17 @@
 #    define RESULT_ERROR(message__) KPANIC(message__)
 #endif
 
+// Niche packing looks for a value a one-byte enum cannot hold, and by default probes all 256
+// exhaustively - each probe a __PRETTY_FUNCTION__ parse. Measured on init_error, that single
+// instantiation cost ~130 ms, which every translation unit naming a component paid.
+//
+// Kernel error enums are small, so a sentinel turns up in the first handful of candidates.
+// Probing fewer keeps the packing and drops the cost. If an enum ever does use up this many
+// values the library falls back to a flag byte, which costs a byte and nothing else.
+#ifndef RESULT_SMALL_ENUM_SENTINEL_PROBE_SEQUENCE
+#    define RESULT_SMALL_ENUM_SENTINEL_PROBE_SEQUENCE 32
+#endif
+
 #include <result/result.hpp>
 
 namespace kernel::core {
