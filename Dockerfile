@@ -110,6 +110,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     gdb \
     wget \
     gnupg \
+    sudo \
     ca-certificates \
     grub-common \
     grub-pc-bin \
@@ -140,5 +141,21 @@ RUN x86_64-elf-gcc --version \
     && grub-mkrescue --version \
     && qemu-system-x86_64 --version \
     && clang-format --version
+
+# =================================================================================================
+# Unprivileged user
+#
+# Running as root meant every file the container touched in the bind-mounted workspace came back
+# owned by root - build output, and any source file created inside the container. The stock
+# ubuntu user is uid/gid 1000, which is the first user on a typical Linux host, so ownership
+# lines up without remapping. sudo is there for the occasional ad-hoc install.
+# =================================================================================================
+
+RUN echo "ubuntu ALL=(ALL) NOPASSWD:ALL" > /etc/sudoers.d/ubuntu \
+    && chmod 0440 /etc/sudoers.d/ubuntu \
+    && mkdir -p /workspace \
+    && chown ubuntu:ubuntu /workspace
+
+USER ubuntu
 
 WORKDIR /workspace
