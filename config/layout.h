@@ -16,4 +16,10 @@
 #define DOOM_OS_KERNEL_LMA 0x00100000
 #define DOOM_OS_KERNEL_VMA 0xffffffff80000000
 
+/*
+ * How much the early page tables cover, from DOOM_OS_KERNEL_VMA and from 0. One page directory
+ * of 2 MiB entries, so this caps at 1 GiB. The linker script asserts the kernel image fits.
+ */
+#define DOOM_OS_EARLY_MAP_SIZE 0x40000000
+
 #endif /* DOOM_OS_CONFIG_LAYOUT_H_ */

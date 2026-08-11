@@ -21,10 +21,23 @@
 .set PDPT_INDEX, (KERNEL_VMA >> 30) & 0x1FF
 .set PD_INDEX, (KERNEL_VMA >> 21) & 0x1FF
 
+/*
+ * The early directories use 2 MiB entries, so the mapped size decides how many to write.
+ * Expressed as shifts because '/' is a comment character for the x86 assembler - written as a
+ * division this silently evaluates to something else rather than failing.
+ */
+.set PD_ENTRY_SHIFT, 21
+.set PD_ENTRY_SIZE, 1 << PD_ENTRY_SHIFT
+.set PD_ENTRY_COUNT, DOOM_OS_EARLY_MAP_SIZE >> PD_ENTRY_SHIFT
+
+.if PD_ENTRY_COUNT > 512
+.error "DOOM_OS_EARLY_MAP_SIZE exceeds what one page directory can map"
+.endif
+
 .global ASM_KERNEL_VMA
 .set ASM_KERNEL_VMA, KERNEL_VMA
 
-/* fill_1gib_page_directory maps the whole directory from its first entry. */
+/* fill_early_page_directory maps the whole directory from its first entry. */
 .if PD_INDEX != 0
 .error "KERNEL_VMA must be 1 GiB aligned"
 .endif
@@ -144,23 +157,23 @@ setup_boot_page_tables:
      *   0xffffffff80000000 -> 0x00000000
      */
     movl $pd_low, %edi
-    call fill_1gib_page_directory
+    call fill_early_page_directory
 
     movl $pd_high, %edi
-    call fill_1gib_page_directory
+    call fill_early_page_directory
 
     ret
 
-fill_1gib_page_directory:
+fill_early_page_directory:
     movl $(PAGE_PRESENT | PAGE_WRITE | PAGE_SIZE), %eax
     xorl %edx, %edx
-    movl $512, %ecx
+    movl $PD_ENTRY_COUNT, %ecx
 
 .map_pd_entry:
     movl %eax, (%edi)
     movl %edx, 4(%edi)
 
-    addl $0x200000, %eax
+    addl $PD_ENTRY_SIZE, %eax
     adcl $0, %edx
 
     addl $8, %edi

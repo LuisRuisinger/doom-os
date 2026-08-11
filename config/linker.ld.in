@@ -145,6 +145,14 @@ SECTIONS
     kernel_physical_start = kernel_start - KERNEL_VMA;
     kernel_physical_end = kernel_end - KERNEL_VMA;
 
+    /*
+     * The early page tables cover DOOM_OS_EARLY_MAP_SIZE from zero and from KERNEL_VMA. A
+     * kernel that outgrew that would link cleanly and fault the moment it touched anything
+     * past the mapping.
+     */
+    ASSERT(kernel_physical_end <= DOOM_OS_EARLY_MAP_SIZE,
+           "kernel image does not fit in the early page tables; raise DOOM_OS_EARLY_MAP_SIZE")
+
     /DISCARD/ :
     {
         *(.eh_frame)
