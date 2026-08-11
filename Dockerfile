@@ -1,4 +1,11 @@
-FROM ubuntu:24.04
+# =================================================================================================
+# Toolchain builder
+#
+# Everything here is thrown away except /opt/cross. Building and cleaning up inside a single
+# layer keeps the ~5 GB of sources and build trees out of the image that actually ships.
+# =================================================================================================
+
+FROM ubuntu:24.04 AS toolchain
 
 ARG DEBIAN_FRONTEND=noninteractive
 
@@ -7,8 +14,6 @@ ARG PREFIX=/opt/cross
 ARG BINUTILS_VERSION=2.46.1
 ARG GCC_VERSION=15.3.0
 
-ENV TARGET=${TARGET}
-ENV PREFIX=${PREFIX}
 ENV PATH="${PREFIX}/bin:${PATH}"
 
 RUN apt-get update && apt-get install -y --no-install-recommends \
@@ -26,42 +31,30 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     tar \
     xz-utils \
     make \
-    git \
-    bear \
-    clang-format \
-    grub-common \
-    grub-pc-bin \
-    xorriso \
-    mtools \
-    qemu-system-x86 \
-    qemu-system-gui \
-    gdb \
   && rm -rf /var/lib/apt/lists/*
 
 WORKDIR /tmp/cross
 
-RUN wget "https://ftp.gnu.org/gnu/binutils/binutils-${BINUTILS_VERSION}.tar.xz" \
-    && wget "https://ftp.gnu.org/gnu/gcc/gcc-${GCC_VERSION}/gcc-${GCC_VERSION}.tar.xz" \
-    && tar -xf "binutils-${BINUTILS_VERSION}.tar.xz"  \
-    && tar -xf "gcc-${GCC_VERSION}.tar.xz"
-
-RUN mkdir build-binutils  \
+# libstdc++ is built freestanding (--disable-hosted-libstdcxx), which installs only the subset
+# C++20 requires of a freestanding implementation: <type_traits>, <concepts>, <bit>, <limits>,
+# <new>, <exception>, <cstddef>, <cstdint> and friends. All header-only template machinery, so
+# the kernel keeps linking with -nostdlib.
+RUN wget -q "https://ftp.gnu.org/gnu/binutils/binutils-${BINUTILS_VERSION}.tar.xz" \
+    && wget -q "https://ftp.gnu.org/gnu/gcc/gcc-${GCC_VERSION}/gcc-${GCC_VERSION}.tar.xz" \
+    && tar -xf "binutils-${BINUTILS_VERSION}.tar.xz" \
+    && tar -xf "gcc-${GCC_VERSION}.tar.xz" \
+    && mkdir build-binutils \
     && cd build-binutils \
-    && "../binutils-${BINUTILS_VERSION}/configure"  \
+    && "../binutils-${BINUTILS_VERSION}/configure" \
       --target="${TARGET}" \
       --prefix="${PREFIX}" \
       --with-sysroot \
       --disable-nls \
       --disable-werror \
     && make -j"$(nproc)" \
-    && make install
-
-# libstdc++ is built in freestanding mode (--disable-hosted-libstdcxx). That installs only
-# the subset C++20 requires of a freestanding implementation - <type_traits>, <concepts>,
-# <bit>, <limits>, <new>, <exception>, <cstddef>, <cstdint> and friends. All of it is
-# header-only template machinery: nothing allocates, nothing calls into an OS, and nothing is
-# emitted unless used, so the kernel keeps linking with -nostdlib.
-RUN mkdir build-gcc \
+    && make install \
+    && cd /tmp/cross \
+    && mkdir build-gcc \
     && cd build-gcc \
     && "../gcc-${GCC_VERSION}/configure" \
       --target="${TARGET}" \
@@ -83,7 +76,48 @@ RUN mkdir build-gcc \
     && make install-gcc \
     && make install-target-libgcc \
     && make -j"$(nproc)" all-target-libstdc++-v3 \
-    && make install-target-libstdc++-v3
+    && make install-target-libstdc++-v3 \
+    && cd / \
+    && rm -rf /tmp/cross
+
+# =================================================================================================
+# Development image
+# =================================================================================================
+
+FROM ubuntu:24.04
+
+ARG DEBIAN_FRONTEND=noninteractive
+
+ARG TARGET=x86_64-elf
+ARG PREFIX=/opt/cross
+
+ENV TARGET=${TARGET}
+ENV PREFIX=${PREFIX}
+ENV PATH="${PREFIX}/bin:${PATH}"
+
+# The -dev packages are what the cross compiler links against at run time (libgmp, libmpc,
+# libmpfr, libisl, libzstd); the rest is what turns a kernel.elf into a bootable ISO and runs it.
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    libgmp3-dev \
+    libmpc-dev \
+    libmpfr-dev \
+    libisl-dev \
+    libzstd-dev \
+    make \
+    git \
+    bear \
+    clang-format \
+    gdb \
+    ca-certificates \
+    grub-common \
+    grub-pc-bin \
+    xorriso \
+    mtools \
+    qemu-system-x86 \
+    qemu-system-gui \
+  && rm -rf /var/lib/apt/lists/*
+
+COPY --from=toolchain /opt/cross /opt/cross
 
 RUN x86_64-elf-gcc --version \
     && x86_64-elf-g++ --version \
