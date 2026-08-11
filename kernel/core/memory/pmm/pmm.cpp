@@ -12,8 +12,8 @@ namespace kernel::core::memory::pmm {
 
 namespace {
 
-using kernel::boot::boot_info::info;
-using kernel::boot::multiboot2::memory_type;
+using kernel::boot::info;
+using kernel::boot::memory_kind;
 using kernel::core::u8;
 using kernel::core::uptr;
 using kernel::sync::spinlock;
@@ -187,11 +187,11 @@ public:
     for (usize i = 0; i < boot.memory_map.count; ++i) {
         const auto &region = boot.memory_map[i];
 
-        if (region.type != memory_type::AVAILABLE)
+        if (region.kind != memory_kind::USABLE)
             continue;
 
         const paddr_t end = align_up_saturating(
-            range_end_saturating(region.base_address, region.length), PAGE_SIZE);
+            range_end_saturating(region.base, region.length), PAGE_SIZE);
         limit = max_address(limit, min_address(end, MAX_MANAGED_MEMORY_BYTES));
     }
 
@@ -231,29 +231,32 @@ public:
     if (protected_range_overlaps(base, end, 0, LOW_MEMORY_SIZE, overlap_base))
         return true;
 
-    if (boot.header && protected_range_overlaps(base, end, boot.handoff.info_address,
-                                                boot.header->total_size, overlap_base))
-        return true;
+    for (usize i = 0; i < boot.reserved.count; ++i) {
+        const auto &range = boot.reserved[i];
 
-    for (usize i = 0; i < boot.modules.count; ++i) {
-        const auto *module = boot.modules[i];
-
-        if (!module || module->mod_end <= module->mod_start)
-            continue;
-
-        if (protected_range_overlaps(base, end, module->mod_start,
-                                     module->mod_end - module->mod_start, overlap_base))
+        if (range.length != 0 &&
+            protected_range_overlaps(base, end, range.base, range.length, overlap_base))
             return true;
     }
 
-    if (boot.framebuffer) {
-        const u64 pitch = boot.framebuffer->pitch;
-        const u64 height = boot.framebuffer->height;
+    for (usize i = 0; i < boot.modules.count; ++i) {
+        const auto &range = boot.modules[i].range;
+
+        if (range.length == 0)
+            continue;
+
+        if (protected_range_overlaps(base, end, range.base, range.length, overlap_base))
+            return true;
+    }
+
+    if (boot.framebuffer.present) {
+        const u64 pitch = boot.framebuffer.pitch;
+        const u64 height = boot.framebuffer.height;
 
         if (height != 0 && pitch <= ~u64{0} / height) {
             const u64 byte_count = pitch * height;
 
-            if (byte_count != 0 && protected_range_overlaps(base, end, boot.framebuffer->address,
+            if (byte_count != 0 && protected_range_overlaps(base, end, boot.framebuffer.address,
                                                             byte_count, overlap_base))
                 return true;
         }
@@ -301,12 +304,12 @@ public:
     for (usize i = 0; i < boot.memory_map.count; ++i) {
         const auto &region = boot.memory_map[i];
 
-        if (region.type != memory_type::AVAILABLE)
+        if (region.kind != memory_kind::USABLE)
             continue;
 
-        paddr_t start = align_up_saturating(region.base_address, PAGE_SIZE);
+        paddr_t start = align_up_saturating(region.base, PAGE_SIZE);
         paddr_t end = kernel::core::utils::align_down<paddr_t>(
-            range_end_saturating(region.base_address, region.length), PAGE_SIZE);
+            range_end_saturating(region.base, region.length), PAGE_SIZE);
 
         end = min_address(end, managed_limit);
         end = min_address(end, EARLY_METADATA_ADDRESS_LIMIT);
@@ -703,10 +706,10 @@ void reserve_from_free_block(zone &zone, u32 block_pfn, u32 order, u32 target_pf
     for (usize i = 0; i < boot.memory_map.count; ++i) {
         const auto &region = boot.memory_map[i];
 
-        if (region.type != memory_type::AVAILABLE)
+        if (region.kind != memory_kind::USABLE)
             continue;
 
-        if (!add_usable_range_locked(region.base_address, region.length))
+        if (!add_usable_range_locked(region.base, region.length))
             return false;
     }
 
@@ -742,11 +745,15 @@ void log_allocatable_memory()
 
 [[nodiscard]] bool reserve_boot_info(const info &boot)
 {
-    if (!boot.header)
-        return true;
+    for (usize i = 0; i < boot.reserved.count; ++i) {
+        const auto &range = boot.reserved[i];
 
-    if (!reserve_range_locked(boot.handoff.info_address, boot.header->total_size))
-        return false;
+        if (range.length == 0)
+            continue;
+
+        if (!reserve_range_locked(range.base, range.length))
+            return false;
+    }
 
     return true;
 }
@@ -754,17 +761,12 @@ void log_allocatable_memory()
 [[nodiscard]] bool reserve_modules(const info &boot)
 {
     for (usize i = 0; i < boot.modules.count; ++i) {
-        const auto *module = boot.modules[i];
+        const auto &range = boot.modules[i].range;
 
-        if (!module)
+        if (range.length == 0)
             continue;
 
-        if (module->mod_end <= module->mod_start)
-            continue;
-
-        const u64 length = module->mod_end - module->mod_start;
-
-        if (!reserve_range_locked(module->mod_start, length))
+        if (!reserve_range_locked(range.base, range.length))
             return false;
     }
 
@@ -773,11 +775,11 @@ void log_allocatable_memory()
 
 [[nodiscard]] bool reserve_framebuffer(const info &boot)
 {
-    if (!boot.framebuffer)
+    if (!boot.framebuffer.present)
         return true;
 
-    const u64 pitch = boot.framebuffer->pitch;
-    const u64 height = boot.framebuffer->height;
+    const u64 pitch = boot.framebuffer.pitch;
+    const u64 height = boot.framebuffer.height;
 
     if (height != 0 && pitch > ~u64{0} / height)
         return false;
@@ -787,7 +789,7 @@ void log_allocatable_memory()
     if (byte_count == 0)
         return true;
 
-    if (!reserve_range_locked(boot.framebuffer->address, byte_count))
+    if (!reserve_range_locked(boot.framebuffer.address, byte_count))
         return false;
 
     return true;
