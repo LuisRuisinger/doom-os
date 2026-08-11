@@ -59,13 +59,21 @@ LDFLAGS := \
 LIBS := \
 	-lgcc
 
+QEMU_MEMORY ?= 8G
+QEMU_SMP    ?= 8,sockets=1,cores=4,threads=2
+
 QEMUFLAGS := \
 	-cdrom $(ISO) \
-	-m 8G \
-	-smp 8,sockets=1,cores=4,threads=2 \
+	-m $(QEMU_MEMORY) \
+	-smp $(QEMU_SMP) \
 	-serial stdio \
 	-no-reboot \
 	-no-shutdown
+
+# Seconds to let the kernel run before the boot test gives up. The kernel halts rather than
+# exiting, so the timeout expiring is the normal outcome; the log decides pass or fail.
+BOOT_TIMEOUT ?= 25
+BOOT_LOG     := $(BUILD)/boot.log
 
 # =================================================================================================
 # Sources
@@ -137,6 +145,17 @@ qemu-log: iso
 		-d int,cpu_reset,guest_errors \
 		-D $(BUILD)/qemu.log
 
+# Boot the ISO headless and assert the init log. Catches both a kernel that faults and a
+# kernel that never gets loaded at all - the second looks identical from the outside.
+test: iso
+	@rm -f $(BOOT_LOG)
+	@echo "booting under qemu (up to $(BOOT_TIMEOUT)s)"
+	@-timeout $(BOOT_TIMEOUT) qemu-system-x86_64 $(QEMUFLAGS) \
+		-display none \
+		-monitor none \
+		> $(BOOT_LOG) 2>&1
+	@scripts/check-boot.sh $(BOOT_LOG)
+
 clean:
 	rm -rf $(BUILD)
 
@@ -159,6 +178,7 @@ compdb: toolchain-check
 	run \
 	debug \
 	qemu-log \
+	test \
 	clean \
 	toolchain-check \
 	compdb \

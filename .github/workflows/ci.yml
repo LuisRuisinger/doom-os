@@ -1,0 +1,62 @@
+name: ci
+
+on:
+  push:
+  pull_request:
+  workflow_dispatch:
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build-and-boot:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          # Result<T, E> is a submodule pinned to a specific commit.
+          submodules: recursive
+
+      - name: Set up buildx
+        uses: docker/setup-buildx-action@v3
+
+      # The toolchain is a cross GCC built from source, so this is slow the first time and
+      # near-instant afterwards. The multi-stage build keeps the 5 GB of build trees out of
+      # the cached layers.
+      - name: Build toolchain image
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          load: true
+          tags: doom-os-toolchain:ci
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+      - name: Build kernel and ISO
+        run: |
+          docker run --rm \
+            -v "$PWD":/workspace/DoomOS -w /workspace/DoomOS \
+            --user "$(id -u):$(id -g)" \
+            doom-os-toolchain:ci \
+            make all
+
+      # No KVM on hosted runners, so this is fully emulated. Less memory than the dev default
+      # keeps it comfortable; the assertions do not depend on the amount.
+      - name: Boot test
+        run: |
+          docker run --rm \
+            -v "$PWD":/workspace/DoomOS -w /workspace/DoomOS \
+            --user "$(id -u):$(id -g)" \
+            doom-os-toolchain:ci \
+            make test QEMU_MEMORY=2G QEMU_SMP=2
+
+      - name: Upload serial log
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: boot-log
+          path: build/boot.log
+          if-no-files-found: warn
