@@ -6,7 +6,7 @@
 
 #include "kernel/debug/kprint.hpp"
 #include "kernel/sync/spinlock.hpp"
-#include "kernel/utils/bits.hpp"
+#include "kernel/core/bits.hpp"
 
 namespace kernel::core::memory::pmm {
 

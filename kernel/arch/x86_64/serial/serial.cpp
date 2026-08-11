@@ -2,7 +2,7 @@
 
 #include "kernel/arch/x86_64/serial/io.hpp"
 #include "kernel/core/types.hpp"
-#include "kernel/utils/bits.hpp"
+#include "kernel/core/bits.hpp"
 
 namespace kernel::arch::x86_64::serial {
 
