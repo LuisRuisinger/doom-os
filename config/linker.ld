@@ -5,6 +5,14 @@ ENTRY(_start32)
 KERNEL_LMA = 0x00100000;
 KERNEL_VMA = 0xffffffff80000000;
 
+/*
+ * longmode.S builds the higher-half page tables from its own copy of this address. If the two
+ * ever disagree the kernel links at one address and gets mapped at another, which shows up as
+ * a triple fault on the jump to the higher half and nothing else. Fail at link time instead.
+ */
+ASSERT(ASM_KERNEL_VMA == KERNEL_VMA,
+       "KERNEL_VMA disagrees between config/linker.ld and kernel/boot/longmode.S")
+
 PF_X = 0x1;
 PF_W = 0x2;
 PF_R = 0x4;

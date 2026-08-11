@@ -10,6 +10,24 @@
 
 .set KERNEL_VMA, 0xffffffff80000000
 
+/*
+ * Paging indices derived from KERNEL_VMA rather than written out, so moving the kernel means
+ * changing one number. The linker script has to agree on that number; it exports its own and
+ * asserts against ASM_KERNEL_VMA below, which turns a mismatch into a link error instead of a
+ * triple fault on the jump to the higher half.
+ */
+.set PML4_INDEX, (KERNEL_VMA >> 39) & 0x1FF
+.set PDPT_INDEX, (KERNEL_VMA >> 30) & 0x1FF
+.set PD_INDEX, (KERNEL_VMA >> 21) & 0x1FF
+
+.global ASM_KERNEL_VMA
+.set ASM_KERNEL_VMA, KERNEL_VMA
+
+/* fill_1gib_page_directory maps the whole directory from its first entry. */
+.if PD_INDEX != 0
+.error "KERNEL_VMA must be 1 GiB aligned"
+.endif
+
 .set GDT64_KERNEL_CODE, 0x08
 .set GDT64_KERNEL_DATA, 0x10
 
@@ -100,24 +118,20 @@ setup_boot_page_tables:
     /*
      * Higher-half map:
      *
-     * 0xffffffff80000000 has:
-     *   pml4 index = 511
-     *   pdpt index = 510
-     *   pd index   = 0
+     *   pml4[PML4_INDEX] -> pdpt_high
+     *   pdpt_high[PDPT_INDEX] -> pd_high
      *
-     * So:
-     *   pml4[511] -> pdpt_high
-     *   pdpt_high[510] -> pd_high
+     * For the default KERNEL_VMA of 0xffffffff80000000 those work out to 511 and 510.
      */
     movl $pdpt_high, %eax
     orl $(PAGE_PRESENT | PAGE_WRITE), %eax
-    movl %eax, pml4_table + 511 * 8
-    movl $0, pml4_table + 511 * 8 + 4
+    movl %eax, pml4_table + PML4_INDEX * 8
+    movl $0, pml4_table + PML4_INDEX * 8 + 4
 
     movl $pd_high, %eax
     orl $(PAGE_PRESENT | PAGE_WRITE), %eax
-    movl %eax, pdpt_high + 510 * 8
-    movl $0, pdpt_high + 510 * 8 + 4
+    movl %eax, pdpt_high + PDPT_INDEX * 8
+    movl $0, pdpt_high + PDPT_INDEX * 8 + 4
 
     /*
      * Fill both page directories with 2 MiB mappings.
