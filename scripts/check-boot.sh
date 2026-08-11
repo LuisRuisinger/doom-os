@@ -52,6 +52,11 @@ if grep -q "FAIL" "$log"; then
     fail "a component reported FAIL"
 fi
 
+# kprint renders these, so they double as a check on the formatter: a zero-padded 64-bit hex
+# in alternate form ({:#018X}) and a plain decimal ({}).
+grep -Eq 'rax: 0x[0-9A-F]{16}' "$log" || fail "register dump is not formatted as {:#018X}"
+grep -Eq 'allocatable=[0-9]+ KiB' "$log" || fail "decimal formatting looks wrong"
+
 # kernel_main64 currently ends in ud2 on purpose, so reaching the panic handler proves the IDT
 # is genuinely live and dispatching. Drop this check when the kernel gets real work to do.
 if ! grep -q "#UD invalid opcode" "$log"; then
