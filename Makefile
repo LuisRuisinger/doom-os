@@ -22,7 +22,8 @@ GRUB_CFG    := config/grub.cfg
 # =================================================================================================
 
 INCLUDES := \
-	-I$(CURDIR)
+	-I$(CURDIR) \
+	-I$(CURDIR)/third_party/result/include
 
 CXXFLAGS := \
 	-std=c++20 \
@@ -60,6 +61,8 @@ LIBS := \
 
 QEMUFLAGS := \
 	-cdrom $(ISO) \
+	-m 8G \
+	-smp 8,sockets=1,cores=4,threads=2 \
 	-serial stdio \
 	-no-reboot \
 	-no-shutdown
