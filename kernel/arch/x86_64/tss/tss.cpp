@@ -4,15 +4,14 @@
 
 #include "kernel/arch/x86_64/tss/tss.hpp"
 
-#include "kernel/arch/x86_64/cpu/cpu.hpp"
-
 namespace kernel::arch::x86_64::tss {
 
 // =================================================================================================
 // Initialization
 // =================================================================================================
 
-void state::clear() {
+void state::clear()
+{
     layout_m.reserved0 = 0;
 
     for (u8 i = 0; i < PRIVILEGE_STACK_COUNT; ++i) {
@@ -30,7 +29,8 @@ void state::clear() {
     layout_m.io_map_base = IO_MAP_DISABLED_BASE;
 }
 
-bool state::set_privilege_stack(u8 privilege_level, u64 stack_top) {
+bool state::set_privilege_stack(u8 privilege_level, u64 stack_top)
+{
     if (privilege_level >= PRIVILEGE_STACK_COUNT) {
         return false;
     }
@@ -39,7 +39,8 @@ bool state::set_privilege_stack(u8 privilege_level, u64 stack_top) {
     return true;
 }
 
-bool state::set_interrupt_stack(interrupt_stack stack, u64 stack_top) {
+bool state::set_interrupt_stack(interrupt_stack stack, u64 stack_top)
+{
     const u8 stack_index = static_cast<u8>(stack);
 
     if (stack_index == NO_INTERRUPT_STACK || stack_index > INTERRUPT_STACK_COUNT) {
@@ -50,7 +51,8 @@ bool state::set_interrupt_stack(interrupt_stack stack, u64 stack_top) {
     return true;
 }
 
-void state::init(const stack_config &config) {
+void state::init(const stack_config &config)
+{
     clear();
 
     layout_m.rsp[0] = config.rsp0;
@@ -66,17 +68,14 @@ void state::init(const stack_config &config) {
     layout_m.ist[6] = config.ist7;
 }
 
-const segment &state::layout() const { return layout_m; }
+const segment &state::layout() const
+{
+    return layout_m;
+}
 
-u64 state::base() const { return reinterpret_cast<u64>(&layout_m); }
-
-// =================================================================================================
-// Core component
-// =================================================================================================
-
-bool core_component::init_component(kernel::arch::x86_64::cpu::local_state &cpu) {
-    cpu.init_task_state_segment();
-    return true;
+u64 state::base() const
+{
+    return reinterpret_cast<u64>(&layout_m);
 }
 
 }  // namespace kernel::arch::x86_64::tss

@@ -5,15 +5,9 @@
 // Kernel files
 // =================================================================================================
 
-#include "../tss/tss.hpp"
+#include "kernel/arch/x86_64/tss/tss.hpp"
 #include "kernel/boot/component.hpp"
 #include "kernel/core/types.hpp"
-
-namespace kernel::arch::x86_64::cpu {
-
-struct local_state;
-
-}  // namespace kernel::arch::x86_64::cpu
 
 namespace kernel::arch::x86_64::gdt {
 
@@ -56,29 +50,40 @@ class table {
     alignas(8) descriptor entries_m[ENTRY_COUNT]{};
     pointer ptr_m{};
 
-   public:
+public:
     void init(const kernel::arch::x86_64::tss::state &task_state_segment);
     void load() const;
+
+    // The selector a gate must reference to enter the kernel through this table. Read by the
+    // IDT rather than assumed, so the two never disagree about the layout.
+    [[nodiscard]] u16 kernel_code_selector() const;
 };
 
 // =================================================================================================
 // GDT
 // =================================================================================================
 
-void init_table(table &table, const kernel::arch::x86_64::tss::state &task_state_segment);
-void load_table(const table &table);
 void load_task_register(u16 selector);
 
 // =================================================================================================
 // Core component
 // =================================================================================================
 
-struct core_component : kernel::boot::context_component_base<
-                            core_component, kernel::arch::x86_64::cpu::local_state,
-                            kernel::boot::type_list<kernel::arch::x86_64::tss::core_component>> {
+struct core_component
+    : kernel::boot::component<core_component, table, kernel::arch::x86_64::tss::core_component> {
     static constexpr auto *name = "GDT";
 
-    static bool init_component(kernel::arch::x86_64::cpu::local_state &cpu);
+    template <typename View>
+    static kernel::boot::init_result init(View view)
+    {
+        table &self = own(view);
+
+        self.init(dep<kernel::arch::x86_64::tss::core_component>(view));
+        self.load();
+        load_task_register(TSS_SELECTOR);
+
+        return kernel::boot::Ok();
+    }
 };
 
 }  // namespace kernel::arch::x86_64::gdt

@@ -9,7 +9,12 @@
 #include "kernel/arch/x86_64/tss/tss.hpp"
 #include "kernel/debug/kpanic.hpp"
 #include "kernel/debug/kprint.hpp"
-#include "kernel/utils/traits.hpp"
+
+// =================================================================================================
+// Cpp stdlib files
+// =================================================================================================
+
+#include <utility>
 
 namespace kernel::arch::x86_64::exceptions {
 
@@ -97,7 +102,8 @@ static constexpr const char *EXCEPTION_NAMES[CPU_EXCEPTION_COUNT] = {
     "reserved",
 };
 
-const char *exception_name(u8 vector) {
+const char *exception_name(u8 vector)
+{
     return vector < CPU_EXCEPTION_COUNT ? EXCEPTION_NAMES[vector] : "unknown exception";
 }
 
@@ -174,7 +180,8 @@ const char *exception_name(u8 vector) {
 // Validation
 // =================================================================================================
 
-static constexpr bool exception_has_error_code(u8 vector) {
+static constexpr bool exception_has_error_code(u8 vector)
+{
     switch (vector) {
         case 8:
         case 10:
@@ -192,7 +199,8 @@ static constexpr bool exception_has_error_code(u8 vector) {
     }
 }
 
-static void validate_exception_frame(const exception_frame &frame) {
+static void validate_exception_frame(const exception_frame &frame)
+{
     if (frame.vector >= CPU_EXCEPTION_COUNT)
         panic_unhandled_exception(frame);
 
@@ -202,21 +210,25 @@ static void validate_exception_frame(const exception_frame &frame) {
                frame.error_code);
 }
 
-static void validate_handler_vector(const exception_frame &frame, u8 expected) {
+static void validate_handler_vector(const exception_frame &frame, u8 expected)
+{
     if (frame.vector != expected)
         KPANIC("[exception] handler/vector mismatch expected={} actual={}", expected, frame.vector);
 }
 
-static const cpu::stack &fatal_exception_stack(cpu::local_state &cpu, u8 vector) {
+static const cpu::stack &fatal_exception_stack(cpu::local_state &cpu, u8 vector)
+{
+    const cpu::stack_set &stacks = cpu.stacks();
+
     switch (vector) {
         case 2:
-            return cpu.nmi_stack;
+            return stacks.nmi();
         case 8:
-            return cpu.double_fault_stack;
+            return stacks.double_fault();
         case 18:
-            return cpu.machine_check_stack;
+            return stacks.machine_check();
         default:
-            return cpu.kernel_stack;
+            return stacks.kernel();
     }
 }
 
@@ -224,11 +236,78 @@ static const cpu::stack &fatal_exception_stack(cpu::local_state &cpu, u8 vector)
 // Default handlers
 // =================================================================================================
 
-[[noreturn]] void panic_unhandled_exception(const exception_frame &frame) {
+// =================================================================================================
+// Fault register dump
+//
+// KPANIC captures registers where it is written, which on a fault is the handler rather than
+// the context that faulted. Capture the ambient state first - the segment and control
+// registers survive the trap, and CR2 has to be read here because it carries the #PF address
+// - then override every field the exception frame actually recorded.
+// =================================================================================================
+
+#define DOOM_OS_READ_SEGMENT_REGISTER(field__, asm_name__)             \
+    do {                                                               \
+        kernel::core::u16 value__;                                     \
+        asm volatile("mov %%" asm_name__ ", %0" : "=r"(value__));      \
+        out.field__ = value__;                                         \
+    } while (0);
+
+#define DOOM_OS_READ_CONTROL_REGISTER(field__, asm_name__)             \
+    do {                                                               \
+        u64 value__;                                                   \
+        asm volatile("mov %%" asm_name__ ", %0" : "=r"(value__));      \
+        out.field__ = value__;                                         \
+    } while (0);
+
+static void capture_ambient_registers(kernel::debug::panic_register_frame &out)
+{
+    DOOM_OS_KPANIC_SEGS(DOOM_OS_READ_SEGMENT_REGISTER)
+    DOOM_OS_KPANIC_CRS(DOOM_OS_READ_CONTROL_REGISTER)
+}
+
+#undef DOOM_OS_READ_SEGMENT_REGISTER
+#undef DOOM_OS_READ_CONTROL_REGISTER
+
+static kernel::debug::panic_register_frame panic_frame_from(const exception_frame &frame)
+{
+    kernel::debug::panic_register_frame __panic_frame{};
+
+    capture_ambient_registers(__panic_frame);
+
+    __panic_frame.rax = frame.rax;
+    __panic_frame.rbx = frame.rbx;
+    __panic_frame.rcx = frame.rcx;
+    __panic_frame.rdx = frame.rdx;
+    __panic_frame.rsi = frame.rsi;
+    __panic_frame.rdi = frame.rdi;
+    __panic_frame.rbp = frame.rbp;
+    __panic_frame.r8 = frame.r8;
+    __panic_frame.r9 = frame.r9;
+    __panic_frame.r10 = frame.r10;
+    __panic_frame.r11 = frame.r11;
+    __panic_frame.r12 = frame.r12;
+    __panic_frame.r13 = frame.r13;
+    __panic_frame.r14 = frame.r14;
+    __panic_frame.r15 = frame.r15;
+
+    __panic_frame.rip = frame.rip;
+    __panic_frame.rsp = frame.rsp;
+    __panic_frame.rflags = frame.rflags;
+    __panic_frame.cs = frame.cs;
+    __panic_frame.ss = frame.ss;
+
+    return __panic_frame;
+}
+
+[[noreturn]] void panic_unhandled_exception(const exception_frame &frame)
+{
     const auto  vector = frame.vector;
     const auto *name = vector < CPU_EXCEPTION_COUNT ? EXCEPTION_NAMES[vector] : "unknown exception";
 
-    KPANIC("[exception] {} vector={} error={:#018X}", name, vector, frame.error_code);
+    auto dump = panic_frame_from(frame);
+
+    KPANIC_WITH_FRAME(dump, "[exception] {} vector={} error={:#018X}", name, vector,
+                      frame.error_code);
 }
 
 #define DOOM_OS_DEFINE_WEAK_EXCEPTION_HANDLER(vector_id)                        \
@@ -236,7 +315,8 @@ static const cpu::stack &fatal_exception_stack(cpu::local_state &cpu, u8 vector)
         cpu::local_state & cpu, exception_frame & frame) __attribute__((weak)); \
                                                                                 \
     extern "C" void DOOM_OS_EXCEPTION_HANDLER_SYMBOL(vector_id)(                \
-        cpu::local_state & cpu [[maybe_unused]], exception_frame & frame) {     \
+        cpu::local_state & cpu [[maybe_unused]], exception_frame & frame)       \
+    {                                                                           \
         static_assert(vector_id < CPU_EXCEPTION_COUNT);                         \
                                                                                 \
         validate_handler_vector(frame, vector_id);                              \
@@ -249,17 +329,22 @@ DOOM_OS_WEAK_DEFAULT_EXCEPTION_VECTORS(DOOM_OS_DEFINE_WEAK_EXCEPTION_HANDLER)
 #undef DOOM_OS_DEFINE_WEAK_EXCEPTION_HANDLER
 
 #define DOOM_OS_DEFINE_FATAL_EXCEPTION_HANDLER(vector_id, reason)                                \
-    DEFINE_EXCEPTION_HANDLER(vector_id) {                                                        \
+    DEFINE_EXCEPTION_HANDLER(vector_id)                                                          \
+    {                                                                                            \
         static_assert(vector_id < CPU_EXCEPTION_COUNT);                                          \
         const char *fatal_reason = reason;                                                       \
         const auto &fatal_stack = fatal_exception_stack(cpu, vector_id);                         \
                                                                                                  \
         validate_handler_vector(frame, vector_id);                                               \
-        KPANIC(                                                                                  \
+                                                                                                 \
+        auto fatal_dump = panic_frame_from(frame);                                               \
+                                                                                                 \
+        KPANIC_WITH_FRAME(                                                                       \
+            fatal_dump,                                                                          \
             "[exception] fatal {}: {} vector={} error={:#018X} "                                 \
-            "stack=[{:#018X}, {:#018X}) size={} interrupted_rsp={:#018X}",                       \
+            "stack=[{:#018X}, {:#018X}) size={}",                                                \
             exception_name(static_cast<u8>(frame.vector)), fatal_reason, frame.vector,           \
-            frame.error_code, fatal_stack.bottom, fatal_stack.top, fatal_stack.size, frame.rsp); \
+            frame.error_code, fatal_stack.bottom, fatal_stack.top, fatal_stack.size);            \
     }
 
 DOOM_OS_DEFINE_FATAL_EXCEPTION_HANDLER(2, "non-maskable interrupt")
@@ -275,10 +360,13 @@ DOOM_OS_DEFINE_FATAL_EXCEPTION_HANDLER(18, "machine check")
 struct exception_handler_table {
     exception_handler entries[CPU_EXCEPTION_COUNT]{};
 
-    constexpr exception_handler operator[](const usize vector) const { return entries[vector]; }
+    constexpr exception_handler operator[](const usize vector) const
+    {
+        return entries[vector];
+    }
 };
 
-using exception_vector_sequence = kernel::core::make_index_sequence<CPU_EXCEPTION_COUNT>;
+using exception_vector_sequence = std::make_index_sequence<CPU_EXCEPTION_COUNT>;
 
 #define DOOM_OS_EXCEPTION_HANDLER_ENTRY(vector) DOOM_OS_EXCEPTION_HANDLER_SYMBOL(vector),
 
@@ -294,7 +382,8 @@ static constexpr exception_handler_table EXCEPTION_HANDLERS{
 // =================================================================================================
 
 template <usize Vector>
-static constexpr u8 ist_for_vector() {
+static constexpr u8 ist_for_vector()
+{
     if constexpr (Vector == 2) {
         return static_cast<u8>(kernel::arch::x86_64::tss::interrupt_stack::NMI);
     } else if constexpr (Vector == 8) {
@@ -307,35 +396,37 @@ static constexpr u8 ist_for_vector() {
 }
 
 template <usize Vector>
-static void install_exception_gate(kernel::arch::x86_64::idt::table &table) {
+static void describe_exception_gate(kernel::arch::x86_64::idt::gate_table &gates)
+{
     constexpr auto vector = static_cast<u8>(Vector);
     constexpr auto ist = ist_for_vector<Vector>();
-    const auto     handler = x86_64_exception_stub_table[Vector];
+    const auto     entry_point = x86_64_exception_stub_table[Vector];
 
     if constexpr (Vector == 3 || Vector == 4) {
-        table.set_trap_gate(vector, handler, ist);
+        gates.set_trap_gate(vector, entry_point, ist);
     } else {
-        table.set_interrupt_gate(vector, handler, ist);
+        gates.set_interrupt_gate(vector, entry_point, ist);
     }
 }
 
 template <usize... Vectors>
-static void install_exception_gates(kernel::arch::x86_64::idt::table &table,
-                                    kernel::core::index_sequence<Vectors...>) {
-    (install_exception_gate<Vectors>(table), ...);
+static void describe_exception_gates(kernel::arch::x86_64::idt::gate_table &gates,
+                                     std::index_sequence<Vectors...>)
+{
+    (describe_exception_gate<Vectors>(gates), ...);
 }
 
-bool core_component::init_component(kernel::arch::x86_64::cpu::local_state &cpu) {
-    install_exception_gates(cpu.idt, exception_vector_sequence{});
-
-    kernel::arch::x86_64::idt::load_table(cpu.idt);
-    return true;
+kernel::boot::init_result core_component::describe_gates(
+    kernel::arch::x86_64::idt::gate_table &gates)
+{
+    describe_exception_gates(gates, exception_vector_sequence{});
+    return kernel::boot::Ok();
 }
 
 }  // namespace kernel::arch::x86_64::exceptions
 
-extern "C" void x86_64_exception_dispatch(
-    kernel::arch::x86_64::exceptions::exception_frame *frame) {
+extern "C" void x86_64_exception_dispatch(kernel::arch::x86_64::exceptions::exception_frame *frame)
+{
     using namespace kernel::arch::x86_64;
 
     asm volatile("cli" ::: "memory");

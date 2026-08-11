@@ -5,7 +5,7 @@
 // Kernel files
 // =================================================================================================
 
-#include "kernel/arch/x86_64/cpu.hpp"
+#include "kernel/arch/x86_64/cpu/cpu.hpp"
 #include "kernel/core/types.hpp"
 #include "kernel/sync/atomic.hpp"
 
@@ -34,7 +34,7 @@ static constexpr u32 RW_SPINLOCK_READER_ONE = 1;
 class rw_spinlock {
     atomic<u32> state_m{0};
 
-   public:
+public:
     constexpr rw_spinlock() = default;
 
     rw_spinlock(const rw_spinlock &) = delete;
@@ -43,7 +43,8 @@ class rw_spinlock {
     rw_spinlock(rw_spinlock &&) = delete;
     rw_spinlock &operator=(rw_spinlock &&) = delete;
 
-    void read_lock() {
+    void read_lock()
+    {
         for (;;) {
             u32 state = state_m.load(memory_order::RELAXED);
 
@@ -66,7 +67,8 @@ class rw_spinlock {
         }
     }
 
-    bool try_read_lock() {
+    bool try_read_lock()
+    {
         u32 state = state_m.load(memory_order::RELAXED);
         if (state & RW_SPINLOCK_READ_BLOCKED)
             return false;
@@ -79,9 +81,13 @@ class rw_spinlock {
                                         memory_order::RELAXED);
     }
 
-    void read_unlock() { state_m.fetch_sub(RW_SPINLOCK_READER_ONE, memory_order::RELEASE); }
+    void read_unlock()
+    {
+        state_m.fetch_sub(RW_SPINLOCK_READER_ONE, memory_order::RELEASE);
+    }
 
-    void write_lock() {
+    void write_lock()
+    {
         for (;;) {
             u32 state = state_m.load(memory_order::RELAXED);
 
@@ -111,13 +117,15 @@ class rw_spinlock {
         }
     }
 
-    bool try_write_lock() {
+    bool try_write_lock()
+    {
         u32 expected = 0;
         return state_m.compare_exchange(expected, RW_SPINLOCK_WRITER_ACTIVE, memory_order::ACQUIRE,
                                         memory_order::RELAXED);
     }
 
-    void write_unlock() {
+    void write_unlock()
+    {
         for (;;) {
             u32 state = state_m.load(memory_order::RELAXED);
             u32 desired = 0;
@@ -131,21 +139,30 @@ class rw_spinlock {
         }
     }
 
-    bool is_write_locked() const {
+    bool is_write_locked() const
+    {
         return state_m.load(memory_order::RELAXED) & RW_SPINLOCK_WRITER_ACTIVE;
     }
 
-    bool has_pending_writer() const {
+    bool has_pending_writer() const
+    {
         return state_m.load(memory_order::RELAXED) & RW_SPINLOCK_WRITER_PENDING;
     }
 
-    bool has_readers() const { return reader_count() != 0; }
+    bool has_readers() const
+    {
+        return reader_count() != 0;
+    }
 
-    u32 reader_count() const {
+    u32 reader_count() const
+    {
         return state_m.load(memory_order::RELAXED) & RW_SPINLOCK_READER_MASK;
     }
 
-    bool is_locked() const { return state_m.load(memory_order::RELAXED) != 0; }
+    bool is_locked() const
+    {
+        return state_m.load(memory_order::RELAXED) != 0;
+    }
 };
 
 // =================================================================================================
@@ -155,10 +172,17 @@ class rw_spinlock {
 class read_spinlock_guard {
     rw_spinlock &lock_m;
 
-   public:
-    explicit read_spinlock_guard(rw_spinlock &lock) : lock_m(lock) { lock_m.read_lock(); }
+public:
+    explicit read_spinlock_guard(rw_spinlock &lock)
+        : lock_m(lock)
+    {
+        lock_m.read_lock();
+    }
 
-    ~read_spinlock_guard() { lock_m.read_unlock(); }
+    ~read_spinlock_guard()
+    {
+        lock_m.read_unlock();
+    }
 
     read_spinlock_guard(const read_spinlock_guard &) = delete;
     read_spinlock_guard &operator=(const read_spinlock_guard &) = delete;
@@ -174,10 +198,17 @@ class read_spinlock_guard {
 class write_spinlock_guard {
     rw_spinlock &lock_m;
 
-   public:
-    explicit write_spinlock_guard(rw_spinlock &lock) : lock_m(lock) { lock_m.write_lock(); }
+public:
+    explicit write_spinlock_guard(rw_spinlock &lock)
+        : lock_m(lock)
+    {
+        lock_m.write_lock();
+    }
 
-    ~write_spinlock_guard() { lock_m.write_unlock(); }
+    ~write_spinlock_guard()
+    {
+        lock_m.write_unlock();
+    }
 
     write_spinlock_guard(const write_spinlock_guard &) = delete;
     write_spinlock_guard &operator=(const write_spinlock_guard &) = delete;
@@ -194,11 +225,15 @@ class try_read_spinlock_guard {
     rw_spinlock &lock_m;
     bool         locked_m{};
 
-   public:
+public:
     explicit try_read_spinlock_guard(rw_spinlock &lock)
-        : lock_m(lock), locked_m(lock_m.try_read_lock()) {}
+        : lock_m(lock),
+          locked_m(lock_m.try_read_lock())
+    {
+    }
 
-    ~try_read_spinlock_guard() {
+    ~try_read_spinlock_guard()
+    {
         if (locked_m)
             lock_m.read_unlock();
     }
@@ -209,9 +244,15 @@ class try_read_spinlock_guard {
     try_read_spinlock_guard(try_read_spinlock_guard &&) = delete;
     try_read_spinlock_guard &operator=(try_read_spinlock_guard &&) = delete;
 
-    bool locked() const { return locked_m; }
+    bool locked() const
+    {
+        return locked_m;
+    }
 
-    explicit operator bool() const { return locked_m; }
+    explicit operator bool() const
+    {
+        return locked_m;
+    }
 };
 
 // =================================================================================================
@@ -222,11 +263,15 @@ class try_write_spinlock_guard {
     rw_spinlock &lock_m;
     bool         locked_m{};
 
-   public:
+public:
     explicit try_write_spinlock_guard(rw_spinlock &lock)
-        : lock_m(lock), locked_m(lock_m.try_write_lock()) {}
+        : lock_m(lock),
+          locked_m(lock_m.try_write_lock())
+    {
+    }
 
-    ~try_write_spinlock_guard() {
+    ~try_write_spinlock_guard()
+    {
         if (locked_m)
             lock_m.write_unlock();
     }
@@ -237,9 +282,15 @@ class try_write_spinlock_guard {
     try_write_spinlock_guard(try_write_spinlock_guard &&) = delete;
     try_write_spinlock_guard &operator=(try_write_spinlock_guard &&) = delete;
 
-    bool locked() const { return locked_m; }
+    bool locked() const
+    {
+        return locked_m;
+    }
 
-    explicit operator bool() const { return locked_m; }
+    explicit operator bool() const
+    {
+        return locked_m;
+    }
 };
 
 }  // namespace kernel::sync

@@ -2,11 +2,16 @@
 #define DOOM_OS_KERNEL_BOOT_INIT_GRAPH_HPP_
 
 // =================================================================================================
+// Cpp stdlib files
+// =================================================================================================
+
+#include <type_traits>
+
+// =================================================================================================
 // Kernel files
 // =================================================================================================
 
 #include "kernel/boot/component.hpp"
-#include "kernel/utils/traits.hpp"
 
 namespace kernel::boot::detail {
 
@@ -18,14 +23,14 @@ template <typename T, typename List>
 struct list_contains;
 
 template <typename T>
-struct list_contains<T, type_list<> > {
+struct list_contains<T, type_list<>> {
     static constexpr bool value = false;
 };
 
 template <typename T, typename Head, typename... Tail>
-struct list_contains<T, type_list<Head, Tail...> > {
+struct list_contains<T, type_list<Head, Tail...>> {
     static constexpr bool value =
-        kernel::core::is_same_v<T, Head> || list_contains<T, type_list<Tail...> >::value;
+        std::is_same_v<T, Head> || list_contains<T, type_list<Tail...>>::value;
 };
 
 template <typename List, typename T>
@@ -38,23 +43,23 @@ struct list_append<type_list<Ts...>, T> {
 
 template <typename List, typename T>
 struct list_append_unique {
-    using type = kernel::core::conditional_t<list_contains<T, List>::value, List,
-                                             typename list_append<List, T>::type>;
+    using type = std::conditional_t<list_contains<T, List>::value, List,
+                                    typename list_append<List, T>::type>;
 };
 
 template <typename A, typename B>
 struct list_concat_unique;
 
 template <typename A>
-struct list_concat_unique<A, type_list<> > {
+struct list_concat_unique<A, type_list<>> {
     using type = A;
 };
 
 template <typename A, typename Head, typename... Tail>
-struct list_concat_unique<A, type_list<Head, Tail...> > {
+struct list_concat_unique<A, type_list<Head, Tail...>> {
     using with_head = typename list_append_unique<A, Head>::type;
 
-    using type = typename list_concat_unique<with_head, type_list<Tail...> >::type;
+    using type = typename list_concat_unique<with_head, type_list<Tail...>>::type;
 };
 
 // =================================================================================================
@@ -82,33 +87,47 @@ struct topo_list<type_list<Head, Tail...>, Visiting> {
 
 template <typename Component, typename Visiting>
 struct topo_component {
-    static_assert(!list_contains<Component, Visiting>::value, "cycle detected in init graph");
+    static constexpr bool is_cyclic = list_contains<Component, Visiting>::value;
+
+    static_assert(!is_cyclic, "cycle detected in init graph");
 
     using visiting_with_self = typename list_append<Visiting, Component>::type;
-    using deps_sorted = typename topo_list<typename Component::deps, visiting_with_self>::type;
+
+    // Stop descending once a cycle is found, so the failure is one static_assert rather
+    // than a template instantiation depth error burying it.
+    using deps_sorted =
+        typename topo_list<std::conditional_t<is_cyclic, type_list<>, typename Component::deps>,
+                           visiting_with_self>::type;
 
     using type = typename list_append_unique<deps_sorted, Component>::type;
 };
 
 // =================================================================================================
 // Sorted list runner
+//
+// Each component is handed a fresh view of the backing store. The view itself grants
+// nothing; what the component may reach through it is decided by its own dependency list.
 // =================================================================================================
 
-template <typename Component, typename Context>
-bool run_component_silent(Context &context) {
-    return Component::run(context);
+template <typename Component, typename Backing>
+bool run_component_silent(Backing &backing)
+{
+    return Component::init(resource_view<Backing>{backing}).is_ok();
 }
 
-template <typename Component, typename Context, typename Logger>
-bool run_component_logged(Context &context, Logger &logger) {
-    logger.template begin<Component>(context);
+template <typename Component, typename Backing, typename Logger>
+bool run_component_logged(Backing &backing, Logger &logger)
+{
+    logger.template begin<Component>(backing);
 
-    if (!Component::run(context)) {
-        logger.template fail<Component>(context);
+    init_result outcome = Component::init(resource_view<Backing>{backing});
+
+    if (outcome.is_err()) {
+        logger.template fail<Component>(backing, outcome.unwrap_err_ref());
         return false;
     }
 
-    logger.template ok<Component>(context);
+    logger.template ok<Component>(backing);
     return true;
 }
 
@@ -116,15 +135,17 @@ template <typename List>
 struct init_list_runner;
 
 template <typename... Components>
-struct init_list_runner<type_list<Components...> > {
-    template <typename Context>
-    static bool run_silent(Context &context) {
-        return (run_component_silent<Components>(context) && ...);
+struct init_list_runner<type_list<Components...>> {
+    template <typename Backing>
+    static bool run_silent(Backing &backing)
+    {
+        return (run_component_silent<Components>(backing) && ...);
     }
 
-    template <typename Context, typename Logger>
-    static bool run_logged(Context &context, Logger &logger) {
-        return (run_component_logged<Components>(context, logger) && ...);
+    template <typename Backing, typename Logger>
+    static bool run_logged(Backing &backing, Logger &logger)
+    {
+        return (run_component_logged<Components>(backing, logger) && ...);
     }
 };
 
@@ -134,18 +155,21 @@ struct init_list_runner<type_list<Components...> > {
 
 template <typename Roots>
 struct init_graph {
-    using sorted_components = typename topo_list<Roots, type_list<> >::type;
+    using sorted_components = typename topo_list<Roots, type_list<>>::type;
 
-    template <typename Context>
-    static bool run_silent(Context &context) {
-        return init_list_runner<sorted_components>::run_silent(context);
+    template <typename Backing>
+    static bool run_silent(Backing &backing)
+    {
+        return init_list_runner<sorted_components>::run_silent(backing);
     }
 
-    template <typename Context, typename Logger>
-    static bool run_logged(Context &context, Logger &logger) {
-        return init_list_runner<sorted_components>::run_logged(context, logger);
+    template <typename Backing, typename Logger>
+    static bool run_logged(Backing &backing, Logger &logger)
+    {
+        return init_list_runner<sorted_components>::run_logged(backing, logger);
     }
 };
+
 }  // namespace kernel::boot::detail
 
 #endif  // DOOM_OS_KERNEL_BOOT_INIT_GRAPH_HPP_

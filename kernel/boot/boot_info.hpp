@@ -28,7 +28,8 @@ struct fixed_table {
     usize count{};
     bool  truncated{};
 
-    bool push(const Entry &entry) {
+    bool push(const Entry &entry)
+    {
         if (count >= Capacity) {
             truncated = true;
             return false;
@@ -39,8 +40,14 @@ struct fixed_table {
         return true;
     }
 
-    Entry       &operator[](usize index) { return entries[index]; }
-    const Entry &operator[](usize index) const { return entries[index]; }
+    Entry &operator[](usize index)
+    {
+        return entries[index];
+    }
+    const Entry &operator[](usize index) const
+    {
+        return entries[index];
+    }
 };
 
 // =================================================================================================
@@ -80,20 +87,26 @@ struct info {
     fixed_table<const multiboot2::module_tag *, MAX_BOOT_MODULES> modules{};
 };
 
-void                      set_handoff(multiboot2_handoff source);
-void                      set_handoff(u64 magic, paddr_t info_address);
+void set_handoff(multiboot2_handoff source);
+void set_handoff(u64 magic, paddr_t info_address);
 const multiboot2_handoff &handoff();
-const info               &current();
-bool                      available();
+const info &current();
+bool available();
 
 // =================================================================================================
 // Component
 // =================================================================================================
 
-struct component : kernel::boot::component_base<component> {
+struct component : kernel::boot::component<component, kernel::boot::no_resource> {
     static constexpr auto *name = "BOOT_INFO";
 
-    static bool init_component();
+    static init_result parse_handoff();
+
+    template <typename View>
+    static init_result init(View)
+    {
+        return parse_handoff();
+    }
 };
 
 }  // namespace kernel::boot::boot_info

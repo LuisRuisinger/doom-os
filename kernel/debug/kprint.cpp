@@ -15,9 +15,13 @@ using kernel::core::usize;
 // Backend
 // =================================================================================================
 
-void backend_emit_char(char value) { arch::x86_64::serial::write_char(value); }
+void backend_emit_char(char value)
+{
+    arch::x86_64::serial::write_char(value);
+}
 
-void backend_emit_bytes(const char *value, usize length) {
+void backend_emit_bytes(const char *value, usize length)
+{
     if (value == nullptr) {
         arch::x86_64::serial::write("<null>");
         return;
@@ -28,7 +32,8 @@ void backend_emit_bytes(const char *value, usize length) {
     }
 }
 
-void backend_emit_c_string(const char *value) {
+void backend_emit_c_string(const char *value)
+{
     if (value == nullptr) {
         arch::x86_64::serial::write("<null>");
         return;
@@ -37,7 +42,8 @@ void backend_emit_c_string(const char *value) {
     arch::x86_64::serial::write(value);
 }
 
-void backend_emit_decimal_u64(u64 value) {
+void backend_emit_decimal_u64(u64 value)
+{
     char  buffer[32];
     usize index = 0;
 
@@ -56,7 +62,8 @@ void backend_emit_decimal_u64(u64 value) {
     }
 }
 
-void backend_emit_decimal_i64(i64 value) {
+void backend_emit_decimal_i64(i64 value)
+{
     if (value < 0) {
         arch::x86_64::serial::write_char('-');
 
@@ -68,7 +75,8 @@ void backend_emit_decimal_i64(i64 value) {
     backend_emit_decimal_u64(static_cast<u64>(value));
 }
 
-void backend_emit_hex_u64(u64 value) {
+void backend_emit_hex_u64(u64 value)
+{
     static constexpr char digits[] = "0123456789ABCDEF";
 
     arch::x86_64::serial::write("0x");
@@ -79,7 +87,8 @@ void backend_emit_hex_u64(u64 value) {
     }
 }
 
-void backend_emit_pointer(const volatile void *value) {
+void backend_emit_pointer(const volatile void *value)
+{
     backend_emit_hex_u64(static_cast<u64>(reinterpret_cast<uptr>(value)));
 }
 }  // namespace detail
@@ -88,5 +97,8 @@ void backend_emit_pointer(const volatile void *value) {
 // Public API
 // =================================================================================================
 
-void kprint_init() { arch::x86_64::serial::init(); }
+void kprint_init()
+{
+    arch::x86_64::serial::init();
+}
 }  // namespace kernel::debug

@@ -14,7 +14,8 @@ using kernel::core::usize;
 // Memory functionality
 // =================================================================================================
 
-void *set(void *dest, i32 value, usize count) noexcept {
+void *set(void *dest, i32 value, usize count) noexcept
+{
     auto *d = static_cast<u8 *>(dest);
     auto  v = static_cast<u8>(value);
 
@@ -24,7 +25,8 @@ void *set(void *dest, i32 value, usize count) noexcept {
     return dest;
 }
 
-void *copy(void *dest, const void *src, usize count) noexcept {
+void *copy(void *dest, const void *src, usize count) noexcept
+{
     auto       *d = static_cast<u8 *>(dest);
     const auto *s = static_cast<const u8 *>(src);
 
@@ -34,7 +36,8 @@ void *copy(void *dest, const void *src, usize count) noexcept {
     return dest;
 }
 
-void *move(void *dest, const void *src, usize count) noexcept {
+void *move(void *dest, const void *src, usize count) noexcept
+{
     auto       *d = static_cast<u8 *>(dest);
     const auto *s = static_cast<const u8 *>(src);
 
@@ -55,7 +58,8 @@ void *move(void *dest, const void *src, usize count) noexcept {
     return dest;
 }
 
-i32 compare(const void *lhs, const void *rhs, usize count) noexcept {
+i32 compare(const void *lhs, const void *rhs, usize count) noexcept
+{
     const auto *a = static_cast<const u8 *>(lhs);
     const auto *b = static_cast<const u8 *>(rhs);
 
@@ -73,19 +77,23 @@ i32 compare(const void *lhs, const void *rhs, usize count) noexcept {
 // C ABI wrappers
 // =================================================================================================
 
-extern "C" void *memset(void *dest, kernel::core::i32 value, kernel::core::usize count) noexcept {
+extern "C" void *memset(void *dest, kernel::core::i32 value, kernel::core::usize count) noexcept
+{
     return kernel::runtime::set(dest, value, count);
 }
 
-extern "C" void *memcpy(void *dest, const void *src, kernel::core::usize count) noexcept {
+extern "C" void *memcpy(void *dest, const void *src, kernel::core::usize count) noexcept
+{
     return kernel::runtime::copy(dest, src, count);
 }
 
-extern "C" void *memmove(void *dest, const void *src, kernel::core::usize count) noexcept {
+extern "C" void *memmove(void *dest, const void *src, kernel::core::usize count) noexcept
+{
     return kernel::runtime::move(dest, src, count);
 }
 
 extern "C" kernel::core::i32 memcmp(const void *lhs, const void *rhs,
-                                    kernel::core::usize count) noexcept {
+                                    kernel::core::usize count) noexcept
+{
     return kernel::runtime::compare(lhs, rhs, count);
 }

@@ -22,7 +22,8 @@ extern "C" init_function __fini_array_end[];
 // Global constructors
 // =================================================================================================
 
-void call_global_constructors() {
+void call_global_constructors()
+{
     for (init_function *fn = __init_array_start; fn != __init_array_end; ++fn)
         (*fn)();
 }
@@ -31,7 +32,8 @@ void call_global_constructors() {
 // Global destructors
 // =================================================================================================
 
-void call_global_destructors() {
+void call_global_destructors()
+{
     for (init_function *fn = __fini_array_end; fn != __fini_array_start;) {
         --fn;
         (*fn)();

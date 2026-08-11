@@ -1,17 +1,59 @@
 #ifndef DOOM_OS_KERNEL_DEBUG_KPRINT_HPP_
 #define DOOM_OS_KERNEL_DEBUG_KPRINT_HPP_
 
+#include <type_traits>
+#include <utility>
+
 #include "kernel/core/types.hpp"
-#include "kernel/utils/traits.hpp"
 
 namespace kernel::debug {
 namespace detail {
 using kernel::core::i64;
-using kernel::core::is_signed_integer_v;
-using kernel::core::is_unsigned_integer_v;
 using kernel::core::u64;
 using kernel::core::u8;
 using kernel::core::usize;
+
+// =================================================================================================
+// Integer classification
+//
+// Deliberately narrower than std::is_integral: bool and plain char are excluded because both
+// have their own formatting, and must not be dispatched to the integer emitters below.
+// =================================================================================================
+
+template <typename T>
+struct is_signed_integer_base : std::false_type {};
+
+template <>
+struct is_signed_integer_base<signed char> : std::true_type {};
+template <>
+struct is_signed_integer_base<short> : std::true_type {};
+template <>
+struct is_signed_integer_base<int> : std::true_type {};
+template <>
+struct is_signed_integer_base<long> : std::true_type {};
+template <>
+struct is_signed_integer_base<long long> : std::true_type {};
+
+template <typename T>
+inline constexpr bool is_signed_integer_v = is_signed_integer_base<std::remove_cvref_t<T>>::value;
+
+template <typename T>
+struct is_unsigned_integer_base : std::false_type {};
+
+template <>
+struct is_unsigned_integer_base<unsigned char> : std::true_type {};
+template <>
+struct is_unsigned_integer_base<unsigned short> : std::true_type {};
+template <>
+struct is_unsigned_integer_base<unsigned int> : std::true_type {};
+template <>
+struct is_unsigned_integer_base<unsigned long> : std::true_type {};
+template <>
+struct is_unsigned_integer_base<unsigned long long> : std::true_type {};
+
+template <typename T>
+inline constexpr bool is_unsigned_integer_v =
+    is_unsigned_integer_base<std::remove_cvref_t<T>>::value;
 
 // =================================================================================================
 // Fixed string
@@ -22,18 +64,31 @@ struct fixed_string {
     char data[N];
 
     constexpr explicit fixed_string(const char (&value)[N])
-        : fixed_string(value, kernel::core::make_index_sequence<N>{}) {}
+        : fixed_string(value, std::make_index_sequence<N>{})
+    {
+    }
 
-    static constexpr usize size() { return N; }
+    static constexpr usize size()
+    {
+        return N;
+    }
 
-    static constexpr usize length() { return N == 0 ? 0 : N - 1; }
+    static constexpr usize length()
+    {
+        return N == 0 ? 0 : N - 1;
+    }
 
-    constexpr char operator[](usize index) const { return data[index]; }
+    constexpr char operator[](usize index) const
+    {
+        return data[index];
+    }
 
-   private:
+private:
     template <usize... Is>
-    constexpr fixed_string(const char (&value)[N], kernel::core::index_sequence<Is...>)
-        : data{value[Is]...} {}
+    constexpr fixed_string(const char (&value)[N], std::index_sequence<Is...>)
+        : data{value[Is]...}
+    {
+    }
 };
 
 template <usize N>
@@ -106,7 +161,8 @@ struct format_parse_result {
     usize field_count;
 };
 
-consteval format_spec default_format_spec() {
+consteval format_spec default_format_spec()
+{
     return format_spec{
         .presentation_value = presentation::DEFAULT,
         .align = format_align::DEFAULT,
@@ -121,7 +177,8 @@ consteval format_spec default_format_spec() {
     };
 }
 
-consteval format_field invalid_format_field() {
+consteval format_field invalid_format_field()
+{
     return format_field{
         .valid = false,
         .length = 0,
@@ -129,13 +186,23 @@ consteval format_field invalid_format_field() {
     };
 }
 
-consteval bool is_format_digit(char value) { return value >= '0' && value <= '9'; }
+consteval bool is_format_digit(char value)
+{
+    return value >= '0' && value <= '9';
+}
 
-consteval usize format_digit_value(char value) { return static_cast<usize>(value - '0'); }
+consteval usize format_digit_value(char value)
+{
+    return static_cast<usize>(value - '0');
+}
 
-consteval bool is_format_align(char value) { return value == '<' || value == '>' || value == '^'; }
+consteval bool is_format_align(char value)
+{
+    return value == '<' || value == '>' || value == '^';
+}
 
-consteval format_align parse_format_align(char value) {
+consteval format_align parse_format_align(char value)
+{
     if (value == '<') {
         return format_align::LEFT;
     }
@@ -152,7 +219,8 @@ consteval format_align parse_format_align(char value) {
 }
 
 template <fixed_string FMT>
-consteval char format_char_at(usize index) {
+consteval char format_char_at(usize index)
+{
     if (index >= FMT.length()) {
         return '\0';
     }
@@ -217,7 +285,8 @@ consteval char format_char_at(usize index) {
 //     {:08d}
 //
 template <fixed_string FMT>
-consteval format_field parse_field_at(usize offset) {
+consteval format_field parse_field_at(usize offset)
+{
     if (offset + 1 >= FMT.length() || FMT[offset] != '{') {
         return invalid_format_field();
     }
@@ -338,7 +407,8 @@ consteval format_field parse_field_at(usize offset) {
 }
 
 template <fixed_string FMT>
-consteval format_parse_result parse_format() {
+consteval format_parse_result parse_format()
+{
     usize field_count = 0;
     usize index = 0;
 
@@ -387,7 +457,8 @@ consteval format_parse_result parse_format() {
 }
 
 template <fixed_string FMT, usize I>
-consteval usize literal_run_length() {
+consteval usize literal_run_length()
+{
     usize index = I;
 
     while (index < FMT.length()) {
@@ -411,19 +482,22 @@ inline constexpr char HEX_DIGITS_UPPER[] = "0123456789ABCDEF";
 template <format_spec Spec>
 inline constexpr bool unsupported_format_spec_v = false;
 
-inline void emit_repeated(char value, usize count) {
+inline void emit_repeated(char value, usize count)
+{
     for (usize index = 0; index < count; ++index) {
         backend_emit_char(value);
     }
 }
 
-inline void copy_bytes(char *dst, const char *src, usize length) {
+inline void copy_bytes(char *dst, const char *src, usize length)
+{
     for (usize index = 0; index < length; ++index) {
         dst[index] = src[index];
     }
 }
 
-inline usize c_string_length(const char *value) {
+inline usize c_string_length(const char *value)
+{
     usize length = 0;
 
     while (value[length] != '\0') {
@@ -433,7 +507,8 @@ inline usize c_string_length(const char *value) {
     return length;
 }
 
-inline usize format_u64_decimal(u64 value, char *buffer) {
+inline usize format_u64_decimal(u64 value, char *buffer)
+{
     char  reverse[20];
     usize length = 0;
 
@@ -450,7 +525,8 @@ inline usize format_u64_decimal(u64 value, char *buffer) {
     return length;
 }
 
-inline usize format_u64_hex(u64 value, char *buffer, bool uppercase) {
+inline usize format_u64_hex(u64 value, char *buffer, bool uppercase)
+{
     const char *digits = uppercase ? HEX_DIGITS_UPPER : HEX_DIGITS_LOWER;
 
     char  reverse[16];
@@ -469,7 +545,8 @@ inline usize format_u64_hex(u64 value, char *buffer, bool uppercase) {
     return length;
 }
 
-inline u64 signed_magnitude_i64(i64 value) {
+inline u64 signed_magnitude_i64(i64 value)
+{
     if (value >= 0) {
         return static_cast<u64>(value);
     }
@@ -479,7 +556,8 @@ inline u64 signed_magnitude_i64(i64 value) {
 
 template <format_spec Spec>
 inline void emit_padded(const char *prefix, usize prefix_length, const char *body,
-                        usize body_length, bool numeric) {
+                        usize body_length, bool numeric)
+{
     const usize content_length = prefix_length + body_length;
     const usize width = Spec.has_width ? Spec.width : 0;
     const usize padding = width > content_length ? width - content_length : 0;
@@ -525,7 +603,8 @@ inline void emit_padded(const char *prefix, usize prefix_length, const char *bod
 // =================================================================================================
 
 template <format_spec Spec>
-inline void emit_unsigned_decimal(u64 value) {
+inline void emit_unsigned_decimal(u64 value)
+{
     static_assert(!Spec.has_precision, "precision is not supported for integer formats");
     static_assert(!Spec.alternate, "alternate form is not supported for decimal integers");
 
@@ -547,7 +626,8 @@ inline void emit_unsigned_decimal(u64 value) {
 }
 
 template <format_spec Spec>
-inline void emit_signed_decimal(i64 value) {
+inline void emit_signed_decimal(i64 value)
+{
     static_assert(!Spec.has_precision, "precision is not supported for integer formats");
     static_assert(!Spec.alternate, "alternate form is not supported for decimal integers");
 
@@ -572,7 +652,8 @@ inline void emit_signed_decimal(i64 value) {
 }
 
 template <format_spec Spec>
-inline void emit_hex_integer(u64 value) {
+inline void emit_hex_integer(u64 value)
+{
     static_assert(!Spec.has_precision, "precision is not supported for integer formats");
 
     constexpr bool uppercase = Spec.presentation_value == presentation::HEX_UPPER;
@@ -593,7 +674,8 @@ inline void emit_hex_integer(u64 value) {
 }
 
 template <format_spec Spec>
-inline void emit_pointer_value(const volatile void *value) {
+inline void emit_pointer_value(const volatile void *value)
+{
     static_assert(!Spec.has_precision, "precision is not supported for pointer formats");
 
     const u64 address = reinterpret_cast<u64>(value);
@@ -627,7 +709,8 @@ inline void emit_pointer_value(const volatile void *value) {
 // =================================================================================================
 
 template <format_spec Spec>
-inline void emit_float_special(const char *body, usize body_length, bool negative) {
+inline void emit_float_special(const char *body, usize body_length, bool negative)
+{
     char  prefix_buffer[1];
     usize prefix_length = 0;
 
@@ -646,7 +729,8 @@ inline void emit_float_special(const char *body, usize body_length, bool negativ
 }
 
 template <format_spec Spec>
-inline void emit_fixed_float(long double value) {
+inline void emit_fixed_float(long double value)
+{
     static_assert(Spec.presentation_value == presentation::DEFAULT ||
                       Spec.presentation_value == presentation::FIXED,
                   "unsupported format specifier for floating-point value");
@@ -733,7 +817,8 @@ inline void emit_fixed_float(long double value) {
 // =================================================================================================
 
 template <format_spec Spec>
-inline void emit_string_value(const char *value) {
+inline void emit_string_value(const char *value)
+{
     static_assert(Spec.presentation_value == presentation::DEFAULT ||
                       Spec.presentation_value == presentation::STRING,
                   "unsupported format specifier for string");
@@ -751,7 +836,8 @@ inline void emit_string_value(const char *value) {
 }
 
 template <format_spec Spec>
-inline void emit_char_value(char value) {
+inline void emit_char_value(char value)
+{
     static_assert(!Spec.has_precision, "precision is not supported for character formats");
 
     if constexpr (Spec.presentation_value == presentation::DEFAULT ||
@@ -772,12 +858,14 @@ inline void emit_char_value(char value) {
 // =================================================================================================
 
 template <format_spec Spec>
-inline void emit_value(char value) {
+inline void emit_value(char value)
+{
     emit_char_value<Spec>(value);
 }
 
 template <format_spec Spec>
-inline void emit_value(bool value) {
+inline void emit_value(bool value)
+{
     static_assert(!Spec.has_precision, "precision is not supported for bool formats");
 
     if constexpr (Spec.presentation_value == presentation::DEFAULT) {
@@ -793,7 +881,8 @@ inline void emit_value(bool value) {
 }
 
 template <format_spec Spec>
-inline void emit_value(const char *value) {
+inline void emit_value(const char *value)
+{
     if constexpr (Spec.presentation_value == presentation::POINTER ||
                   Spec.presentation_value == presentation::HEX_LOWER ||
                   Spec.presentation_value == presentation::HEX_UPPER) {
@@ -804,7 +893,8 @@ inline void emit_value(const char *value) {
 }
 
 template <format_spec Spec>
-inline void emit_value(char *value) {
+inline void emit_value(char *value)
+{
     if constexpr (Spec.presentation_value == presentation::POINTER ||
                   Spec.presentation_value == presentation::HEX_LOWER ||
                   Spec.presentation_value == presentation::HEX_UPPER) {
@@ -815,7 +905,8 @@ inline void emit_value(char *value) {
 }
 
 template <format_spec Spec, usize N>
-inline void emit_value(const char (&value)[N]) {
+inline void emit_value(const char (&value)[N])
+{
     if constexpr (Spec.presentation_value == presentation::POINTER ||
                   Spec.presentation_value == presentation::HEX_LOWER ||
                   Spec.presentation_value == presentation::HEX_UPPER) {
@@ -826,7 +917,8 @@ inline void emit_value(const char (&value)[N]) {
 }
 
 template <format_spec Spec, usize N>
-inline void emit_value(char (&value)[N]) {
+inline void emit_value(char (&value)[N])
+{
     if constexpr (Spec.presentation_value == presentation::POINTER ||
                   Spec.presentation_value == presentation::HEX_LOWER ||
                   Spec.presentation_value == presentation::HEX_UPPER) {
@@ -837,12 +929,14 @@ inline void emit_value(char (&value)[N]) {
 }
 
 template <format_spec Spec>
-inline void emit_value(decltype(nullptr)) {
+inline void emit_value(decltype(nullptr))
+{
     emit_pointer_value<Spec>(nullptr);
 }
 
 template <format_spec Spec, typename T>
-inline void emit_value(T *value) {
+inline void emit_value(T *value)
+{
     emit_pointer_value<Spec>(static_cast<const volatile void *>(value));
 }
 
@@ -879,17 +973,20 @@ inline void emit_value(const T &value)
 }
 
 template <format_spec Spec>
-inline void emit_value(float value) {
+inline void emit_value(float value)
+{
     emit_fixed_float<Spec>(static_cast<long double>(value));
 }
 
 template <format_spec Spec>
-inline void emit_value(double value) {
+inline void emit_value(double value)
+{
     emit_fixed_float<Spec>(static_cast<long double>(value));
 }
 
 template <format_spec Spec>
-inline void emit_value(long double value) {
+inline void emit_value(long double value)
+{
     emit_fixed_float<Spec>(value);
 }
 
@@ -901,12 +998,14 @@ template <usize target_index>
 inline constexpr bool invalid_argument_index_v = false;
 
 template <usize target_index, format_spec Spec>
-inline void emit_nth_arg() {
+inline void emit_nth_arg()
+{
     static_assert(invalid_argument_index_v<target_index>, "kprint argument index out of range");
 }
 
 template <usize target_index, format_spec Spec, typename T, typename... Rest>
-inline void emit_nth_arg(const T &value, const Rest &...rest) {
+inline void emit_nth_arg(const T &value, const Rest &...rest)
+{
     if constexpr (target_index == 0) {
         emit_value<Spec>(value);
     } else {
@@ -919,7 +1018,8 @@ inline void emit_nth_arg(const T &value, const Rest &...rest) {
 // =================================================================================================
 
 template <fixed_string fmt, usize offset, usize arg_index, typename... Args>
-inline void emit_format(const Args &...args) {
+inline void emit_format(const Args &...args)
+{
     if constexpr (offset >= fmt.length()) {
         return;
     } else if constexpr (format_char_at<fmt>(offset) == '{' &&
@@ -959,7 +1059,8 @@ inline void emit_format(const Args &...args) {
 void kprint_init();
 
 template <detail::fixed_string FMT, typename... Args>
-inline void kprint_ct(const Args &...args) {
+inline void kprint_ct(const Args &...args)
+{
     constexpr detail::format_parse_result parse_result = detail::parse_format<FMT>();
 
     static_assert(parse_result.valid,
@@ -974,7 +1075,8 @@ inline void kprint_ct(const Args &...args) {
 }
 
 template <detail::fixed_string FMT, typename... Args>
-inline void kprintln_ct(const Args &...args) {
+inline void kprintln_ct(const Args &...args)
+{
     kprint_ct<FMT>(args...);
     detail::backend_emit_char('\n');
 }

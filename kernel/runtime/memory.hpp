@@ -19,7 +19,7 @@ using kernel::core::usize;
 void *set(void *dest, i32 value, usize count) noexcept;
 void *copy(void *dest, const void *src, usize count) noexcept;
 void *move(void *dest, const void *src, usize count) noexcept;
-i32   compare(const void *lhs, const void *rhs, usize count) noexcept;
+i32 compare(const void *lhs, const void *rhs, usize count) noexcept;
 
 }  // namespace kernel::runtime
 

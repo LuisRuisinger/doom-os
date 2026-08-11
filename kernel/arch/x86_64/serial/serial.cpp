@@ -46,7 +46,8 @@ static constexpr u8 LINE_STATUS_TX_EMPTY = bit<u8>(5);
 // Public API
 // =================================================================================================
 
-void init() {
+void init()
+{
     outb(INTERRUPT_ENABLE, 0x00);
     outb(LINE_CONTROL, LINE_CONTROL_DLAB);
 
@@ -58,16 +59,21 @@ void init() {
     outb(MODEM_CONTROL, MODEM_DTR_RTS_OUT2);
 }
 
-bool can_write() { return (inb(LINE_STATUS) & LINE_STATUS_TX_EMPTY) != 0; }
+bool can_write()
+{
+    return (inb(LINE_STATUS) & LINE_STATUS_TX_EMPTY) != 0;
+}
 
-void write_char(char c) {
+void write_char(char c)
+{
     while (!can_write())
         asm volatile("pause");
 
     outb(DATA_PORT, static_cast<u8>(c));
 }
 
-void write(const char *s) {
+void write(const char *s)
+{
     if (s == nullptr) {
         write("<null>");
         return;

@@ -36,7 +36,8 @@ static usize                destructor_count_m{0};
 // C++ ABI destructor registration
 // =================================================================================================
 
-i32 register_cxx_destructor(cxx_destructor destructor, void *object, void *dso) noexcept {
+i32 register_cxx_destructor(cxx_destructor destructor, void *object, void *dso) noexcept
+{
     if (destructor == nullptr)
         return -1;
 
@@ -53,7 +54,8 @@ i32 register_cxx_destructor(cxx_destructor destructor, void *object, void *dso) 
     return 0;
 }
 
-void finalize_cxx_destructors(void *dso) noexcept {
+void finalize_cxx_destructors(void *dso) noexcept
+{
     for (usize i = destructor_count_m; i > 0; --i) {
         cxx_destructor_entry &entry = destructor_entries_m[i - 1];
 
@@ -78,15 +80,25 @@ extern "C" {
 
 void *__dso_handle = nullptr;
 
-[[noreturn]] void __cxa_pure_virtual() noexcept { KPANIC("pure virtual function called"); }
+[[noreturn]] void __cxa_pure_virtual() noexcept
+{
+    KPANIC("pure virtual function called");
+}
 
-[[noreturn]] void __cxa_deleted_virtual() noexcept { KPANIC("deleted virtual function called"); }
+[[noreturn]] void __cxa_deleted_virtual() noexcept
+{
+    KPANIC("deleted virtual function called");
+}
 
-int __cxa_atexit(void (*destructor)(void *), void *object, void *dso) noexcept {
+int __cxa_atexit(void (*destructor)(void *), void *object, void *dso) noexcept
+{
     return kernel::runtime::register_cxx_destructor(destructor, object, dso);
 }
 
-void __cxa_finalize(void *dso) noexcept { kernel::runtime::finalize_cxx_destructors(dso); }
+void __cxa_finalize(void *dso) noexcept
+{
+    kernel::runtime::finalize_cxx_destructors(dso);
+}
 
 }  // extern "C"
 
@@ -101,7 +113,8 @@ void __cxa_finalize(void *dso) noexcept { kernel::runtime::finalize_cxx_destruct
 //  bit 1: initialization in progress
 // =================================================================================================
 
-extern "C" int __cxa_guard_acquire(kernel::core::u64 *guard) noexcept {
+extern "C" int __cxa_guard_acquire(kernel::core::u64 *guard) noexcept
+{
     static constexpr kernel::core::u64 INITIALIZED = 1ull << 0;
     static constexpr kernel::core::u64 IN_USE = 1ull << 1;
 
@@ -121,12 +134,14 @@ extern "C" int __cxa_guard_acquire(kernel::core::u64 *guard) noexcept {
     }
 }
 
-extern "C" void __cxa_guard_release(kernel::core::u64 *guard) noexcept {
+extern "C" void __cxa_guard_release(kernel::core::u64 *guard) noexcept
+{
     static constexpr kernel::core::u64 INITIALIZED = 1ull << 0;
 
     __atomic_store_n(guard, INITIALIZED, __ATOMIC_RELEASE);
 }
 
-extern "C" void __cxa_guard_abort(kernel::core::u64 *guard) noexcept {
+extern "C" void __cxa_guard_abort(kernel::core::u64 *guard) noexcept
+{
     __atomic_store_n(guard, 0, __ATOMIC_RELEASE);
 }

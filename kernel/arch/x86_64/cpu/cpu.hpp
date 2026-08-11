@@ -5,9 +5,10 @@
 // Kernel files
 // =================================================================================================
 
-#include "../gdt/gdt.hpp"
-#include "../idt/idt.hpp"
-#include "../tss/tss.hpp"
+#include "kernel/arch/x86_64/cpu/stacks.hpp"
+#include "kernel/arch/x86_64/gdt/gdt.hpp"
+#include "kernel/arch/x86_64/idt/idt.hpp"
+#include "kernel/arch/x86_64/tss/tss.hpp"
 #include "kernel/boot/component.hpp"
 #include "kernel/core/types.hpp"
 
@@ -23,134 +24,79 @@ using kernel::core::usize;
 // Constants
 // =================================================================================================
 
-static constexpr usize CORE_STACK_SIZE = 16 * 1024;
-static constexpr u32   MAX_CORE_COUNT = 64;
-static constexpr u32   STACK_BYTE_ALIGNMNT = 16;
-
-// =================================================================================================
-// CPU register list
-// =================================================================================================
-
-#define DOOM_OS_X86_64_CPU_REGISTER_LIST(X) \
-    X(RAX, "rax", read_rax)                 \
-    X(RBX, "rbx", read_rbx)                 \
-    X(RCX, "rcx", read_rcx)                 \
-    X(RDX, "rdx", read_rdx)                 \
-    X(RSI, "rsi", read_rsi)                 \
-    X(RDI, "rdi", read_rdi)                 \
-    X(RBP, "rbp", read_rbp)                 \
-    X(RSP, "rsp", read_rsp)                 \
-    X(R8, "r8", read_r8)                    \
-    X(R9, "r9", read_r9)                    \
-    X(R10, "r10", read_r10)                 \
-    X(R11, "r11", read_r11)                 \
-    X(R12, "r12", read_r12)                 \
-    X(R13, "r13", read_r13)                 \
-    X(R14, "r14", read_r14)                 \
-    X(R15, "r15", read_r15)                 \
-    X(RIP, "rip", read_rip)                 \
-    X(RFLAGS, "rflags", read_rflags)        \
-    X(CS, "cs", read_cs)                    \
-    X(DS, "ds", read_ds)                    \
-    X(ES, "es", read_es)                    \
-    X(FS, "fs", read_fs)                    \
-    X(GS, "gs", read_gs)                    \
-    X(SS, "ss", read_ss)                    \
-    X(CR0, "cr0", read_cr0)                 \
-    X(CR2, "cr2", read_cr2)                 \
-    X(CR3, "cr3", read_cr3)                 \
-    X(CR4, "cr4", read_cr4)
-
-// =================================================================================================
-// CPU registers
-// =================================================================================================
-
-enum class cpu_register : u32 {
-#define ENUM_ENTRY(NAME, STRING_NAME, READER) NAME,
-    DOOM_OS_X86_64_CPU_REGISTER_LIST(ENUM_ENTRY)
-#undef ENUM_ENTRY
-
-        COUNT
-};
-
-static constexpr usize CPU_REGISTER_COUNT = static_cast<usize>(cpu_register::COUNT);
-using cpu_register_reader = u64 (*)();
-
-struct cpu_register_descriptor {
-    cpu_register        reg;
-    const char         *name;
-    cpu_register_reader read;
-};
-
-struct cpu_register_value {
-    cpu_register reg;
-    const char  *name;
-    u64          value;
-};
-
-extern const cpu_register_descriptor cpu_register_descriptors[CPU_REGISTER_COUNT];
-
-u64         read_current_register(cpu_register reg);
-const char *cpu_register_name(cpu_register reg);
-usize       read_current_registers(cpu_register_value *out, usize capacity);
-
-// =================================================================================================
-// CPU-local stack descriptor
-// =================================================================================================
-
-struct stack {
-    stack() = default;
-    stack(u8 *storage, usize storage_size);
-
-    u64   bottom{};
-    u64   top{};
-    usize size{};
-};
+static constexpr u32 MAX_CORE_COUNT = 64;
 
 // =================================================================================================
 // Local CPU state
 // =================================================================================================
 
-struct local_state {
-    u32  logical_id;
-    u32  apic_id;
-    bool is_bsp;
-    bool is_online;
+class local_state;
 
-    gdt::table gdt;
-    idt::table idt;
-    tss::state task_state_segment;
+void init_bsp();
 
-    stack kernel_stack;
-    stack double_fault_stack;
-    stack nmi_stack;
-    stack machine_check_stack;
+// =================================================================================================
+// Backing store for the per-core init graph.
+//
+// Every resource here is owned by exactly one component and reachable during init only
+// through that component's view. The public accessors are const and exist for the runtime
+// paths (panic reporting, diagnostics) that read state long after it was published.
+// =================================================================================================
 
-    alignas(STACK_BYTE_ALIGNMNT) u8 kernel_stack_storage[CORE_STACK_SIZE];
-    alignas(STACK_BYTE_ALIGNMNT) u8 double_fault_stack_storage[CORE_STACK_SIZE];
-    alignas(STACK_BYTE_ALIGNMNT) u8 nmi_stack_storage[CORE_STACK_SIZE];
-    alignas(STACK_BYTE_ALIGNMNT) u8 machine_check_stack_storage[CORE_STACK_SIZE];
+class local_state {
+    u32  logical_id_m{};
+    u32  apic_id_m{};
+    bool is_bsp_m{};
+    bool is_online_m{};
 
-    void init_stack_descriptors();
-    void init_task_state_segment();
+    stack_set       stacks_m{};
+    tss::state      tss_m{};
+    gdt::table      gdt_m{};
+    idt::gate_table exception_gates_m{};
+    idt::table      idt_m{};
 
-    u64 kernel_stack_top() const;
-    u64 double_fault_stack_top() const;
-    u64 nmi_stack_top() const;
-    u64 machine_check_stack_top() const;
+    template <typename, typename>
+    friend struct kernel::boot::resource_binding;
+
+    friend void init_bsp();
+
+public:
+    [[nodiscard]] u32 logical_id() const
+    {
+        return logical_id_m;
+    }
+
+    [[nodiscard]] u32 apic_id() const
+    {
+        return apic_id_m;
+    }
+
+    [[nodiscard]] bool is_bsp() const
+    {
+        return is_bsp_m;
+    }
+
+    [[nodiscard]] bool is_online() const
+    {
+        return is_online_m;
+    }
+
+    [[nodiscard]] const stack_set &stacks() const
+    {
+        return stacks_m;
+    }
 };
 
 // =================================================================================================
 // CPU state storage
 // =================================================================================================
 
-void         init_bsp();
 local_state &bsp();
 local_state &current();
 local_state *get(u32 logical_id);
-u32          online_count();
+u32 online_count();
 
-static inline void relax() {
+static inline void relax()
+{
 #if defined(__x86_64__) || defined(__i386__)
     __builtin_ia32_pause();
 #else
@@ -162,12 +108,14 @@ static inline void relax() {
 // Component
 // =================================================================================================
 
-struct component : kernel::boot::component_base<component> {
+struct component : kernel::boot::component<component, kernel::boot::no_resource> {
     static constexpr auto *name = "CPU";
 
-    static bool init_component() {
+    template <typename View>
+    static kernel::boot::init_result init(View)
+    {
         init_bsp();
-        return true;
+        return kernel::boot::Ok();
     }
 };
 

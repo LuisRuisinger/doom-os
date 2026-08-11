@@ -24,12 +24,14 @@ void write(const char *s);
 // Boot component
 // =================================================================================================
 
-struct component : kernel::boot::component_base<component> {
-    static constexpr const char *name = "serial";
+struct component : kernel::boot::component<component, kernel::boot::no_resource> {
+    static constexpr const char *name = "SERIAL";
 
-    static bool init_component() {
-        init();
-        return true;
+    template <typename View>
+    static kernel::boot::init_result init(View)
+    {
+        kernel::arch::x86_64::serial::init();
+        return kernel::boot::Ok();
     }
 };
 }  // namespace kernel::arch::x86_64::serial

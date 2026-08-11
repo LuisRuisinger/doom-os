@@ -5,20 +5,15 @@
 // Kernel files
 // =================================================================================================
 
+#include "kernel/arch/x86_64/gdt/gdt.hpp"
 #include "kernel/boot/component.hpp"
 #include "kernel/core/types.hpp"
 
-namespace kernel::arch::x86_64::cpu {
-
-struct local_state;
-
-}  // namespace kernel::arch::x86_64::cpu
-
-namespace kernel::arch::x86_64::gdt {
+namespace kernel::arch::x86_64::exceptions {
 
 struct core_component;
 
-}  // namespace kernel::arch::x86_64::gdt
+}  // namespace kernel::arch::x86_64::exceptions
 
 namespace kernel::arch::x86_64::idt {
 
@@ -40,6 +35,34 @@ static constexpr u8 GATE_TYPE_USER_TRAP = 0xEF;
 using handler = void (*)();
 
 // =================================================================================================
+// Gate table
+//
+// What an IDT should publish, described independently of the descriptor encoding. Components
+// that own vectors fill one of these in; the IDT consumes it and never hands out write access
+// to its own table, so no gate can appear after the IDT has gone live.
+// =================================================================================================
+
+struct gate_spec {
+    handler entry_point{};
+    u8      type_attributes{};
+    u8      ist{};
+};
+
+class gate_table {
+    gate_spec gates_m[ENTRY_COUNT]{};
+
+public:
+    void set_interrupt_gate(u8 vector, handler entry_point, u8 ist = 0);
+    void set_trap_gate(u8 vector, handler entry_point, u8 ist = 0);
+    void set_user_trap_gate(u8 vector, handler entry_point, u8 ist = 0);
+
+    [[nodiscard]] const gate_spec &operator[](u16 vector) const
+    {
+        return gates_m[vector];
+    }
+};
+
+// =================================================================================================
 // Table
 // =================================================================================================
 
@@ -59,38 +82,39 @@ struct [[gnu::packed]] pointer {
 };
 
 class table {
-    alignas(16) entry entries_[ENTRY_COUNT]{};
-    pointer pointer_{};
+    alignas(16) entry entries_m[ENTRY_COUNT]{};
+    pointer ptr_m{};
 
-    void set_gate(u8 vector, handler handler_address, u8 type_attributes, u8 ist);
-
-   public:
-    void init();
+public:
+    void init(const gate_table &gates, u16 code_selector);
     void load() const;
-
-    void set_interrupt_gate(u8 vector, handler handler_address, u8 ist = 0);
-    void set_trap_gate(u8 vector, handler handler_address, u8 ist = 0);
-    void set_user_trap_gate(u8 vector, handler handler_address, u8 ist = 0);
 };
-
-// =================================================================================================
-// IDT
-// =================================================================================================
-
-void init_table(table &table);
-void load_table(const table &table);
 
 // =================================================================================================
 // Core component
+//
+// Takes its contents from the exception gates and its kernel selector from the GDT, which is
+// also what orders it after both. The IDT is live when init returns.
 // =================================================================================================
 
-struct core_component : kernel::boot::context_component_base<
-                            core_component, kernel::arch::x86_64::cpu::local_state,
-                            kernel::boot::type_list<kernel::arch::x86_64::gdt::core_component>> {
+struct core_component
+    : kernel::boot::component<core_component, table, kernel::arch::x86_64::gdt::core_component,
+                              kernel::arch::x86_64::exceptions::core_component> {
     static constexpr auto *name = "IDT";
 
-    static bool init_component(kernel::arch::x86_64::cpu::local_state &cpu);
+    template <typename View>
+    static kernel::boot::init_result init(View view)
+    {
+        table &self = own(view);
+
+        self.init(dep<kernel::arch::x86_64::exceptions::core_component>(view),
+                  dep<kernel::arch::x86_64::gdt::core_component>(view).kernel_code_selector());
+        self.load();
+
+        return kernel::boot::Ok();
+    }
 };
+
 }  // namespace kernel::arch::x86_64::idt
 
 #endif  // DOOM_OS_KERNEL_ARCH_X86_64_IDT_HPP_

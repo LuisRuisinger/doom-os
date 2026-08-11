@@ -69,7 +69,8 @@ struct panic_register_frame {
 
 template <detail::fixed_string FMT, typename... Args>
 [[noreturn]] inline void kpanic_fmt(void *frame, const char *file, int line, const char *function,
-                                    const Args &...args) noexcept {
+                                    const Args &...args) noexcept
+{
     asm volatile("cli" ::: "memory");
 
     detail::backend_emit_c_string(detail::PANIC_PREFIX);
@@ -144,6 +145,15 @@ template <detail::fixed_string FMT, typename... Args>
         DOOM_OS_KPANIC_CAPTURE();                                                  \
         ::kernel::debug::kpanic_fmt<::kernel::debug::detail::fixed_string{fmt__}>( \
             &__panic_frame, __FILE__, __LINE__, __func__, __VA_ARGS__);            \
+    } while (0)
+
+// Panic with a frame that was built elsewhere rather than captured here. Used by the fault
+// path, where the registers worth reporting belong to the interrupted context, not to the
+// handler that is about to print them.
+#define KPANIC_WITH_FRAME(frame__, fmt__, ...)                                     \
+    do {                                                                           \
+        ::kernel::debug::kpanic_fmt<::kernel::debug::detail::fixed_string{fmt__}>( \
+            &(frame__), __FILE__, __LINE__, __func__, __VA_ARGS__);                \
     } while (0)
 
 #define KPANIC_SELECT(_0, _1, _2, _3, _4, _5, _6, _7, _8, _9, _10, _11, _12, _13, _14, _15, _16, \

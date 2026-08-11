@@ -12,7 +12,8 @@ multiboot2_handoff g_handoff{};
 info               g_info{};
 
 template <typename T>
-[[nodiscard]] const T *as_tag(const multiboot2::tag_header &tag, const u8 *buffer_end) {
+[[nodiscard]] const T *as_tag(const multiboot2::tag_header &tag, const u8 *buffer_end)
+{
     const auto *begin = reinterpret_cast<const u8 *>(&tag);
 
     if (tag.size < sizeof(T))
@@ -28,7 +29,8 @@ template <typename T>
     return reinterpret_cast<const T *>(&tag);
 }
 
-[[nodiscard]] bool parse_memory_map(const multiboot2::memory_map_tag &tag, info &result) {
+[[nodiscard]] bool parse_memory_map(const multiboot2::memory_map_tag &tag, info &result)
+{
     if (tag.entry_size < sizeof(multiboot2::memory_map_entry))
         return false;
 
@@ -49,8 +51,8 @@ template <typename T>
     return true;
 }
 
-[[nodiscard]] bool parse_tag(const multiboot2::tag_header &tag, const u8 *buffer_end,
-                             info &result) {
+[[nodiscard]] bool parse_tag(const multiboot2::tag_header &tag, const u8 *buffer_end, info &result)
+{
     using enum multiboot2::tag_type;
 
     switch (static_cast<multiboot2::tag_type>(tag.type)) {
@@ -123,7 +125,8 @@ template <typename T>
     }
 }
 
-[[nodiscard]] bool parse_multiboot2(multiboot2_handoff handoff, info &result) {
+[[nodiscard]] bool parse_multiboot2(multiboot2_handoff handoff, info &result)
+{
     if (handoff.magic != multiboot2::BOOTLOADER_MAGIC)
         return false;
 
@@ -177,41 +180,54 @@ template <typename T>
     return false;
 }
 
-[[nodiscard]] info make_empty_info(const multiboot2_handoff handoff) {
+[[nodiscard]] info make_empty_info(const multiboot2_handoff handoff)
+{
     return info{.handoff = handoff};
 }
 
 }  // namespace
 
-void set_handoff(multiboot2_handoff handoff) {
+void set_handoff(multiboot2_handoff handoff)
+{
     g_handoff = handoff;
     g_info = make_empty_info(handoff);
 }
 
-void set_handoff(u64 magic, paddr_t info_address) {
+void set_handoff(u64 magic, paddr_t info_address)
+{
     set_handoff({
         .magic = magic,
         .info_address = info_address,
     });
 }
 
-const multiboot2_handoff &handoff() { return g_handoff; }
+const multiboot2_handoff &handoff()
+{
+    return g_handoff;
+}
 
-const info &current() { return g_info; }
+const info &current()
+{
+    return g_info;
+}
 
-bool available() { return g_info.valid; }
+bool available()
+{
+    return g_info.valid;
+}
 
-bool component::init_component() {
+kernel::boot::init_result component::parse_handoff()
+{
     auto parsed = make_empty_info(g_handoff);
 
     if (!parse_multiboot2(g_handoff, parsed)) {
         g_info = make_empty_info(g_handoff);
-        return false;
+        return kernel::boot::Err(kernel::boot::init_error::INVALID_BOOT_DATA);
     }
 
     parsed.valid = true;
     g_info = parsed;
-    return true;
+    return kernel::boot::Ok();
 }
 
 }  // namespace kernel::boot::boot_info

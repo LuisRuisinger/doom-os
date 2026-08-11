@@ -4,7 +4,6 @@
 
 #include "kernel/debug/kpanic.hpp"
 
-#include "../arch/x86_64/cpu/cpu.hpp"
 #include "kernel/debug/kprint.hpp"
 
 namespace kernel::debug {
@@ -13,7 +12,8 @@ namespace kernel::debug {
 // Halt
 // =================================================================================================
 
-[[noreturn]] static void halt() {
+[[noreturn]] static void halt()
+{
     for (;;)
         asm volatile("cli; hlt");
 }
@@ -22,14 +22,8 @@ namespace kernel::debug {
 // Kernel panic
 // =================================================================================================
 
-using kernel::arch::x86_64::cpu::cpu_register;
-using kernel::arch::x86_64::cpu::CPU_REGISTER_COUNT;
-using kernel::arch::x86_64::cpu::cpu_register_value;
-using kernel::arch::x86_64::cpu::read_current_registers;
-
-using kernel::core::usize;
-
-static void dump_panic_registers(const panic_register_frame &r) {
+static void dump_panic_registers(const panic_register_frame &r)
+{
     KPRINTLN("  rax: {:#018X}   rbx: {:#018X}   rcx: {:#018X}", r.rax, r.rbx, r.rcx);
     KPRINTLN("  rdx: {:#018X}   rsi: {:#018X}   rdi: {:#018X}", r.rdx, r.rsi, r.rdi);
     KPRINTLN("  rbp: {:#018X}   rsp: {:#018X}   rip: {:#018X}", r.rbp, r.rsp, r.rip);
@@ -45,7 +39,8 @@ static void dump_panic_registers(const panic_register_frame &r) {
 }
 
 [[noreturn]] void kpanic(const char *message, void *frame, const char *file, int line,
-                         const char *function) noexcept {
+                         const char *function) noexcept
+{
     asm volatile("cli" ::: "memory");
 
     if (message)

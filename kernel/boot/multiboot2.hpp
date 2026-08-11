@@ -122,39 +122,49 @@ static_assert(sizeof(acpi_rsdp_v1) == 20);
 // Access helpers
 // =================================================================================================
 
-constexpr usize align_tag_size(usize size) { return (size + 7) & ~usize{7}; }
+constexpr usize align_tag_size(usize size)
+{
+    return (size + 7) & ~usize{7};
+}
 
-inline const tag_header *first_tag(const fixed_header &header) {
+inline const tag_header *first_tag(const fixed_header &header)
+{
     return reinterpret_cast<const tag_header *>(reinterpret_cast<const u8 *>(&header) +
                                                 sizeof(fixed_header));
 }
 
-inline const tag_header *next_tag(const tag_header &tag) {
+inline const tag_header *next_tag(const tag_header &tag)
+{
     return reinterpret_cast<const tag_header *>(reinterpret_cast<const u8 *>(&tag) +
                                                 align_tag_size(tag.size));
 }
 
-inline const char *string_payload(const string_tag &tag) {
+inline const char *string_payload(const string_tag &tag)
+{
     return reinterpret_cast<const char *>(&tag) + sizeof(string_tag);
 }
 
-inline const char *module_command_line(const module_tag &tag) {
+inline const char *module_command_line(const module_tag &tag)
+{
     return reinterpret_cast<const char *>(&tag) + sizeof(module_tag);
 }
 
-inline usize memory_map_entry_count(const memory_map_tag &tag) {
+inline usize memory_map_entry_count(const memory_map_tag &tag)
+{
     if (tag.entry_size < sizeof(memory_map_entry) || tag.header.size < sizeof(memory_map_tag))
         return 0;
 
     return (tag.header.size - sizeof(memory_map_tag)) / tag.entry_size;
 }
 
-inline const memory_map_entry *memory_map_entry_at(const memory_map_tag &tag, usize index) {
+inline const memory_map_entry *memory_map_entry_at(const memory_map_tag &tag, usize index)
+{
     return reinterpret_cast<const memory_map_entry *>(
         reinterpret_cast<const u8 *>(&tag) + sizeof(memory_map_tag) + index * tag.entry_size);
 }
 
-inline const acpi_rsdp_v1 *acpi_rsdp(const tag_header &tag) {
+inline const acpi_rsdp_v1 *acpi_rsdp(const tag_header &tag)
+{
     return reinterpret_cast<const acpi_rsdp_v1 *>(reinterpret_cast<const u8 *>(&tag) +
                                                   sizeof(tag_header));
 }

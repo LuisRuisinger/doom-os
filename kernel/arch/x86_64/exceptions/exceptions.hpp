@@ -5,20 +5,15 @@
 // Kernel files
 // =================================================================================================
 
+#include "kernel/arch/x86_64/idt/idt.hpp"
 #include "kernel/boot/component.hpp"
 #include "kernel/core/types.hpp"
 
 namespace kernel::arch::x86_64::cpu {
 
-struct local_state;
+class local_state;
 
 }  // namespace kernel::arch::x86_64::cpu
-
-namespace kernel::arch::x86_64::idt {
-
-struct core_component;
-
-}  // namespace kernel::arch::x86_64::idt
 
 namespace kernel::arch::x86_64::exceptions {
 
@@ -102,14 +97,21 @@ using exception_handler = void (*)(cpu::local_state &cpu, exception_frame &frame
 
 // =================================================================================================
 // Core component
+//
+// Owns the description of the CPU exception gates, not the IDT itself. The IDT depends on
+// this table and installs it; nothing here reaches into the IDT's own state.
 // =================================================================================================
 
-struct core_component : kernel::boot::context_component_base<
-                            core_component, kernel::arch::x86_64::cpu::local_state,
-                            kernel::boot::type_list<kernel::arch::x86_64::idt::core_component>> {
+struct core_component : kernel::boot::component<core_component, idt::gate_table> {
     static constexpr auto *name = "EXCEPTIONS";
 
-    static bool init_component(kernel::arch::x86_64::cpu::local_state &cpu);
+    static kernel::boot::init_result describe_gates(idt::gate_table &gates);
+
+    template <typename View>
+    static kernel::boot::init_result init(View view)
+    {
+        return describe_gates(own(view));
+    }
 };
 
 }  // namespace kernel::arch::x86_64::exceptions

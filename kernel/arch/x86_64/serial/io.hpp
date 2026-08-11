@@ -17,11 +17,13 @@ namespace kernel::arch::x86_64 {
 using kernel::core::u16;
 using kernel::core::u8;
 
-static inline void outb(u16 port, u8 value) {
+static inline void outb(u16 port, u8 value)
+{
     asm volatile("outb %0, %1" : : "a"(value), "Nd"(port));
 }
 
-static inline u8 inb(u16 port) {
+static inline u8 inb(u16 port)
+{
     u8 value;
 
     asm volatile("inb %1, %0" : "=a"(value) : "Nd"(port));

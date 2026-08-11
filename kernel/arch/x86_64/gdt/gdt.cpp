@@ -2,9 +2,7 @@
 // Kernel files
 // =================================================================================================
 
-#include "gdt.hpp"
-
-#include "../cpu/cpu.hpp"
+#include "kernel/arch/x86_64/gdt/gdt.hpp"
 
 namespace kernel::arch::x86_64::gdt {
 using kernel::core::u16;
@@ -45,7 +43,8 @@ static constexpr u16 TSS_ENTRY_INDEX = TSS_SELECTOR >> 3;
 // Descriptor construction
 // =================================================================================================
 
-static constexpr descriptor make_descriptor(u32 base, u32 limit, u8 access, u8 flags) {
+static constexpr descriptor make_descriptor(u32 base, u32 limit, u8 access, u8 flags)
+{
     return descriptor{
         .limit_low = static_cast<u16>(limit & 0xFFFF),
         .base_low = static_cast<u16>(base & 0xFFFF),
@@ -56,7 +55,8 @@ static constexpr descriptor make_descriptor(u32 base, u32 limit, u8 access, u8 f
     };
 }
 
-static constexpr descriptor make_tss_descriptor_low(u64 base, u32 limit) {
+static constexpr descriptor make_tss_descriptor_low(u64 base, u32 limit)
+{
     return descriptor{
         .limit_low = static_cast<u16>(limit & 0xFFFF),
         .base_low = static_cast<u16>(base & 0xFFFF),
@@ -67,7 +67,8 @@ static constexpr descriptor make_tss_descriptor_low(u64 base, u32 limit) {
     };
 }
 
-static constexpr descriptor make_tss_descriptor_high(u64 base) {
+static constexpr descriptor make_tss_descriptor_high(u64 base)
+{
     const u32 base_high = static_cast<u32>(base >> 32);
 
     return descriptor{
@@ -84,7 +85,8 @@ static constexpr descriptor make_tss_descriptor_high(u64 base) {
 // Table
 // =================================================================================================
 
-void table::init(const kernel::arch::x86_64::tss::state &task_state_segment) {
+void table::init(const kernel::arch::x86_64::tss::state &task_state_segment)
+{
     static_assert(TSS_ENTRY_INDEX == 5);
     static_assert(TSS_ENTRY_INDEX + 1 < ENTRY_COUNT);
 
@@ -125,30 +127,23 @@ void table::init(const kernel::arch::x86_64::tss::state &task_state_segment) {
     };
 }
 
-void table::load() const { gdt_load(&ptr_m, KERNEL_CODE_SELECTOR, KERNEL_DATA_SELECTOR); }
+void table::load() const
+{
+    gdt_load(&ptr_m, KERNEL_CODE_SELECTOR, KERNEL_DATA_SELECTOR);
+}
+
+u16 table::kernel_code_selector() const
+{
+    return KERNEL_CODE_SELECTOR;
+}
 
 // =================================================================================================
 // GDT
 // =================================================================================================
 
-void init_table(table &target, const kernel::arch::x86_64::tss::state &task_state_segment) {
-    target.init(task_state_segment);
-}
-
-void load_table(const table &target) { target.load(); }
-
-void load_task_register(u16 selector) { asm volatile("ltr %0" : : "r"(selector) : "memory"); }
-
-// =================================================================================================
-// Core component
-// =================================================================================================
-
-bool core_component::init_component(kernel::arch::x86_64::cpu::local_state &cpu) {
-    init_table(cpu.gdt, cpu.task_state_segment);
-    load_table(cpu.gdt);
-    load_task_register(TSS_SELECTOR);
-
-    return true;
+void load_task_register(u16 selector)
+{
+    asm volatile("ltr %0" : : "r"(selector) : "memory");
 }
 
 }  // namespace kernel::arch::x86_64::gdt

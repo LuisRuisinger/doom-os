@@ -34,10 +34,10 @@ extern void *__dso_handle;
 [[noreturn]] void __cxa_pure_virtual() noexcept;
 [[noreturn]] void __cxa_deleted_virtual() noexcept;
 
-int  __cxa_atexit(void (*destructor)(void *), void *object, void *dso) noexcept;
+int __cxa_atexit(void (*destructor)(void *), void *object, void *dso) noexcept;
 void __cxa_finalize(void *dso) noexcept;
 
-int  __cxa_guard_acquire(kernel::core::u64 *guard) noexcept;
+int __cxa_guard_acquire(kernel::core::u64 *guard) noexcept;
 void __cxa_guard_release(kernel::core::u64 *guard) noexcept;
 void __cxa_guard_abort(kernel::core::u64 *guard) noexcept;
 

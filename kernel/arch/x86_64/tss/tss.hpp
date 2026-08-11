@@ -5,14 +5,9 @@
 // Kernel files
 // =================================================================================================
 
+#include "kernel/arch/x86_64/cpu/stacks.hpp"
 #include "kernel/boot/component.hpp"
 #include "kernel/core/types.hpp"
-
-namespace kernel::arch::x86_64::cpu {
-
-struct local_state;
-
-}  // namespace kernel::arch::x86_64::cpu
 
 namespace kernel::arch::x86_64::tss {
 
@@ -83,7 +78,7 @@ struct stack_config {
 class state {
     segment layout_m{};
 
-   public:
+public:
     void init(const stack_config &config);
     void clear();
 
@@ -91,8 +86,11 @@ class state {
     bool set_interrupt_stack(interrupt_stack stack, u64 stack_top);
 
     [[nodiscard]] const segment &layout() const;
-    [[nodiscard]] u64            base() const;
-    static constexpr u16         limit() { return sizeof(segment) - 1; }
+    [[nodiscard]] u64 base() const;
+    static constexpr u16 limit()
+    {
+        return sizeof(segment) - 1;
+    }
 };
 
 // =================================================================================================
@@ -100,10 +98,24 @@ class state {
 // =================================================================================================
 
 struct core_component
-    : kernel::boot::context_component_base<core_component, kernel::arch::x86_64::cpu::local_state> {
+    : kernel::boot::component<core_component, state, kernel::arch::x86_64::cpu::stacks_component> {
     static constexpr auto *name = "TSS";
 
-    static bool init_component(kernel::arch::x86_64::cpu::local_state &cpu);
+    template <typename View>
+    static kernel::boot::init_result init(View view)
+    {
+        const kernel::arch::x86_64::cpu::stack_set &stacks =
+            dep<kernel::arch::x86_64::cpu::stacks_component>(view);
+
+        own(view).init(stack_config{
+            .rsp0 = stacks.kernel().top,
+            .ist1 = stacks.double_fault().top,
+            .ist2 = stacks.nmi().top,
+            .ist3 = stacks.machine_check().top,
+        });
+
+        return kernel::boot::Ok();
+    }
 };
 
 }  // namespace kernel::arch::x86_64::tss
