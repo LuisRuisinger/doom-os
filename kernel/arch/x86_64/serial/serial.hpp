@@ -20,6 +20,10 @@ void write_char(char c);
 
 void write(const char *s);
 
+// Install this port as the debug console sink. Separate from init() so configuring the port
+// and deciding where kernel output goes stay distinct decisions.
+void attach_console();
+
 // =================================================================================================
 // Boot component
 // =================================================================================================
@@ -31,6 +35,8 @@ struct component : kernel::core::component<component, kernel::core::no_resource>
     static kernel::core::init_result init(View)
     {
         kernel::arch::x86_64::serial::init();
+        kernel::arch::x86_64::serial::attach_console();
+
         return kernel::core::Ok();
     }
 };

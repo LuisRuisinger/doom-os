@@ -3,6 +3,7 @@
 #include "kernel/arch/x86_64/serial/io.hpp"
 #include "kernel/core/bits.hpp"
 #include "kernel/core/types.hpp"
+#include "kernel/debug/console.hpp"
 
 namespace kernel::arch::x86_64::serial {
 
@@ -86,6 +87,28 @@ void write(const char *s)
         write_char(*s);
         ++s;
     }
+}
+
+// =================================================================================================
+// Console sink
+//
+// Registered by the boot component once the port is configured, so the formatter never has to
+// know which device it is writing to - or whether one exists yet.
+// =================================================================================================
+
+static void console_sink(const char *bytes, kernel::core::usize length)
+{
+    for (kernel::core::usize index = 0; index < length; ++index) {
+        if (bytes[index] == '\n')
+            write_char('\r');
+
+        write_char(bytes[index]);
+    }
+}
+
+void attach_console()
+{
+    kernel::debug::set_console_sink(&console_sink);
 }
 
 }  // namespace kernel::arch::x86_64::serial

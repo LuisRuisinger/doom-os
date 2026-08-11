@@ -1,6 +1,10 @@
+// =================================================================================================
+// Kernel files
+// =================================================================================================
+
 #include "kernel/debug/kprint.hpp"
 
-#include "../arch/x86_64/serial/serial.hpp"
+#include "kernel/debug/console.hpp"
 
 namespace kernel::debug {
 namespace detail {
@@ -11,44 +15,55 @@ using kernel::core::u8;
 using kernel::core::uptr;
 using kernel::core::usize;
 
+namespace {
+
+constexpr const char *NULL_TEXT = "<null>";
+
+}  // namespace
+
 // =================================================================================================
-// Backend
+// Transport
+//
+// The only two functions that touch the sink. Everything below builds on them, so no formatting
+// code has an opinion about where the bytes go.
 // =================================================================================================
 
-void backend_emit_char(char value)
+void emit_char(char value)
 {
-    arch::x86_64::serial::write_char(value);
+    console_write(&value, 1);
 }
 
-void backend_emit_bytes(const char *value, usize length)
+void emit_bytes(const char *value, usize length)
 {
     if (value == nullptr) {
-        arch::x86_64::serial::write("<null>");
+        emit_c_string(NULL_TEXT);
         return;
     }
 
-    for (usize index = 0; index < length; ++index) {
-        arch::x86_64::serial::write_char(value[index]);
-    }
+    console_write(value, length);
 }
 
-void backend_emit_c_string(const char *value)
+// =================================================================================================
+// Formatting
+// =================================================================================================
+
+void emit_c_string(const char *value)
 {
     if (value == nullptr) {
-        arch::x86_64::serial::write("<null>");
+        console_write(NULL_TEXT, c_string_length(NULL_TEXT));
         return;
     }
 
-    arch::x86_64::serial::write(value);
+    console_write(value, c_string_length(value));
 }
 
-void backend_emit_decimal_u64(u64 value)
+void emit_decimal_u64(u64 value)
 {
-    char  buffer[32];
+    char  buffer[20];
     usize index = 0;
 
     if (value == 0) {
-        arch::x86_64::serial::write_char('0');
+        emit_char('0');
         return;
     }
 
@@ -57,48 +72,43 @@ void backend_emit_decimal_u64(u64 value)
         value /= 10;
     }
 
-    while (index > 0) {
-        arch::x86_64::serial::write_char(buffer[--index]);
-    }
+    // Produced least significant digit first, so emit it back to front.
+    while (index > 0)
+        emit_char(buffer[--index]);
 }
 
-void backend_emit_decimal_i64(i64 value)
+void emit_decimal_i64(i64 value)
 {
     if (value < 0) {
-        arch::x86_64::serial::write_char('-');
+        emit_char('-');
 
+        // Negating the most negative value overflows, so step in from it first.
         const u64 magnitude = static_cast<u64>(-(value + 1)) + 1;
-        backend_emit_decimal_u64(magnitude);
+
+        emit_decimal_u64(magnitude);
         return;
     }
 
-    backend_emit_decimal_u64(static_cast<u64>(value));
+    emit_decimal_u64(static_cast<u64>(value));
 }
 
-void backend_emit_hex_u64(u64 value)
+void emit_hex_u64(u64 value)
 {
-    static constexpr char digits[] = "0123456789ABCDEF";
+    static constexpr char DIGITS[] = "0123456789ABCDEF";
 
-    arch::x86_64::serial::write("0x");
+    char  buffer[18] = {'0', 'x'};
+    usize index = 2;
 
-    for (i32 shift = 60; shift >= 0; shift -= 4) {
-        const u8 nibble = static_cast<u8>((value >> shift) & 0xFULL);
-        arch::x86_64::serial::write_char(digits[nibble]);
-    }
+    for (i32 shift = 60; shift >= 0; shift -= 4)
+        buffer[index++] = DIGITS[static_cast<u8>((value >> shift) & 0xFULL)];
+
+    console_write(buffer, index);
 }
 
-void backend_emit_pointer(const volatile void *value)
+void emit_pointer(const volatile void *value)
 {
-    backend_emit_hex_u64(static_cast<u64>(reinterpret_cast<uptr>(value)));
+    emit_hex_u64(static_cast<u64>(reinterpret_cast<uptr>(value)));
 }
+
 }  // namespace detail
-
-// =================================================================================================
-// Public API
-// =================================================================================================
-
-void kprint_init()
-{
-    arch::x86_64::serial::init();
-}
 }  // namespace kernel::debug

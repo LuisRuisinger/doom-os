@@ -73,8 +73,8 @@ template <detail::fixed_string FMT, typename... Args>
 {
     asm volatile("cli" ::: "memory");
 
-    detail::backend_emit_c_string(detail::PANIC_PREFIX);
-    detail::backend_emit_char(' ');
+    detail::emit_c_string(detail::PANIC_PREFIX);
+    detail::emit_char(' ');
     kprintln_ct<FMT>(args...);
 
     kpanic(nullptr, frame, file, line, function);

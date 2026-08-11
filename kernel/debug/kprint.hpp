@@ -95,16 +95,16 @@ template <usize N>
 fixed_string(const char (&)[N]) -> fixed_string<N>;
 
 // =================================================================================================
-// Backend
+// Transport and formatting
 // =================================================================================================
 
-void backend_emit_char(char value);
-void backend_emit_bytes(const char *value, usize length);
-void backend_emit_c_string(const char *value);
-void backend_emit_decimal_u64(u64 value);
-void backend_emit_decimal_i64(i64 value);
-void backend_emit_hex_u64(u64 value);
-void backend_emit_pointer(const volatile void *value);
+void emit_char(char value);
+void emit_bytes(const char *value, usize length);
+void emit_c_string(const char *value);
+void emit_decimal_u64(u64 value);
+void emit_decimal_i64(i64 value);
+void emit_hex_u64(u64 value);
+void emit_pointer(const volatile void *value);
 
 // =================================================================================================
 // Format model
@@ -485,7 +485,7 @@ inline constexpr bool unsupported_format_spec_v = false;
 inline void emit_repeated(char value, usize count)
 {
     for (usize index = 0; index < count; ++index) {
-        backend_emit_char(value);
+        emit_char(value);
     }
 }
 
@@ -569,15 +569,15 @@ inline void emit_padded(const char *prefix, usize prefix_length, const char *bod
     }
 
     if (numeric && Spec.zero_pad && align == format_align::RIGHT) {
-        backend_emit_bytes(prefix, prefix_length);
+        emit_bytes(prefix, prefix_length);
         emit_repeated('0', padding);
-        backend_emit_bytes(body, body_length);
+        emit_bytes(body, body_length);
         return;
     }
 
     if (align == format_align::LEFT) {
-        backend_emit_bytes(prefix, prefix_length);
-        backend_emit_bytes(body, body_length);
+        emit_bytes(prefix, prefix_length);
+        emit_bytes(body, body_length);
         emit_repeated(Spec.fill, padding);
         return;
     }
@@ -587,15 +587,15 @@ inline void emit_padded(const char *prefix, usize prefix_length, const char *bod
         const usize right_padding = padding - left_padding;
 
         emit_repeated(Spec.fill, left_padding);
-        backend_emit_bytes(prefix, prefix_length);
-        backend_emit_bytes(body, body_length);
+        emit_bytes(prefix, prefix_length);
+        emit_bytes(body, body_length);
         emit_repeated(Spec.fill, right_padding);
         return;
     }
 
     emit_repeated(Spec.fill, padding);
-    backend_emit_bytes(prefix, prefix_length);
-    backend_emit_bytes(body, body_length);
+    emit_bytes(prefix, prefix_length);
+    emit_bytes(body, body_length);
 }
 
 // =================================================================================================
@@ -1024,11 +1024,11 @@ inline void emit_format(const Args &...args)
         return;
     } else if constexpr (format_char_at<fmt>(offset) == '{' &&
                          format_char_at<fmt>(offset + 1) == '{') {
-        backend_emit_char('{');
+        emit_char('{');
         emit_format<fmt, offset + 2, arg_index>(args...);
     } else if constexpr (format_char_at<fmt>(offset) == '}' &&
                          format_char_at<fmt>(offset + 1) == '}') {
-        backend_emit_char('}');
+        emit_char('}');
         emit_format<fmt, offset + 2, arg_index>(args...);
     } else if constexpr (format_char_at<fmt>(offset) == '{') {
         constexpr format_field field = parse_field_at<fmt>(offset);
@@ -1041,10 +1041,10 @@ inline void emit_format(const Args &...args)
         constexpr usize run_length = literal_run_length<fmt, offset>();
 
         if constexpr (run_length > 0) {
-            backend_emit_bytes(&fmt.data[offset], run_length);
+            emit_bytes(&fmt.data[offset], run_length);
             emit_format<fmt, offset + run_length, arg_index>(args...);
         } else {
-            backend_emit_char(format_char_at<fmt>(offset));
+            emit_char(format_char_at<fmt>(offset));
             emit_format<fmt, offset + 1, arg_index>(args...);
         }
     }
@@ -1055,8 +1055,6 @@ inline void emit_format(const Args &...args)
 // =================================================================================================
 // Public API
 // =================================================================================================
-
-void kprint_init();
 
 template <detail::fixed_string FMT, typename... Args>
 inline void kprint_ct(const Args &...args)
@@ -1078,7 +1076,7 @@ template <detail::fixed_string FMT, typename... Args>
 inline void kprintln_ct(const Args &...args)
 {
     kprint_ct<FMT>(args...);
-    detail::backend_emit_char('\n');
+    detail::emit_char('\n');
 }
 
 }  // namespace kernel::debug
