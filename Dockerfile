@@ -97,7 +97,13 @@ ENV PREFIX=${PREFIX}
 ENV PATH="${PREFIX}/bin:${PATH}"
 
 # The -dev packages are what the cross compiler links against at run time (libgmp, libmpc,
-# libmpfr, libisl, libzstd); the rest is what turns a kernel.elf into a bootable ISO and runs it.
+# libmpfr, libisl, libzstd).
+#
+# cmake and ninja build the kernel; git is load-bearing rather than a convenience, because
+# CMake fetches the Result dependency at configure time. grub, xorriso and mtools turn a
+# kernel.elf into a bootable ISO, and qemu runs it. make is not used by the build, but CMake
+# defaults to the Makefiles generator when no preset is given and the failure is confusing
+# without it.
 RUN apt-get update && apt-get install -y --no-install-recommends \
     libgmp3-dev \
     libmpc-dev \

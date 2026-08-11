@@ -1,27 +1,35 @@
 {
   "name": "DoomOS",
+
+  // Built from the repo-root Dockerfile, which CI publishes as the toolchain image too, so the
+  // container and CI are the same environment. Toolchain versions live there rather than being
+  // repeated here.
   "build": {
     "context": "..",
-    "dockerfile": "../Dockerfile",
-    "args": {
-      "TARGET": "x86_64-elf",
-      "PREFIX": "/opt/cross",
-      "BINUTILS_VERSION": "2.46.1",
-      "GCC_VERSION": "15.3.0"
-    }
+    "dockerfile": "../Dockerfile"
   },
+
   "workspaceFolder": "/workspace/DoomOS",
   "workspaceMount": "source=${localWorkspaceFolder},target=/workspace/DoomOS,type=bind",
+
+  // uid/gid 1000 in the image, so files created in the bind mount stay owned by the developer.
   "remoteUser": "ubuntu",
+
   "runArgs": [
     "--init",
+    // SYS_PTRACE and an unconfined seccomp profile are what gdb needs to attach.
     "--cap-add=SYS_PTRACE",
     "--security-opt=seccomp=unconfined",
+    // QEMU with a display, rather than only serial.
     "--env=DISPLAY=${localEnv:DISPLAY}",
     "--volume=/tmp/.X11-unix:/tmp/.X11-unix:rw"
   ],
+
   "mounts": [
     "source=${localEnv:HOME}/.bashrc,target=/home/ubuntu/.bashrc,type=bind,readonly"
   ],
+
+  // Smoke test: every tool the build needs, checked on creation. This is what catches a
+  // container running an image older than the Dockerfile.
   "postCreateCommand": "x86_64-elf-gcc --version && x86_64-elf-g++ --version && cmake --version && ninja --version && clang-format --version && grub-mkrescue --version && qemu-system-x86_64 --version"
 }

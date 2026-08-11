@@ -1,9 +1,2 @@
-# Files clang-format must not touch. Paths are relative to this file.
-#
-# config/ is not C++. A formatter reflowing grub.cfg once turned "set timeout=0" into
-# "set timeout = 0", which GRUB parses as no assignment at all - the menu then waits forever
-# for a keypress and the kernel never loads, silently and with no diagnostic.
 config/*
-
-# Vendored code is upstream's to format.
-third_party/*
+build/*
