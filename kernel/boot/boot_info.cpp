@@ -70,6 +70,15 @@ kernel::core::init_result component::parse()
         return outcome;
     }
 
+    // Checked once here rather than at each push, so the adapters stay a straight
+    // translation. A machine with more regions than the tables hold is a machine we cannot
+    // describe, and a partial description is indistinguishable from a complete one once
+    // valid is set.
+    if (g_info.truncated()) {
+        g_info.reset();
+        return kernel::core::Err(kernel::core::init_error::CAPACITY_EXCEEDED);
+    }
+
     g_info.valid = true;
     return kernel::core::Ok();
 }

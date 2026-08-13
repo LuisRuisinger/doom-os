@@ -67,11 +67,14 @@ template <typename T>
     for (usize i = 0; i < count; ++i) {
         const auto *entry = memory_map_entry_at(tag, i);
 
-        out.memory_map.push(kernel::boot::memory_region{
+        // Overflow is not handled per entry: the table records that it dropped one, and
+        // boot_info rejects the whole description afterwards. Stopping here instead would
+        // leave a map that looks complete.
+        static_cast<void>(out.memory_map.push(kernel::boot::memory_region{
             .base = entry->base_addr,
             .length = entry->length,
             .kind = translate_memory_type(entry->type),
-        });
+        }));
     }
 
     return true;
@@ -88,7 +91,7 @@ template <typename T>
     entry.range.length = tag.mod_end - tag.mod_start;
     entry.command_line.assign(module_command_line(tag));
 
-    out.modules.push(entry);
+    static_cast<void>(out.modules.push(entry));
     return true;
 }
 
@@ -214,10 +217,10 @@ kernel::core::init_result adapter::parse(const kernel::boot::handoff &source,
 
     // The buffer we are about to read from is physical memory the bootloader owns. Record it
     // so it is never handed out, even though nothing points into it once parsing is done.
-    out.reserved.push(kernel::boot::address_range{
+    static_cast<void>(out.reserved.push(kernel::boot::address_range{
         .base = source.address,
         .length = header->total_size,
-    });
+    }));
 
     const auto *end = begin + header->total_size;
     const auto *tag = first_tag(*header);

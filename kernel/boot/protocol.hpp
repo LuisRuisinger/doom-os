@@ -34,7 +34,10 @@ struct fixed_table {
     usize count{};
     bool  truncated{};
 
-    bool push(const Entry &entry)
+    // Nodiscard so that dropping an entry is always a deliberate act. A caller that pushes a
+    // whole run and checks `truncated` once at the end discards each result explicitly; a
+    // caller that forgets to check either way gets a compile error.
+    [[nodiscard]] bool push(const Entry &entry)
     {
         if (count >= Capacity) {
             truncated = true;
@@ -208,6 +211,14 @@ struct info {
 
     framebuffer_info framebuffer{};
     acpi_info        acpi{};
+
+    // True if any table dropped an entry. A description that lost regions is not a
+    // description of this machine, and silently allocating around the ones that survived
+    // is worse than refusing to boot.
+    [[nodiscard]] bool truncated() const
+    {
+        return memory_map.truncated || modules.truncated || reserved.truncated;
+    }
 
     // Reset in place. An info is around ten kilobytes, so assigning a fresh one would put
     // that much on a sixteen-kilobyte kernel stack as a temporary.
