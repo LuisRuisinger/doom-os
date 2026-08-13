@@ -76,6 +76,11 @@ struct allocator_state {
     usize managed_frames{};
     usize free_frames{};
 
+    // Maintained as the summaries change, so "can this request be met" is answered before
+    // anything is handed out rather than discovered partway through.
+    usize free_2m_count{};
+    usize free_1g_count{};
+
     // Which 2 MiB block the last single-frame allocation came from. A hint only - it is
     // tested against partial_2m before use, so a stale value costs a scan and never a wrong
     // answer.
@@ -250,13 +255,29 @@ void refresh_2m(usize block)
 {
     const block_state state = inspect_2m(block);
 
+    if (test_index(g_allocator.free_2m, block) != state.all_free) {
+        if (state.all_free)
+            ++g_allocator.free_2m_count;
+        else
+            --g_allocator.free_2m_count;
+    }
+
     assign_index(g_allocator.free_2m, block, state.all_free);
     assign_index(g_allocator.partial_2m, block, state.any_free && !state.all_free);
 }
 
 void refresh_1g(usize block)
 {
-    assign_index(g_allocator.free_1g, block, all_2m_free_in_1g(block));
+    const bool all_free = all_2m_free_in_1g(block);
+
+    if (test_index(g_allocator.free_1g, block) != all_free) {
+        if (all_free)
+            ++g_allocator.free_1g_count;
+        else
+            --g_allocator.free_1g_count;
+    }
+
+    assign_index(g_allocator.free_1g, block, all_free);
 }
 
 void refresh_frame_range(usize first, usize count)
@@ -298,7 +319,7 @@ void refresh_frame_range(usize first, usize count)
     return find_first_set(g_allocator.free_2m, L1_WORDS, BLOCK_2M_COUNT);
 }
 
-[[nodiscard]] paddr_t alloc_single_locked()
+[[nodiscard]] paddr_t take_frame_locked()
 {
     const usize block = pick_block_for_single_frame();
 
@@ -346,6 +367,64 @@ void refresh_frame_range(usize first, usize count)
     refresh_frame_range(first, frames_per_block);
 
     return static_cast<paddr_t>(first) << FRAME_SHIFT;
+}
+
+// One page of the named size, naturally aligned. Each case is an index lookup rather than a
+// search, which is what lets a batch be served without scanning anything.
+[[nodiscard]] paddr_t take_page_locked(page_size size)
+{
+    switch (size) {
+        case page_size::SMALL_4K:
+            return take_frame_locked();
+        case page_size::LARGE_2M:
+            return take_block_locked(g_allocator.free_2m, L1_WORDS, BLOCK_2M_COUNT, FRAMES_PER_2M);
+        case page_size::HUGE_1G:
+            return take_block_locked(g_allocator.free_1g, L2_WORDS, BLOCK_1G_COUNT, FRAMES_PER_1G);
+    }
+
+    return INVALID_PHYSICAL_ADDRESS;
+}
+
+// How many pages of this size could be handed out right now. Exact rather than an estimate:
+// taking one 4 KiB page costs one frame, one 2 MiB page costs one free_2m bit, and one 1 GiB
+// page costs one free_1g bit - so a batch that passes this check cannot fail partway.
+[[nodiscard]] usize available_pages_locked(page_size size)
+{
+    switch (size) {
+        case page_size::SMALL_4K:
+            return g_allocator.free_frames;
+        case page_size::LARGE_2M:
+            return g_allocator.free_2m_count;
+        case page_size::HUGE_1G:
+            return g_allocator.free_1g_count;
+    }
+
+    return 0;
+}
+
+// Shared by every release path. Everything it rejects is a caller bug rather than a runtime
+// condition, so it panics instead of reporting.
+void release_locked(paddr_t base, usize frame_count, u64 alignment)
+{
+    if (!g_allocator.initialized)
+        KPANIC("pmm: release of {:#018X} before the allocator is initialised", base);
+
+    if (!is_aligned<paddr_t>(base, alignment))
+        KPANIC("pmm: release of {:#018X}, which is not aligned to {} bytes", base, alignment);
+
+    const usize first = static_cast<usize>(base >> FRAME_SHIFT);
+
+    if (first >= g_allocator.managed_frames || frame_count > g_allocator.managed_frames - first)
+        KPANIC("pmm: release of {} frames at {:#018X} leaves the managed range", frame_count, base);
+
+    for (usize i = 0; i < frame_count; ++i)
+        if (test_index(g_allocator.frames, first + i))
+            KPANIC("pmm: double free of frame {:#018X} in a {} frame release at {:#018X}",
+                   static_cast<paddr_t>(first + i) << FRAME_SHIFT, frame_count, base);
+
+    apply_range(g_allocator.frames, first, frame_count, true);
+    g_allocator.free_frames += frame_count;
+    refresh_frame_range(first, frame_count);
 }
 
 // Counts how many frames from `first` are free, stopping at `limit`.
@@ -405,6 +484,9 @@ void reset_bitmaps()
 
     for (usize word = 0; word < L2_WORDS; ++word)
         g_allocator.free_1g[word] = 0;
+
+    g_allocator.free_2m_count = 0;
+    g_allocator.free_1g_count = 0;
 }
 
 // Rounds inward: a frame only partly covered by usable memory is not usable.
@@ -546,8 +628,8 @@ void log_totals()
     const usize managed_kib = g_allocator.managed_frames * (FRAME_SIZE / 1024);
 
     KPRINTLN("[pmm] managed={} KiB free={} KiB ({} frames, {} free 2M, {} free 1G)", managed_kib,
-             free_kib, g_allocator.free_frames, popcount(g_allocator.free_2m, L1_WORDS),
-             popcount(g_allocator.free_1g, L2_WORDS));
+             free_kib, g_allocator.free_frames, g_allocator.free_2m_count,
+             g_allocator.free_1g_count);
 }
 
 }  // namespace
@@ -566,10 +648,13 @@ void log_totals()
 namespace {
 
 constexpr usize SELF_TEST_SAMPLES = 4096;
+constexpr usize SELF_TEST_BATCH = 51;
 constexpr usize SELF_TEST_ODD_RUN = 11;
 constexpr usize SELF_TEST_ODD_ALIGN = 8;
+constexpr usize SELF_TEST_LARGE_BATCH = 3;
+constexpr usize SELF_TEST_OVERSHOOT_ROOM = 32;
 
-paddr_t g_self_test_frames[SELF_TEST_SAMPLES]{};
+paddr_t g_self_test_pages[SELF_TEST_SAMPLES]{};
 
 void expect(bool condition, const char *what)
 {
@@ -583,58 +668,57 @@ void expect_invariants(const char *stage)
         KPANIC("pmm self-test: derived levels disagree with the frame bitmap after {}", stage);
 }
 
-// Allocates single frames, releases them, and checks the totals come back. Distinctness is
-// checked by the release: handing the same frame out twice would trip the double-free panic.
-void check_single_frames()
+// Distinctness is checked by the release rather than by comparing every pair: handing the same
+// page out twice would trip the double-free panic.
+void check_batch(page_size size, usize count, const char *stage)
 {
     const stats before = current_stats();
 
-    for (usize i = 0; i < SELF_TEST_SAMPLES; ++i) {
-        g_self_test_frames[i] = alloc_frame();
-
-        expect(g_self_test_frames[i] != INVALID_PHYSICAL_ADDRESS, "ran out of single frames");
-        expect(is_aligned<paddr_t>(g_self_test_frames[i], FRAME_SIZE),
-               "single frame is not aligned");
-        expect(!is_free(g_self_test_frames[i]), "allocated frame still reads as free");
-    }
-
-    expect(current_stats().free_frames == before.free_frames - SELF_TEST_SAMPLES,
-           "free count did not drop by the number of frames allocated");
-
-    expect_invariants("single frame allocation");
-
-    for (usize i = 0; i < SELF_TEST_SAMPLES; ++i)
-        free_frame(g_self_test_frames[i]);
-
-    expect(current_stats().free_frames == before.free_frames,
-           "free count did not return after releasing every frame");
-
-    expect_invariants("single frame release");
-}
-
-void check_large_block(usize frames_per_block, const char *what)
-{
-    const stats before = current_stats();
-
-    const paddr_t block = alloc_frames(frames_per_block, frames_per_block);
-
-    if (block == INVALID_PHYSICAL_ADDRESS) {
-        KPRINTLN("[pmm] self-test: no {} block available, skipping", what);
+    if (!alloc_pages(size, count, g_self_test_pages)) {
+        KPRINTLN("[pmm] self-test: {} pages of {} unavailable, skipping", count, describe(size));
         return;
     }
 
-    expect(is_aligned<paddr_t>(block, frames_per_block * FRAME_SIZE), "large block is not aligned");
-    expect(current_stats().free_frames == before.free_frames - frames_per_block,
-           "free count did not drop by the size of the block");
+    for (usize i = 0; i < count; ++i) {
+        expect(g_self_test_pages[i] != INVALID_PHYSICAL_ADDRESS, "batch returned an invalid page");
+        expect(is_aligned<paddr_t>(g_self_test_pages[i], bytes_in(size)),
+               "batch page is not naturally aligned");
+        expect(!is_free(g_self_test_pages[i]), "batch page still reads as free");
+    }
 
-    expect_invariants("large block allocation");
+    expect(current_stats().free_frames == before.free_frames - count * frames_in(size),
+           "free count did not drop by the size of the batch");
 
-    free_frames(block, frames_per_block);
+    expect_invariants(stage);
+
+    free_pages(size, count, g_self_test_pages);
 
     expect(current_stats().free_frames == before.free_frames,
-           "free count did not return after releasing the block");
+           "free count did not return after releasing the batch");
 
-    expect_invariants("large block release");
+    expect_invariants(stage);
+}
+
+// A batch that cannot be met must allocate nothing at all, so the caller never has to unwind a
+// partial result.
+void check_all_or_nothing()
+{
+    const stats before = current_stats();
+
+    paddr_t pages[SELF_TEST_OVERSHOOT_ROOM]{};
+
+    const usize request = before.free_1g_pages + 1;
+
+    if (request > SELF_TEST_OVERSHOOT_ROOM)
+        return;
+
+    expect(!alloc_pages(page_size::HUGE_1G, request, pages),
+           "a batch larger than the supply reported success");
+
+    expect(current_stats().free_frames == before.free_frames,
+           "a batch that failed still consumed memory");
+
+    expect_invariants("a rejected batch");
 }
 
 // The case a buddy allocator cannot serve exactly: a run that is neither a power of two nor
@@ -643,7 +727,7 @@ void check_odd_run()
 {
     const stats before = current_stats();
 
-    const paddr_t run = alloc_frames(SELF_TEST_ODD_RUN, SELF_TEST_ODD_ALIGN);
+    const paddr_t run = alloc_contiguous(SELF_TEST_ODD_RUN, SELF_TEST_ODD_ALIGN);
 
     expect(run != INVALID_PHYSICAL_ADDRESS, "could not allocate an odd length run");
     expect(is_aligned<paddr_t>(run, SELF_TEST_ODD_ALIGN * FRAME_SIZE),
@@ -659,7 +743,7 @@ void check_odd_run()
     expect(current_stats().free_frames == before.free_frames - SELF_TEST_ODD_RUN,
            "free count did not drop by the length of the run");
 
-    free_frames(run, SELF_TEST_ODD_RUN);
+    free_contiguous(run, SELF_TEST_ODD_RUN);
 
     expect(current_stats().free_frames == before.free_frames,
            "free count did not return after releasing the run");
@@ -673,9 +757,11 @@ void run_self_test()
 
     expect_invariants("initialisation");
 
-    check_single_frames();
-    check_large_block(FRAMES_PER_2M, "2 MiB");
-    check_large_block(FRAMES_PER_1G, "1 GiB");
+    check_batch(page_size::SMALL_4K, SELF_TEST_BATCH, "a small batch");
+    check_batch(page_size::SMALL_4K, SELF_TEST_SAMPLES, "many single pages");
+    check_batch(page_size::LARGE_2M, SELF_TEST_LARGE_BATCH, "a 2 MiB batch");
+    check_batch(page_size::HUGE_1G, SELF_TEST_LARGE_BATCH, "a 1 GiB batch");
+    check_all_or_nothing();
     check_odd_run();
 
     KPRINTLN("[pmm] self-test passed");
@@ -705,69 +791,112 @@ stats current_stats()
         .managed_frames = g_allocator.managed_frames,
         .free_frames = g_allocator.free_frames,
         .allocated_frames = g_allocator.managed_frames - g_allocator.free_frames,
-        .free_2m_blocks = popcount(g_allocator.free_2m, L1_WORDS),
-        .free_1g_blocks = popcount(g_allocator.free_1g, L2_WORDS),
+        .free_2m_pages = g_allocator.free_2m_count,
+        .free_1g_pages = g_allocator.free_1g_count,
     };
 }
 
-paddr_t alloc_frames(usize count, usize alignment_frames)
+const char *describe(page_size size)
 {
-    if (count == 0 || !is_power_of_two<usize>(alignment_frames))
-        return INVALID_PHYSICAL_ADDRESS;
+    switch (size) {
+        case page_size::SMALL_4K:
+            return "4 KiB";
+        case page_size::LARGE_2M:
+            return "2 MiB";
+        case page_size::HUGE_1G:
+            return "1 GiB";
+    }
+
+    return "unknown";
+}
+
+bool alloc_pages(page_size size, usize count, paddr_t *out)
+{
+    if (count == 0)
+        return true;
+
+    if (out == nullptr)
+        return false;
 
     kernel::sync::spinlock_guard guard(g_allocator.lock);
 
-    if (!g_allocator.initialized || count > g_allocator.free_frames)
-        return INVALID_PHYSICAL_ADDRESS;
+    if (!g_allocator.initialized || count > available_pages_locked(size))
+        return false;
 
-    if (count == 1 && alignment_frames == 1)
-        return alloc_single_locked();
+    // The check above is exact, so nothing below can come up short. Every page is an index
+    // lookup, so a batch costs one lock acquisition and no search - and consecutive 4 KiB
+    // pages come out of the same partially used block until it is empty, which keeps them
+    // together and confines the damage to one block.
+    for (usize i = 0; i < count; ++i) {
+        out[i] = take_page_locked(size);
 
-    if (count == FRAMES_PER_1G && alignment_frames == FRAMES_PER_1G)
-        return take_block_locked(g_allocator.free_1g, L2_WORDS, BLOCK_1G_COUNT, FRAMES_PER_1G);
+        if (out[i] == INVALID_PHYSICAL_ADDRESS)
+            KPANIC("pmm: {} pages of {} were available but page {} could not be taken", count,
+                   describe(size), i);
+    }
 
-    if (count == FRAMES_PER_2M && alignment_frames == FRAMES_PER_2M)
-        return take_block_locked(g_allocator.free_2m, L1_WORDS, BLOCK_2M_COUNT, FRAMES_PER_2M);
-
-    return alloc_run_locked(count, alignment_frames);
+    return true;
 }
 
-paddr_t alloc_frame()
-{
-    return alloc_frames(1, 1);
-}
-
-void free_frames(paddr_t base, usize count)
+void free_pages(page_size size, usize count, const paddr_t *pages)
 {
     if (count == 0)
         return;
 
+    if (pages == nullptr)
+        KPANIC("pmm: release of {} pages of {} from a null array", count, describe(size));
+
     kernel::sync::spinlock_guard guard(g_allocator.lock);
 
-    if (!g_allocator.initialized)
-        KPANIC("pmm: free of {:#018X} before the allocator is initialised", base);
-
-    if (!is_aligned<paddr_t>(base, FRAME_SIZE))
-        KPANIC("pmm: free of unaligned address {:#018X}", base);
-
-    const usize first = static_cast<usize>(base >> FRAME_SHIFT);
-
-    if (first >= g_allocator.managed_frames || count > g_allocator.managed_frames - first)
-        KPANIC("pmm: free of {} frames at {:#018X} leaves the managed range", count, base);
-
     for (usize i = 0; i < count; ++i)
-        if (test_index(g_allocator.frames, first + i))
-            KPANIC("pmm: double free of frame {:#018X} in a {} frame release at {:#018X}",
-                   static_cast<paddr_t>(first + i) << FRAME_SHIFT, count, base);
-
-    apply_range(g_allocator.frames, first, count, true);
-    g_allocator.free_frames += count;
-    refresh_frame_range(first, count);
+        release_locked(pages[i], frames_in(size), bytes_in(size));
 }
 
-void free_frame(paddr_t base)
+paddr_t alloc_page(page_size size)
 {
-    free_frames(base, 1);
+    paddr_t page = INVALID_PHYSICAL_ADDRESS;
+
+    return alloc_pages(size, 1, &page) ? page : INVALID_PHYSICAL_ADDRESS;
+}
+
+void free_page(page_size size, paddr_t base)
+{
+    free_pages(size, 1, &base);
+}
+
+paddr_t alloc_contiguous(usize frame_count, usize alignment_frames)
+{
+    if (frame_count == 0 || !is_power_of_two<usize>(alignment_frames))
+        return INVALID_PHYSICAL_ADDRESS;
+
+    kernel::sync::spinlock_guard guard(g_allocator.lock);
+
+    if (!g_allocator.initialized || frame_count > g_allocator.free_frames)
+        return INVALID_PHYSICAL_ADDRESS;
+
+    // Not a guess at what the caller meant - for a request that is explicitly contiguous, a
+    // naturally aligned run of exactly one block is the same thing the level already indexes,
+    // so the search is skipped rather than reinterpreted.
+    if (frame_count == FRAMES_PER_1G && alignment_frames == FRAMES_PER_1G)
+        return take_page_locked(page_size::HUGE_1G);
+
+    if (frame_count == FRAMES_PER_2M && alignment_frames == FRAMES_PER_2M)
+        return take_page_locked(page_size::LARGE_2M);
+
+    if (frame_count == 1 && alignment_frames == 1)
+        return take_page_locked(page_size::SMALL_4K);
+
+    return alloc_run_locked(frame_count, alignment_frames);
+}
+
+void free_contiguous(paddr_t base, usize frame_count)
+{
+    if (frame_count == 0)
+        return;
+
+    kernel::sync::spinlock_guard guard(g_allocator.lock);
+
+    release_locked(base, frame_count, FRAME_SIZE);
 }
 
 bool is_free(paddr_t address)

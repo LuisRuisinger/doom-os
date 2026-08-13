@@ -19,6 +19,7 @@ namespace kernel::core::memory::pmm {
 
 using kernel::core::paddr_t;
 using kernel::core::u64;
+using kernel::core::u8;
 using kernel::core::usize;
 
 // =================================================================================================
@@ -46,6 +47,40 @@ static_assert(MAX_PHYSICAL_MEMORY % (FRAMES_PER_1G * FRAME_SIZE) == 0,
               "any level is partially outside the managed range");
 
 // =================================================================================================
+// Page sizes
+//
+// Named rather than inferred from a frame count, so a caller that happens to want 512 frames
+// aligned to 512 gets what it asked for instead of whatever the arithmetic looked like.
+// =================================================================================================
+
+enum class page_size : u8 {
+    SMALL_4K,
+    LARGE_2M,
+    HUGE_1G,
+};
+
+[[nodiscard]] inline constexpr usize frames_in(page_size size)
+{
+    switch (size) {
+        case page_size::SMALL_4K:
+            return 1;
+        case page_size::LARGE_2M:
+            return FRAMES_PER_2M;
+        case page_size::HUGE_1G:
+            return FRAMES_PER_1G;
+    }
+
+    return 0;
+}
+
+[[nodiscard]] inline constexpr u64 bytes_in(page_size size)
+{
+    return frames_in(size) * FRAME_SIZE;
+}
+
+const char *describe(page_size size);
+
+// =================================================================================================
 // Statistics
 // =================================================================================================
 
@@ -54,32 +89,40 @@ struct stats {
     usize managed_frames{};
     usize free_frames{};
     usize allocated_frames{};
-    usize free_2m_blocks{};
-    usize free_1g_blocks{};
+    usize free_2m_pages{};
+    usize free_1g_pages{};
 };
 
 // =================================================================================================
 // PMM API
 //
-// alloc_frames returns a physical address aligned to alignment_frames * FRAME_SIZE, or
-// INVALID_PHYSICAL_ADDRESS if the request cannot be met. alignment_frames must be a power of
-// two. The MMU frame sizes are ordinary requests here:
+// Two distinct requests, because they cost very different things.
 //
-//     alloc_frames(FRAMES_PER_2M, FRAMES_PER_2M)
+// alloc_pages hands back `count` pages of one size, each naturally aligned, and says nothing
+// about where they are relative to one another. That is what makes it cheap: every page comes
+// off an O(1) path and nothing is scanned. It is all or nothing - either `out` is filled with
+// `count` pages or nothing is allocated - so a caller never has to unwind a partial result.
+// `out` must have room for `count` entries.
 //
-// free_frames is given the count the caller asked for. Misuse - an unaligned or out of range
-// address, a wrong count, a double free - is a bug in the caller rather than a condition to
-// report, and panics.
+// alloc_contiguous is for callers that need adjacency itself rather than a quantity of memory,
+// such as a device descriptor ring. It searches, it can fail on a fragmented machine that has
+// memory to spare, and it should not be reached for when alloc_pages would do.
+//
+// Misuse of the free functions - an unaligned or out of range address, a wrong count, a double
+// free - is a bug in the caller rather than a condition to report, and panics.
 // =================================================================================================
 
 bool initialized();
 stats current_stats();
 
-paddr_t alloc_frames(usize count, usize alignment_frames = 1);
-paddr_t alloc_frame();
+[[nodiscard]] bool alloc_pages(page_size size, usize count, paddr_t *out);
+void free_pages(page_size size, usize count, const paddr_t *pages);
 
-void free_frames(paddr_t base, usize count);
-void free_frame(paddr_t base);
+[[nodiscard]] paddr_t alloc_page(page_size size = page_size::SMALL_4K);
+void free_page(page_size size, paddr_t base);
+
+[[nodiscard]] paddr_t alloc_contiguous(usize frame_count, usize alignment_frames = 1);
+void free_contiguous(paddr_t base, usize frame_count);
 
 bool is_free(paddr_t address);
 bool contains(paddr_t address);
