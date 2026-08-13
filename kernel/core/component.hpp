@@ -39,8 +39,6 @@ enum class init_error : u8 {
     INVALID_BOOT_DATA,
     CAPACITY_EXCEEDED,
     NO_USABLE_MEMORY,
-    METADATA_STORAGE_UNAVAILABLE,
-    RESERVATION_FAILED,
     HARDWARE_UNSUPPORTED,
 };
 
@@ -57,10 +55,6 @@ inline const char *describe(init_error error)
             return "input exceeds a compile-time capacity";
         case init_error::NO_USABLE_MEMORY:
             return "no usable memory in the boot memory map";
-        case init_error::METADATA_STORAGE_UNAVAILABLE:
-            return "no region large enough to hold allocator metadata";
-        case init_error::RESERVATION_FAILED:
-            return "could not reserve a required physical range";
         case init_error::HARDWARE_UNSUPPORTED:
             return "required hardware feature is unavailable";
     }

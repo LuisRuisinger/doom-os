@@ -22,4 +22,16 @@
  */
 #define DOOM_OS_EARLY_MAP_SIZE 0x40000000
 
+/*
+ * The most physical memory the frame allocator will manage. Its bitmaps are statically sized
+ * from this and live in .bss, which is why it is a ceiling rather than a discovered value:
+ * raising it costs roughly 1 bit per 4 KiB frame, so 16 GiB costs about 520 KiB of kernel
+ * image. Memory beyond it is reported and ignored, never handed out.
+ *
+ * The linker script asserts the kernel image fits DOOM_OS_EARLY_MAP_SIZE, so the two are
+ * related: a ceiling large enough to push .bss past 1 GiB fails the build rather than
+ * silently producing a kernel the early page tables cannot map.
+ */
+#define DOOM_OS_MAX_PHYSICAL_MEMORY 0x400000000
+
 #endif /* DOOM_OS_CONFIG_LAYOUT_H_ */
