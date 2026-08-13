@@ -78,21 +78,6 @@ enum class page_size : u8 {
     return frames_in(size) * FRAME_SIZE;
 }
 
-const char *describe(page_size size);
-
-// =================================================================================================
-// Statistics
-// =================================================================================================
-
-struct stats {
-    bool  initialized{};
-    usize managed_frames{};
-    usize free_frames{};
-    usize allocated_frames{};
-    usize free_2m_pages{};
-    usize free_1g_pages{};
-};
-
 // =================================================================================================
 // PMM API
 //
@@ -112,9 +97,6 @@ struct stats {
 // free - is a bug in the caller rather than a condition to report, and panics.
 // =================================================================================================
 
-bool initialized();
-stats current_stats();
-
 [[nodiscard]] bool alloc_pages(page_size size, usize count, paddr_t *out);
 void free_pages(page_size size, usize count, const paddr_t *pages);
 
@@ -123,14 +105,6 @@ void free_page(page_size size, paddr_t base);
 
 [[nodiscard]] paddr_t alloc_contiguous(usize frame_count, usize alignment_frames = 1);
 void free_contiguous(paddr_t base, usize frame_count);
-
-bool is_free(paddr_t address);
-bool contains(paddr_t address);
-
-// Recomputes every derived level from the frame bitmap and compares. Everything above the
-// frame bitmap is a summary of it, so this catches any bookkeeping mistake in split or
-// coalesce without needing to know what the caller expected.
-bool verify_invariants();
 
 // =================================================================================================
 // Component

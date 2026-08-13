@@ -369,6 +369,21 @@ void refresh_frame_range(usize first, usize count)
     return static_cast<paddr_t>(first) << FRAME_SHIFT;
 }
 
+// Only ever reaches a panic message, so it names the size the way a person would.
+[[nodiscard]] const char *describe(page_size size)
+{
+    switch (size) {
+        case page_size::SMALL_4K:
+            return "4 KiB";
+        case page_size::LARGE_2M:
+            return "2 MiB";
+        case page_size::HUGE_1G:
+            return "1 GiB";
+    }
+
+    return "unknown";
+}
+
 // One page of the named size, naturally aligned. Each case is an index lookup rather than a
 // search, which is what lets a batch be served without scanning anything.
 [[nodiscard]] paddr_t take_page_locked(page_size size)
@@ -638,41 +653,6 @@ void log_totals()
 // PMM API
 // =================================================================================================
 
-bool initialized()
-{
-    kernel::sync::spinlock_guard guard(g_allocator.lock);
-
-    return g_allocator.initialized;
-}
-
-stats current_stats()
-{
-    kernel::sync::spinlock_guard guard(g_allocator.lock);
-
-    return stats{
-        .initialized = g_allocator.initialized,
-        .managed_frames = g_allocator.managed_frames,
-        .free_frames = g_allocator.free_frames,
-        .allocated_frames = g_allocator.managed_frames - g_allocator.free_frames,
-        .free_2m_pages = g_allocator.free_2m_count,
-        .free_1g_pages = g_allocator.free_1g_count,
-    };
-}
-
-const char *describe(page_size size)
-{
-    switch (size) {
-        case page_size::SMALL_4K:
-            return "4 KiB";
-        case page_size::LARGE_2M:
-            return "2 MiB";
-        case page_size::HUGE_1G:
-            return "1 GiB";
-    }
-
-    return "unknown";
-}
-
 bool alloc_pages(page_size size, usize count, paddr_t *out)
 {
     if (count == 0)
@@ -760,50 +740,6 @@ void free_contiguous(paddr_t base, usize frame_count)
     kernel::sync::spinlock_guard guard(g_allocator.lock);
 
     release_locked(base, frame_count, FRAME_SIZE);
-}
-
-bool is_free(paddr_t address)
-{
-    kernel::sync::spinlock_guard guard(g_allocator.lock);
-
-    const usize frame = static_cast<usize>(address >> FRAME_SHIFT);
-
-    if (!g_allocator.initialized || frame >= g_allocator.managed_frames)
-        return false;
-
-    return test_index(g_allocator.frames, frame);
-}
-
-bool contains(paddr_t address)
-{
-    kernel::sync::spinlock_guard guard(g_allocator.lock);
-
-    return g_allocator.initialized &&
-           static_cast<usize>(address >> FRAME_SHIFT) < g_allocator.managed_frames;
-}
-
-bool verify_invariants()
-{
-    kernel::sync::spinlock_guard guard(g_allocator.lock);
-
-    if (!g_allocator.initialized)
-        return false;
-
-    for (usize block = 0; block < BLOCK_2M_COUNT; ++block) {
-        const block_state state = inspect_2m(block);
-
-        if (test_index(g_allocator.free_2m, block) != state.all_free)
-            return false;
-
-        if (test_index(g_allocator.partial_2m, block) != (state.any_free && !state.all_free))
-            return false;
-    }
-
-    for (usize block = 0; block < BLOCK_1G_COUNT; ++block)
-        if (test_index(g_allocator.free_1g, block) != all_2m_free_in_1g(block))
-            return false;
-
-    return popcount(g_allocator.frames, L0_WORDS) == g_allocator.free_frames;
 }
 
 // =================================================================================================
