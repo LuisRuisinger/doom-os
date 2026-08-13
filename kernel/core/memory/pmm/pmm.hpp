@@ -81,20 +81,14 @@ enum class page_size : u8 {
 // =================================================================================================
 // PMM API
 //
-// Two distinct requests, because they cost very different things.
-//
 // alloc_pages hands back `count` pages of one size, each naturally aligned, and says nothing
 // about where they are relative to one another. That is what makes it cheap: every page comes
-// off an O(1) path and nothing is scanned. It is all or nothing - either `out` is filled with
-// `count` pages or nothing is allocated - so a caller never has to unwind a partial result.
-// `out` must have room for `count` entries.
+// off an index lookup and nothing is ever scanned. It is all or nothing - either `out` is
+// filled with `count` pages or nothing is allocated - so a caller never unwinds a partial
+// result. `out` must have room for `count` entries.
 //
-// alloc_contiguous is for callers that need adjacency itself rather than a quantity of memory,
-// such as a device descriptor ring. It searches, it can fail on a fragmented machine that has
-// memory to spare, and it should not be reached for when alloc_pages would do.
-//
-// Misuse of the free functions - an unaligned or out of range address, a wrong count, a double
-// free - is a bug in the caller rather than a condition to report, and panics.
+// Misuse of the free functions - an unaligned or out of range address, a double free - is a
+// bug in the caller rather than a condition to report, and panics.
 // =================================================================================================
 
 [[nodiscard]] bool alloc_pages(page_size size, usize count, paddr_t *out);
@@ -102,9 +96,6 @@ void free_pages(page_size size, usize count, const paddr_t *pages);
 
 [[nodiscard]] paddr_t alloc_page(page_size size = page_size::SMALL_4K);
 void free_page(page_size size, paddr_t base);
-
-[[nodiscard]] paddr_t alloc_contiguous(usize frame_count, usize alignment_frames = 1);
-void free_contiguous(paddr_t base, usize frame_count);
 
 // =================================================================================================
 // Component

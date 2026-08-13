@@ -369,21 +369,6 @@ void refresh_frame_range(usize first, usize count)
     return static_cast<paddr_t>(first) << FRAME_SHIFT;
 }
 
-// Only ever reaches a panic message, so it names the size the way a person would.
-[[nodiscard]] const char *describe(page_size size)
-{
-    switch (size) {
-        case page_size::SMALL_4K:
-            return "4 KiB";
-        case page_size::LARGE_2M:
-            return "2 MiB";
-        case page_size::HUGE_1G:
-            return "1 GiB";
-    }
-
-    return "unknown";
-}
-
 // One page of the named size, naturally aligned. Each case is an index lookup rather than a
 // search, which is what lets a batch be served without scanning anything.
 [[nodiscard]] paddr_t take_page_locked(page_size size)
@@ -419,14 +404,15 @@ void refresh_frame_range(usize first, usize count)
 
 // Shared by every release path. Everything it rejects is a caller bug rather than a runtime
 // condition, so it panics instead of reporting.
-void release_locked(paddr_t base, usize frame_count, u64 alignment)
+void release_locked(paddr_t base, page_size size)
 {
     if (!g_allocator.initialized)
         KPANIC("pmm: release of {:#018X} before the allocator is initialised", base);
 
-    if (!is_aligned<paddr_t>(base, alignment))
-        KPANIC("pmm: release of {:#018X}, which is not aligned to {} bytes", base, alignment);
+    if (!is_aligned<paddr_t>(base, bytes_in(size)))
+        KPANIC("pmm: release of {:#018X}, which is not aligned to {} bytes", base, bytes_in(size));
 
+    const usize frame_count = frames_in(size);
     const usize first = static_cast<usize>(base >> FRAME_SHIFT);
 
     if (first >= g_allocator.managed_frames || frame_count > g_allocator.managed_frames - first)
@@ -440,43 +426,6 @@ void release_locked(paddr_t base, usize frame_count, u64 alignment)
     apply_range(g_allocator.frames, first, frame_count, true);
     g_allocator.free_frames += frame_count;
     refresh_frame_range(first, frame_count);
-}
-
-// Counts how many frames from `first` are free, stopping at `limit`.
-[[nodiscard]] usize free_run_length(usize first, usize limit)
-{
-    usize length = 0;
-
-    while (length < limit && first + length < g_allocator.managed_frames &&
-           test_index(g_allocator.frames, first + length))
-        ++length;
-
-    return length;
-}
-
-[[nodiscard]] paddr_t alloc_run_locked(usize count, usize alignment_frames)
-{
-    usize start = 0;
-
-    for (;;) {
-        start = align_up<usize>(start, alignment_frames);
-
-        if (start >= g_allocator.managed_frames || count > g_allocator.managed_frames - start)
-            return INVALID_PHYSICAL_ADDRESS;
-
-        const usize run = free_run_length(start, count);
-
-        if (run == count) {
-            apply_range(g_allocator.frames, start, count, false);
-            g_allocator.free_frames -= count;
-            refresh_frame_range(start, count);
-
-            return static_cast<paddr_t>(start) << FRAME_SHIFT;
-        }
-
-        // The frame just past the run is taken, so no candidate start inside it can work.
-        start += run + 1;
-    }
 }
 
 // =================================================================================================
@@ -504,34 +453,20 @@ void reset_bitmaps()
     g_allocator.free_1g_count = 0;
 }
 
-// Rounds inward: a frame only partly covered by usable memory is not usable.
-void mark_usable(paddr_t base, u64 length, paddr_t limit)
-{
-    const paddr_t first = align_up_saturating(base, FRAME_SIZE);
-
-    paddr_t end = align_down<paddr_t>(range_end_saturating(base, length), FRAME_SIZE);
-
-    if (end > limit)
-        end = limit;
-
-    if (first >= end)
-        return;
-
-    apply_range(g_allocator.frames, first >> FRAME_SHIFT, (end - first) >> FRAME_SHIFT, true);
-}
-
-// Rounds outward: a frame partly covered by something else is not ours to hand out.
-void mark_occupied(paddr_t base, u64 length, paddr_t limit)
+// Usable memory rounds inward and everything else rounds outward, so a frame that is only
+// partly usable is never handed out and a frame that is partly something else is never taken.
+void mark_range(paddr_t base, u64 length, paddr_t limit, bool usable)
 {
     if (length == 0)
         return;
 
-    const paddr_t first = align_down<paddr_t>(base, FRAME_SIZE);
+    const paddr_t raw_end = range_end_saturating(base, length);
 
-    if (first >= limit)
-        return;
+    const paddr_t first =
+        usable ? align_up_saturating(base, FRAME_SIZE) : align_down<paddr_t>(base, FRAME_SIZE);
 
-    paddr_t end = align_up_saturating(range_end_saturating(base, length), FRAME_SIZE);
+    paddr_t end = usable ? align_down<paddr_t>(raw_end, FRAME_SIZE)
+                         : align_up_saturating(raw_end, FRAME_SIZE);
 
     if (end > limit)
         end = limit;
@@ -539,7 +474,7 @@ void mark_occupied(paddr_t base, u64 length, paddr_t limit)
     if (first >= end)
         return;
 
-    apply_range(g_allocator.frames, first >> FRAME_SHIFT, (end - first) >> FRAME_SHIFT, false);
+    apply_range(g_allocator.frames, first >> FRAME_SHIFT, (end - first) >> FRAME_SHIFT, usable);
 }
 
 [[nodiscard]] paddr_t highest_usable_end(const kernel::boot::info &boot)
@@ -569,7 +504,7 @@ void add_usable_memory(const kernel::boot::info &boot, paddr_t limit)
         if (region.kind != kernel::boot::memory_kind::USABLE)
             continue;
 
-        mark_usable(region.base, region.length, limit);
+        mark_range(region.base, region.length, limit, true);
     }
 }
 
@@ -580,7 +515,7 @@ void reserve_and_log(const char *what, paddr_t base, u64 length, paddr_t limit)
     if (length == 0)
         return;
 
-    mark_occupied(base, length, limit);
+    mark_range(base, length, limit, false);
 
     KPRINTLN("[pmm]   reserve {:#018X}..{:#018X} {}", base, range_end_saturating(base, length),
              what);
@@ -674,8 +609,8 @@ bool alloc_pages(page_size size, usize count, paddr_t *out)
         out[i] = take_page_locked(size);
 
         if (out[i] == INVALID_PHYSICAL_ADDRESS)
-            KPANIC("pmm: {} pages of {} were available but page {} could not be taken", count,
-                   describe(size), i);
+            KPANIC("pmm: {} pages of {} bytes were available but page {} could not be taken", count,
+                   bytes_in(size), i);
     }
 
     return true;
@@ -687,12 +622,12 @@ void free_pages(page_size size, usize count, const paddr_t *pages)
         return;
 
     if (pages == nullptr)
-        KPANIC("pmm: release of {} pages of {} from a null array", count, describe(size));
+        KPANIC("pmm: release of {} pages of {} bytes from a null array", count, bytes_in(size));
 
     kernel::sync::spinlock_guard guard(g_allocator.lock);
 
     for (usize i = 0; i < count; ++i)
-        release_locked(pages[i], frames_in(size), bytes_in(size));
+        release_locked(pages[i], size);
 }
 
 paddr_t alloc_page(page_size size)
@@ -705,41 +640,6 @@ paddr_t alloc_page(page_size size)
 void free_page(page_size size, paddr_t base)
 {
     free_pages(size, 1, &base);
-}
-
-paddr_t alloc_contiguous(usize frame_count, usize alignment_frames)
-{
-    if (frame_count == 0 || !is_power_of_two<usize>(alignment_frames))
-        return INVALID_PHYSICAL_ADDRESS;
-
-    kernel::sync::spinlock_guard guard(g_allocator.lock);
-
-    if (!g_allocator.initialized || frame_count > g_allocator.free_frames)
-        return INVALID_PHYSICAL_ADDRESS;
-
-    // Not a guess at what the caller meant - for a request that is explicitly contiguous, a
-    // naturally aligned run of exactly one block is the same thing the level already indexes,
-    // so the search is skipped rather than reinterpreted.
-    if (frame_count == FRAMES_PER_1G && alignment_frames == FRAMES_PER_1G)
-        return take_page_locked(page_size::HUGE_1G);
-
-    if (frame_count == FRAMES_PER_2M && alignment_frames == FRAMES_PER_2M)
-        return take_page_locked(page_size::LARGE_2M);
-
-    if (frame_count == 1 && alignment_frames == 1)
-        return take_page_locked(page_size::SMALL_4K);
-
-    return alloc_run_locked(frame_count, alignment_frames);
-}
-
-void free_contiguous(paddr_t base, usize frame_count)
-{
-    if (frame_count == 0)
-        return;
-
-    kernel::sync::spinlock_guard guard(g_allocator.lock);
-
-    release_locked(base, frame_count, FRAME_SIZE);
 }
 
 // =================================================================================================
