@@ -17,8 +17,15 @@ using kernel::core::u64;
 using kernel::core::uptr;
 using kernel::core::usize;
 using kernel::core::utils::align_down;
+using kernel::core::utils::align_up;
 using kernel::core::utils::all_bits;
+using kernel::core::utils::bit_width;
+using kernel::core::utils::clear_bit;
+using kernel::core::utils::is_aligned;
 using kernel::core::utils::is_power_of_two;
+using kernel::core::utils::mask;
+using kernel::core::utils::set_bit;
+using kernel::core::utils::test_bit;
 
 // =================================================================================================
 // Layout
@@ -32,19 +39,19 @@ using kernel::core::utils::is_power_of_two;
 // than by whatever symptom it eventually produces.
 // =================================================================================================
 
-constexpr usize BITS_PER_WORD = 64;
+constexpr usize BITS_PER_WORD = bit_width<u64>();
 
 constexpr usize L0_WORDS = MAX_FRAMES / BITS_PER_WORD;
 constexpr usize BLOCK_2M_COUNT = MAX_FRAMES / FRAMES_PER_2M;
 constexpr usize BLOCK_1G_COUNT = MAX_FRAMES / FRAMES_PER_1G;
 constexpr usize L1_WORDS = BLOCK_2M_COUNT / BITS_PER_WORD;
-constexpr usize L2_WORDS = (BLOCK_1G_COUNT + BITS_PER_WORD - 1) / BITS_PER_WORD;
+constexpr usize L2_WORDS = align_up<usize>(BLOCK_1G_COUNT, BITS_PER_WORD) / BITS_PER_WORD;
 
 constexpr usize L0_WORDS_PER_2M = FRAMES_PER_2M / BITS_PER_WORD;
 constexpr usize BLOCKS_2M_PER_1G = FRAMES_PER_1G / FRAMES_PER_2M;
 constexpr usize L1_WORDS_PER_1G = BLOCKS_2M_PER_1G / BITS_PER_WORD;
 
-constexpr usize NPOS = ~usize{0};
+constexpr usize NPOS = all_bits<usize>();
 
 static_assert(MAX_FRAMES % BITS_PER_WORD == 0);
 static_assert(BLOCK_2M_COUNT % BITS_PER_WORD == 0);
@@ -95,44 +102,49 @@ extern "C" char kernel_physical_end[];
 
 [[nodiscard]] paddr_t range_end_saturating(paddr_t base, u64 length)
 {
-    return length > INVALID_PHYSICAL_ADDRESS - base ? INVALID_PHYSICAL_ADDRESS : base + length;
+    return length > all_bits<paddr_t>() - base ? all_bits<paddr_t>() : base + length;
 }
 
 [[nodiscard]] paddr_t align_up_saturating(paddr_t value, u64 alignment)
 {
-    if (value > INVALID_PHYSICAL_ADDRESS - (alignment - 1))
-        return align_down<paddr_t>(INVALID_PHYSICAL_ADDRESS, alignment);
+    if (value > all_bits<paddr_t>() - (alignment - 1))
+        return align_down<paddr_t>(all_bits<paddr_t>(), alignment);
 
-    return kernel::core::utils::align_up<paddr_t>(value, alignment);
+    return align_up<paddr_t>(value, alignment);
 }
 
 // =================================================================================================
 // Bitmap primitives
 // =================================================================================================
 
+[[nodiscard]] constexpr u32 word_offset(usize index)
+{
+    return static_cast<u32>(index % BITS_PER_WORD);
+}
+
 [[nodiscard]] bool test_index(const u64 *map, usize index)
 {
-    return (map[index / BITS_PER_WORD] >> (index % BITS_PER_WORD) & u64{1}) != 0;
+    return test_bit(map[index / BITS_PER_WORD], word_offset(index));
 }
 
 void assign_index(u64 *map, usize index, bool value)
 {
-    const u64 selected = u64{1} << (index % BITS_PER_WORD);
+    u64 &word = map[index / BITS_PER_WORD];
 
-    if (value)
-        map[index / BITS_PER_WORD] |= selected;
-    else
-        map[index / BITS_PER_WORD] &= ~selected;
+    word = value ? set_bit(word, word_offset(index)) : clear_bit(word, word_offset(index));
 }
 
+// Bits [first_bit, 63] and bits [0, last_bit]. mask() already answers with every bit when
+// asked for more than the word holds, which is what makes last_bit == 63 fall out rather than
+// needing a guard against shifting by the width.
 [[nodiscard]] constexpr u64 mask_from(usize first_bit)
 {
-    return all_bits<u64>() << first_bit;
+    return ~mask<u64>(word_offset(first_bit));
 }
 
 [[nodiscard]] constexpr u64 mask_upto(usize last_bit)
 {
-    return last_bit + 1 >= BITS_PER_WORD ? all_bits<u64>() : (u64{1} << (last_bit + 1)) - 1;
+    return mask<u64>(word_offset(last_bit) + 1);
 }
 
 // Sets or clears a run of bits a word at a time, so ingestion touching every frame on the
@@ -147,7 +159,7 @@ void apply_range(u64 *map, usize first, usize count, bool value)
     const usize last_word = last / BITS_PER_WORD;
 
     if (first_word == last_word) {
-        const u64 selected = mask_from(first % BITS_PER_WORD) & mask_upto(last % BITS_PER_WORD);
+        const u64 selected = mask_from(first) & mask_upto(last);
 
         if (value)
             map[first_word] |= selected;
@@ -157,7 +169,7 @@ void apply_range(u64 *map, usize first, usize count, bool value)
         return;
     }
 
-    const u64 head = mask_from(first % BITS_PER_WORD);
+    const u64 head = mask_from(first);
 
     if (value)
         map[first_word] |= head;
@@ -167,7 +179,7 @@ void apply_range(u64 *map, usize first, usize count, bool value)
     for (usize word = first_word + 1; word < last_word; ++word)
         map[word] = value ? all_bits<u64>() : 0;
 
-    const u64 tail = mask_upto(last % BITS_PER_WORD);
+    const u64 tail = mask_upto(last);
 
     if (value)
         map[last_word] |= tail;
@@ -301,11 +313,10 @@ void refresh_frame_range(usize first, usize count)
         if (word == 0)
             continue;
 
-        const usize frame =
-            (base_word + i) * BITS_PER_WORD + static_cast<usize>(__builtin_ctzll(word));
+        const u32   offset = static_cast<u32>(__builtin_ctzll(word));
+        const usize frame = (base_word + i) * BITS_PER_WORD + offset;
 
-        // Clears the lowest set bit.
-        g_allocator.frames[base_word + i] = word & (word - 1);
+        g_allocator.frames[base_word + i] = clear_bit(word, offset);
         --g_allocator.free_frames;
 
         refresh_2m(block);
@@ -354,7 +365,7 @@ void refresh_frame_range(usize first, usize count)
     usize start = 0;
 
     for (;;) {
-        start = kernel::core::utils::align_up<usize>(start, alignment_frames);
+        start = align_up<usize>(start, alignment_frames);
 
         if (start >= g_allocator.managed_frames || count > g_allocator.managed_frames - start)
             return INVALID_PHYSICAL_ADDRESS;
@@ -556,6 +567,7 @@ namespace {
 
 constexpr usize SELF_TEST_SAMPLES = 4096;
 constexpr usize SELF_TEST_ODD_RUN = 11;
+constexpr usize SELF_TEST_ODD_ALIGN = 8;
 
 paddr_t g_self_test_frames[SELF_TEST_SAMPLES]{};
 
@@ -581,7 +593,8 @@ void check_single_frames()
         g_self_test_frames[i] = alloc_frame();
 
         expect(g_self_test_frames[i] != INVALID_PHYSICAL_ADDRESS, "ran out of single frames");
-        expect((g_self_test_frames[i] & (FRAME_SIZE - 1)) == 0, "single frame is not aligned");
+        expect(is_aligned<paddr_t>(g_self_test_frames[i], FRAME_SIZE),
+               "single frame is not aligned");
         expect(!is_free(g_self_test_frames[i]), "allocated frame still reads as free");
     }
 
@@ -610,7 +623,7 @@ void check_large_block(usize frames_per_block, const char *what)
         return;
     }
 
-    expect((block & (frames_per_block * FRAME_SIZE - 1)) == 0, "large block is not aligned");
+    expect(is_aligned<paddr_t>(block, frames_per_block * FRAME_SIZE), "large block is not aligned");
     expect(current_stats().free_frames == before.free_frames - frames_per_block,
            "free count did not drop by the size of the block");
 
@@ -630,10 +643,11 @@ void check_odd_run()
 {
     const stats before = current_stats();
 
-    const paddr_t run = alloc_frames(SELF_TEST_ODD_RUN, 8);
+    const paddr_t run = alloc_frames(SELF_TEST_ODD_RUN, SELF_TEST_ODD_ALIGN);
 
     expect(run != INVALID_PHYSICAL_ADDRESS, "could not allocate an odd length run");
-    expect((run & (8 * FRAME_SIZE - 1)) == 0, "odd length run ignored its alignment");
+    expect(is_aligned<paddr_t>(run, SELF_TEST_ODD_ALIGN * FRAME_SIZE),
+           "odd length run ignored its alignment");
 
     for (usize i = 0; i < SELF_TEST_ODD_RUN; ++i)
         expect(!is_free(run + i * FRAME_SIZE), "odd length run is not contiguously allocated");
@@ -733,7 +747,7 @@ void free_frames(paddr_t base, usize count)
     if (!g_allocator.initialized)
         KPANIC("pmm: free of {:#018X} before the allocator is initialised", base);
 
-    if ((base & (FRAME_SIZE - 1)) != 0)
+    if (!is_aligned<paddr_t>(base, FRAME_SIZE))
         KPANIC("pmm: free of unaligned address {:#018X}", base);
 
     const usize first = static_cast<usize>(base >> FRAME_SHIFT);
