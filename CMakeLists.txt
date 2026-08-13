@@ -30,15 +30,6 @@ set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_CXX_EXTENSIONS OFF)
 
 # =================================================================================================
-# Options
-#
-# There is no test infrastructure - CI builds the kernel but never boots it - so what tests
-# exist run inside the kernel at boot and are compiled out by default.
-# =================================================================================================
-
-option(DOOM_OS_PMM_SELF_TEST "Exercise the frame allocator at boot and panic on a discrepancy" OFF)
-
-# =================================================================================================
 # Sources
 #
 # Globbed rather than listed: components are added often, and CONFIGURE_DEPENDS makes the build
@@ -106,10 +97,6 @@ add_dependencies(kernel.elf linker-script)
 target_include_directories(kernel.elf PRIVATE ${CMAKE_SOURCE_DIR})
 
 target_link_libraries(kernel.elf PRIVATE lsr::result)
-
-if(DOOM_OS_PMM_SELF_TEST)
-    target_compile_definitions(kernel.elf PRIVATE DOOM_OS_PMM_SELF_TEST)
-endif()
 
 target_compile_options(kernel.elf PRIVATE
         # CMake compiles with absolute paths, which would put the build directory into every
