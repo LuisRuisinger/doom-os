@@ -25,9 +25,9 @@ using kernel::core::usize;
 // =================================================================================================
 // Constants
 //
-// The allocator deals in frames, not bytes. A frame is the smallest unit the MMU can map, and
-// the larger sizes are the other two the hardware understands - expressed as frame counts,
-// because to this layer they are ordinary allocations that happen to be large and aligned.
+// The allocator deals in frames. The three sizes it hands out are the three the MMU can map,
+// expressed as frame counts, because to this layer they are ordinary allocations that happen to
+// be large and aligned.
 // =================================================================================================
 
 inline constexpr u64 FRAME_SIZE = 4096;
@@ -43,15 +43,8 @@ inline constexpr paddr_t INVALID_PHYSICAL_ADDRESS = ~paddr_t{0};
 
 static_assert(u64{1} << FRAME_SHIFT == FRAME_SIZE);
 static_assert(MAX_PHYSICAL_MEMORY % (FRAMES_PER_1G * FRAME_SIZE) == 0,
-              "the physical ceiling must be a whole number of 1 GiB blocks, so that no block at "
-              "any level is partially outside the managed range");
-
-// =================================================================================================
-// Page sizes
-//
-// Named rather than inferred from a frame count, so a caller that happens to want 512 frames
-// aligned to 512 gets what it asked for instead of whatever the arithmetic looked like.
-// =================================================================================================
+              "the physical ceiling must be a whole number of 1 GiB blocks, so that no block is "
+              "partially outside the managed range");
 
 enum class page_size : u8 {
     SMALL_4K,
@@ -82,12 +75,10 @@ enum class page_size : u8 {
 // PMM API
 //
 // alloc_pages hands back `count` pages of one size, each naturally aligned, and says nothing
-// about where they are relative to one another. That is what makes it cheap: every page comes
-// off an index lookup and nothing is ever scanned. It is all or nothing - either `out` is
-// filled with `count` pages or nothing is allocated - so a caller never unwinds a partial
-// result. `out` must have room for `count` entries.
+// about where they are relative to one another. It is all or nothing, so a caller never unwinds
+// a partial result, and `out` must have room for `count` entries.
 //
-// Misuse of the free functions - an unaligned or out of range address, a double free - is a
+// Misuse of the release functions - an unaligned or out of range address, a double free - is a
 // bug in the caller rather than a condition to report, and panics.
 // =================================================================================================
 
@@ -96,6 +87,49 @@ void free_pages(page_size size, usize count, const paddr_t *pages);
 
 [[nodiscard]] paddr_t alloc_page(page_size size = page_size::SMALL_4K);
 void free_page(page_size size, paddr_t base);
+
+// =================================================================================================
+// Typed spans
+//
+// A page named by its byte count, so a call site says span_2m and is wrong at compile time
+// rather than at run time.
+// =================================================================================================
+
+[[nodiscard]] inline constexpr bool is_page_size(u64 bytes)
+{
+    return bytes == bytes_in(page_size::SMALL_4K) || bytes == bytes_in(page_size::LARGE_2M) ||
+           bytes == bytes_in(page_size::HUGE_1G);
+}
+
+[[nodiscard]] inline constexpr page_size page_size_of(u64 bytes)
+{
+    return bytes == bytes_in(page_size::SMALL_4K)   ? page_size::SMALL_4K
+           : bytes == bytes_in(page_size::LARGE_2M) ? page_size::LARGE_2M
+                                                    : page_size::HUGE_1G;
+}
+
+template <u64 Bytes>
+struct span {
+    static_assert(is_page_size(Bytes), "a span has to be a size the MMU can map");
+
+    static constexpr page_size SIZE = page_size_of(Bytes);
+    static constexpr u64       BYTES = Bytes;
+    static constexpr usize     FRAMES = frames_in(SIZE);
+
+    [[nodiscard]] static paddr_t alloc()
+    {
+        return alloc_page(SIZE);
+    }
+
+    static void free(paddr_t base)
+    {
+        free_page(SIZE, base);
+    }
+};
+
+using span_4k = span<FRAME_SIZE>;
+using span_2m = span<2 * 1024 * 1024>;
+using span_1g = span<1024 * 1024 * 1024>;
 
 // =================================================================================================
 // Component

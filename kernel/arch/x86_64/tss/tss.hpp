@@ -87,6 +87,7 @@ public:
 
     [[nodiscard]] const segment &layout() const;
     [[nodiscard]] u64 base() const;
+
     static constexpr u16 limit()
     {
         return sizeof(segment) - 1;

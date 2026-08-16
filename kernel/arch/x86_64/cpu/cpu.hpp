@@ -95,13 +95,15 @@ local_state &current();
 local_state *get(u32 logical_id);
 u32 online_count();
 
-static inline void relax()
+static void relax()
 {
-#if defined(__x86_64__) || defined(__i386__)
-    __builtin_ia32_pause();
-#else
-    asm volatile("" ::: "memory");
-#endif
+    asm volatile("pause");
+}
+
+[[noreturn]] static void halt()
+{
+    for (;;)
+        asm volatile("cli; hlt");
 }
 
 // =================================================================================================

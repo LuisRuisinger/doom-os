@@ -6,7 +6,6 @@
 // =================================================================================================
 
 #include "kernel/core/component.hpp"
-#include "kernel/core/halt.hpp"
 #include "kernel/core/init_graph.hpp"
 #include "kernel/debug/kprint.hpp"
 
@@ -58,12 +57,10 @@ template <typename Roots, typename Backing = no_context>
 void run_init_graph_or_halt(Backing &backing = no_backing)
 {
     default_init_logger logger{};
-
-    if (run_init_graph<Roots>(backing, logger)) {
+    if (run_init_graph<Roots>(backing, logger))
         return;
-    }
 
-    halt_forever();
+    arch::x86_64::cpu::halt();
 }
 
 }  // namespace kernel::core

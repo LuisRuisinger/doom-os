@@ -458,25 +458,25 @@ public:
     template <typename U = T, std::enable_if_t<detail::supports_arithmetic_ops_v<U>, i32> = 0>
     T operator++()
     {
-        return detail::add_atomic_values(fetch_add(static_cast<T>(1)), static_cast<T>(1));
+        return detail::add_atomic_values(fetch_add(T{1}), T{1});
     }
 
     template <typename U = T, std::enable_if_t<detail::supports_arithmetic_ops_v<U>, i32> = 0>
     T operator++(i32)
     {
-        return fetch_add(static_cast<T>(1));
+        return fetch_add(T{1});
     }
 
     template <typename U = T, std::enable_if_t<detail::supports_arithmetic_ops_v<U>, i32> = 0>
     T operator--()
     {
-        return detail::sub_atomic_values(fetch_sub(static_cast<T>(1)), static_cast<T>(1));
+        return detail::sub_atomic_values(fetch_sub(T{1}), T{1});
     }
 
     template <typename U = T, std::enable_if_t<detail::supports_arithmetic_ops_v<U>, i32> = 0>
     T operator--(i32)
     {
-        return fetch_sub(static_cast<T>(1));
+        return fetch_sub(T{1});
     }
 
     template <typename U = T, std::enable_if_t<detail::supports_arithmetic_ops_v<U>, i32> = 0>

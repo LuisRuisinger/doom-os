@@ -4,7 +4,7 @@
 
 #include "kernel/debug/kpanic.hpp"
 
-#include "kernel/core/halt.hpp"
+#include "kernel/arch/x86_64/cpu/cpu.hpp"
 #include "kernel/debug/kprint.hpp"
 
 namespace kernel::debug {
@@ -38,12 +38,11 @@ static void dump_panic_registers(const panic_register_frame &r)
         KPRINTLN("{} {}", detail::PANIC_PREFIX, message);
 
     KPRINTLN("{} at {}:{} in {}", detail::PANIC_PREFIX, file, line, function);
-
     if (frame)
         dump_panic_registers(*static_cast<const panic_register_frame *>(frame));
 
     KPRINTLN("{} halt", detail::PANIC_PREFIX);
-    kernel::core::halt_forever();
+    arch::x86_64::cpu::halt();
 }
 
 }  // namespace kernel::debug

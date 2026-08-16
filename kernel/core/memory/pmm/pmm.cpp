@@ -4,15 +4,17 @@
 
 #include "kernel/core/memory/pmm/pmm.hpp"
 
+#include "kernel/core/bitmap.hpp"
 #include "kernel/core/bits.hpp"
 #include "kernel/debug/kpanic.hpp"
-#include "kernel/debug/kprint.hpp"
 #include "kernel/sync/spinlock.hpp"
 
 namespace kernel::core::memory::pmm {
 
 namespace {
 
+using kernel::core::u16;
+using kernel::core::u32;
 using kernel::core::u64;
 using kernel::core::uptr;
 using kernel::core::usize;
@@ -20,71 +22,109 @@ using kernel::core::utils::align_down;
 using kernel::core::utils::align_up;
 using kernel::core::utils::all_bits;
 using kernel::core::utils::bit_width;
+using kernel::core::utils::bitmap;
 using kernel::core::utils::clear_bit;
 using kernel::core::utils::is_aligned;
-using kernel::core::utils::is_power_of_two;
-using kernel::core::utils::mask;
-using kernel::core::utils::set_bit;
-using kernel::core::utils::test_bit;
 
 // =================================================================================================
 // Layout
 //
-// The frame bitmap is the allocator. Everything below it is a summary of that bitmap, kept
-// current so that the questions asked most often - is there a free frame, is there an aligned
-// 2 MiB block - are answered without scanning half a megabyte.
+// A frame bitmap, and two lists over the 2 MiB blocks it describes: whole blocks, and blocks
+// with some frames free but not all. Allocation is a list head - never a search - and single
+// frames come off a broken block before a whole one is opened, so a 4 KiB request does not
+// shatter a block a 2 MiB request could still use.
 //
-// The summaries are redundant by construction, which is the point: verify_invariants()
-// recomputes all of them and compares, so a bookkeeping mistake is caught by a rule rather
-// than by whatever symptom it eventually produces.
+// The only thing tracked per block is how many of its frames are free, which is what makes
+// "did that release just complete a block" a comparison rather than a scan of its bitmap.
 // =================================================================================================
 
-constexpr usize BITS_PER_WORD = bit_width<u64>();
+using frame_map = bitmap<MAX_FRAMES>;
 
-constexpr usize L0_WORDS = MAX_FRAMES / BITS_PER_WORD;
-constexpr usize BLOCK_2M_COUNT = MAX_FRAMES / FRAMES_PER_2M;
-constexpr usize BLOCK_1G_COUNT = MAX_FRAMES / FRAMES_PER_1G;
-constexpr usize L1_WORDS = BLOCK_2M_COUNT / BITS_PER_WORD;
-constexpr usize L2_WORDS = align_up<usize>(BLOCK_1G_COUNT, BITS_PER_WORD) / BITS_PER_WORD;
+constexpr usize BITS_PER_WORD = frame_map::BITS_PER_STORAGE_TYPE_INSTANCE;
+constexpr usize NPOS = frame_map::NPOS;
 
-constexpr usize L0_WORDS_PER_2M = FRAMES_PER_2M / BITS_PER_WORD;
-constexpr usize BLOCKS_2M_PER_1G = FRAMES_PER_1G / FRAMES_PER_2M;
-constexpr usize L1_WORDS_PER_1G = BLOCKS_2M_PER_1G / BITS_PER_WORD;
+constexpr usize WORDS_PER_BLOCK = FRAMES_PER_2M / BITS_PER_WORD;
+constexpr usize BLOCK_COUNT = MAX_FRAMES / FRAMES_PER_2M;
+constexpr usize BLOCKS_PER_1G = FRAMES_PER_1G / FRAMES_PER_2M;
+constexpr usize GIB_COUNT = MAX_FRAMES / FRAMES_PER_1G;
 
-constexpr usize NPOS = all_bits<usize>();
+constexpr u16 NIL = ~u16{0};
 
-static_assert(MAX_FRAMES % BITS_PER_WORD == 0);
-static_assert(BLOCK_2M_COUNT % BITS_PER_WORD == 0);
 static_assert(FRAMES_PER_2M % BITS_PER_WORD == 0);
-static_assert(BLOCKS_2M_PER_1G % BITS_PER_WORD == 0);
+static_assert(BLOCK_COUNT < NIL, "a block index has to fit in a link");
+static_assert(FRAMES_PER_2M <= NIL, "a per block free count has to fit in a u16");
+
+// =================================================================================================
+// Indices
+//
+// Frames and blocks are both counts of things and would convert into each other without a
+// murmur. They do not: the only way across is a named conversion.
+// =================================================================================================
+
+template <typename Tag>
+struct index {
+    usize raw{};
+
+    constexpr index() = default;
+    explicit constexpr index(usize value)
+        : raw(value)
+    {
+    }
+
+    [[nodiscard]] constexpr index operator+(usize count) const
+    {
+        return index{raw + count};
+    }
+
+    constexpr index &operator++()
+    {
+        ++raw;
+        return *this;
+    }
+
+    [[nodiscard]] constexpr bool operator==(const index &) const = default;
+    [[nodiscard]] constexpr auto operator<=>(const index &) const = default;
+};
+
+using frame_id = index<struct frame_tag>;
+using block_id = index<struct block_tag>;
+
+[[nodiscard]] constexpr block_id block_of(frame_id frame)
+{
+    return block_id{frame.raw / FRAMES_PER_2M};
+}
+
+[[nodiscard]] constexpr frame_id first_frame_of(block_id block)
+{
+    return frame_id{block.raw * FRAMES_PER_2M};
+}
+
+[[nodiscard]] constexpr frame_id frame_at(paddr_t base)
+{
+    return frame_id{static_cast<usize>(base >> FRAME_SHIFT)};
+}
+
+[[nodiscard]] constexpr paddr_t address_of(frame_id frame)
+{
+    return static_cast<paddr_t>(frame.raw) << FRAME_SHIFT;
+}
 
 // =================================================================================================
 // State
-//
-// Statically sized and zero initialised, so it costs nothing at boot beyond the .bss it
-// occupies and there is no metadata to place before the allocator can run.
 // =================================================================================================
 
 struct allocator_state {
-    // 1 = free. Ground truth; everything below is derived from it.
-    u64 frames[L0_WORDS]{};
+    frame_map frames{};  // 1 = free. Ground truth.
 
-    u64 free_2m[L1_WORDS]{};     // 1 = every frame in the 2 MiB block is free
-    u64 partial_2m[L1_WORDS]{};  // 1 = some frames free, but not all
-    u64 free_1g[L2_WORDS]{};     // 1 = every 2 MiB block in the 1 GiB block is free
+    u16 free_in[BLOCK_COUNT]{};  // free frames per 2 MiB block
+    u16 next[BLOCK_COUNT]{};     // intrusive links; a block is on at most one list
+    u16 prev[BLOCK_COUNT]{};
+
+    u16 whole_head{NIL};
+    u16 broken_head{NIL};
 
     usize managed_frames{};
     usize free_frames{};
-
-    // Maintained as the summaries change, so "can this request be met" is answered before
-    // anything is handed out rather than discovered partway through.
-    usize free_2m_count{};
-    usize free_1g_count{};
-
-    // Which 2 MiB block the last single-frame allocation came from. A hint only - it is
-    // tested against partial_2m before use, so a stale value costs a scan and never a wrong
-    // answer.
-    usize partial_hint{};
 
     bool initialized{};
 
@@ -93,318 +133,180 @@ struct allocator_state {
 
 allocator_state g_allocator{};
 
-// The kernel image spans the boot sections, which are identity mapped low, through the end of
-// the higher-half image. Both symbols carry physical addresses.
+// Both symbols carry physical addresses: the image spans the identity mapped boot sections
+// through the end of the higher-half image.
 extern "C" char boot_start[];
 extern "C" char kernel_physical_end[];
 
 // =================================================================================================
-// Saturating arithmetic
+// Block lists
 //
-// The boot description is a transcription of what the bootloader said and promises nothing
-// about it, so a region may claim to end past the top of the address space.
+// Doubly linked, because a block leaves the middle of a list as soon as one frame is taken out
+// of it or put back into it.
 // =================================================================================================
 
-[[nodiscard]] paddr_t range_end_saturating(paddr_t base, u64 length)
+[[nodiscard]] u16 *list_for(usize free_count)
 {
-    return length > all_bits<paddr_t>() - base ? all_bits<paddr_t>() : base + length;
+    if (free_count == 0)
+        return nullptr;
+
+    return free_count == FRAMES_PER_2M ? &g_allocator.whole_head : &g_allocator.broken_head;
 }
 
-[[nodiscard]] paddr_t align_up_saturating(paddr_t value, u64 alignment)
+void list_insert(u16 &head, block_id block)
 {
-    if (value > all_bits<paddr_t>() - (alignment - 1))
-        return align_down<paddr_t>(all_bits<paddr_t>(), alignment);
+    g_allocator.prev[block.raw] = NIL;
+    g_allocator.next[block.raw] = head;
 
-    return align_up<paddr_t>(value, alignment);
+    if (head != NIL)
+        g_allocator.prev[head] = static_cast<u16>(block.raw);
+
+    head = static_cast<u16>(block.raw);
 }
 
-// =================================================================================================
-// Bitmap primitives
-// =================================================================================================
-
-[[nodiscard]] constexpr u32 word_offset(usize index)
+void list_remove(u16 &head, block_id block)
 {
-    return static_cast<u32>(index % BITS_PER_WORD);
-}
+    const u16 next = g_allocator.next[block.raw];
+    const u16 prev = g_allocator.prev[block.raw];
 
-[[nodiscard]] bool test_index(const u64 *map, usize index)
-{
-    return test_bit(map[index / BITS_PER_WORD], word_offset(index));
-}
-
-void assign_index(u64 *map, usize index, bool value)
-{
-    u64 &word = map[index / BITS_PER_WORD];
-
-    word = value ? set_bit(word, word_offset(index)) : clear_bit(word, word_offset(index));
-}
-
-// Bits [first_bit, 63] and bits [0, last_bit]. mask() already answers with every bit when
-// asked for more than the word holds, which is what makes last_bit == 63 fall out rather than
-// needing a guard against shifting by the width.
-[[nodiscard]] constexpr u64 mask_from(usize first_bit)
-{
-    return ~mask<u64>(word_offset(first_bit));
-}
-
-[[nodiscard]] constexpr u64 mask_upto(usize last_bit)
-{
-    return mask<u64>(word_offset(last_bit) + 1);
-}
-
-// Sets or clears a run of bits a word at a time, so ingestion touching every frame on the
-// machine is a few thousand stores rather than a few million.
-void apply_range(u64 *map, usize first, usize count, bool value)
-{
-    if (count == 0)
-        return;
-
-    const usize last = first + count - 1;
-    const usize first_word = first / BITS_PER_WORD;
-    const usize last_word = last / BITS_PER_WORD;
-
-    if (first_word == last_word) {
-        const u64 selected = mask_from(first) & mask_upto(last);
-
-        if (value)
-            map[first_word] |= selected;
-        else
-            map[first_word] &= ~selected;
-
-        return;
-    }
-
-    const u64 head = mask_from(first);
-
-    if (value)
-        map[first_word] |= head;
+    if (prev == NIL)
+        head = next;
     else
-        map[first_word] &= ~head;
+        g_allocator.next[prev] = next;
 
-    for (usize word = first_word + 1; word < last_word; ++word)
-        map[word] = value ? all_bits<u64>() : 0;
+    if (next != NIL)
+        g_allocator.prev[next] = prev;
 
-    const u64 tail = mask_upto(last);
-
-    if (value)
-        map[last_word] |= tail;
-    else
-        map[last_word] &= ~tail;
+    g_allocator.next[block.raw] = NIL;
+    g_allocator.prev[block.raw] = NIL;
 }
 
-[[nodiscard]] usize find_first_set(const u64 *map, usize words, usize limit)
+// The one place a block's free count changes, and therefore the one place it moves between
+// lists. Everything else calls this and stays out of the links.
+void set_free_count(block_id block, usize now)
 {
-    for (usize word = 0; word < words; ++word) {
-        if (map[word] == 0)
-            continue;
+    const usize before = g_allocator.free_in[block.raw];
 
-        const usize index = word * BITS_PER_WORD + static_cast<usize>(__builtin_ctzll(map[word]));
-
-        return index < limit ? index : NPOS;
-    }
-
-    return NPOS;
-}
-
-[[nodiscard]] usize popcount(const u64 *map, usize words)
-{
-    usize total = 0;
-
-    for (usize word = 0; word < words; ++word)
-        total += static_cast<usize>(__builtin_popcountll(map[word]));
-
-    return total;
-}
-
-// =================================================================================================
-// Derived levels
-// =================================================================================================
-
-struct block_state {
-    bool all_free;
-    bool any_free;
-};
-
-[[nodiscard]] block_state inspect_2m(usize block)
-{
-    const u64 *words = &g_allocator.frames[block * L0_WORDS_PER_2M];
-
-    u64 intersection = all_bits<u64>();
-    u64 united = 0;
-
-    for (usize i = 0; i < L0_WORDS_PER_2M; ++i) {
-        intersection &= words[i];
-        united |= words[i];
-    }
-
-    return block_state{intersection == all_bits<u64>(), united != 0};
-}
-
-[[nodiscard]] bool all_2m_free_in_1g(usize block)
-{
-    const u64 *words = &g_allocator.free_2m[block * L1_WORDS_PER_1G];
-
-    for (usize i = 0; i < L1_WORDS_PER_1G; ++i)
-        if (words[i] != all_bits<u64>())
-            return false;
-
-    return true;
-}
-
-void refresh_2m(usize block)
-{
-    const block_state state = inspect_2m(block);
-
-    if (test_index(g_allocator.free_2m, block) != state.all_free) {
-        if (state.all_free)
-            ++g_allocator.free_2m_count;
-        else
-            --g_allocator.free_2m_count;
-    }
-
-    assign_index(g_allocator.free_2m, block, state.all_free);
-    assign_index(g_allocator.partial_2m, block, state.any_free && !state.all_free);
-}
-
-void refresh_1g(usize block)
-{
-    const bool all_free = all_2m_free_in_1g(block);
-
-    if (test_index(g_allocator.free_1g, block) != all_free) {
-        if (all_free)
-            ++g_allocator.free_1g_count;
-        else
-            --g_allocator.free_1g_count;
-    }
-
-    assign_index(g_allocator.free_1g, block, all_free);
-}
-
-void refresh_frame_range(usize first, usize count)
-{
-    if (count == 0)
+    if (before == now)
         return;
 
-    const usize last = first + count - 1;
-    const usize first_block = first / FRAMES_PER_2M;
-    const usize last_block = last / FRAMES_PER_2M;
+    u16 *from = list_for(before);
+    u16 *to = list_for(now);
 
-    for (usize block = first_block; block <= last_block; ++block)
-        refresh_2m(block);
+    if (from != to) {
+        if (from != nullptr)
+            list_remove(*from, block);
 
-    for (usize block = first_block / BLOCKS_2M_PER_1G; block <= last_block / BLOCKS_2M_PER_1G;
-         ++block)
-        refresh_1g(block);
+        if (to != nullptr)
+            list_insert(*to, block);
+    }
+
+    g_allocator.free_in[block.raw] = static_cast<u16>(now);
 }
 
 // =================================================================================================
 // Allocation
 // =================================================================================================
 
-// Prefers a block that is already broken up. Serving single frames from pristine blocks
-// instead would shatter one 2 MiB block per allocation and leave a nearly empty machine unable
-// to satisfy an aligned large request.
-[[nodiscard]] usize pick_block_for_single_frame()
+// Single frames, drained a whole word at a time so the word is loaded once, cleared in a
+// register and stored once however many of its bits the request wanted. Broken blocks first,
+// which is the whole of the anti-fragmentation policy.
+[[nodiscard]] usize take_frames_locked(usize count, paddr_t *out)
 {
-    const usize hint = g_allocator.partial_hint;
+    usize taken = 0;
 
-    if (hint < BLOCK_2M_COUNT && test_index(g_allocator.partial_2m, hint))
-        return hint;
+    while (taken < count) {
+        const u16 head =
+            g_allocator.broken_head != NIL ? g_allocator.broken_head : g_allocator.whole_head;
 
-    const usize partial = find_first_set(g_allocator.partial_2m, L1_WORDS, BLOCK_2M_COUNT);
+        if (head == NIL)
+            break;
 
-    if (partial != NPOS)
-        return partial;
+        const block_id block{head};
+        const usize    base_word = block.raw * WORDS_PER_BLOCK;
 
-    return find_first_set(g_allocator.free_2m, L1_WORDS, BLOCK_2M_COUNT);
-}
+        usize from_block = 0;
 
-[[nodiscard]] paddr_t take_frame_locked()
-{
-    const usize block = pick_block_for_single_frame();
+        for (usize i = 0; i < WORDS_PER_BLOCK && taken < count; ++i) {
+            u64 &word = g_allocator.frames.word(base_word + i);
+            u64  bits = word;
 
-    if (block == NPOS)
-        return INVALID_PHYSICAL_ADDRESS;
+            if (bits == 0)
+                continue;
 
-    const usize base_word = block * L0_WORDS_PER_2M;
+            do {
+                const u32 offset = static_cast<u32>(__builtin_ctzll(bits));
 
-    for (usize i = 0; i < L0_WORDS_PER_2M; ++i) {
-        const u64 word = g_allocator.frames[base_word + i];
+                bits = clear_bit(bits, offset);
+                out[taken] = address_of(frame_id{(base_word + i) * BITS_PER_WORD + offset});
 
-        if (word == 0)
-            continue;
+                ++taken;
+                ++from_block;
+            } while (bits != 0 && taken < count);
 
-        const u32   offset = static_cast<u32>(__builtin_ctzll(word));
-        const usize frame = (base_word + i) * BITS_PER_WORD + offset;
+            word = bits;
+        }
 
-        g_allocator.frames[base_word + i] = clear_bit(word, offset);
-        --g_allocator.free_frames;
+        // The block was chosen off a list that says it holds a free frame.
+        if (from_block == 0)
+            KPANIC("pmm: block {} is listed as free but holds nothing", block.raw);
 
-        refresh_2m(block);
-        refresh_1g(block / BLOCKS_2M_PER_1G);
-
-        g_allocator.partial_hint = block;
-
-        return static_cast<paddr_t>(frame) << FRAME_SHIFT;
+        g_allocator.free_frames -= from_block;
+        set_free_count(block, g_allocator.free_in[block.raw] - from_block);
     }
 
-    // The block was chosen because a summary said it held a free frame.
-    KPANIC("pmm: 2 MiB block {} claims a free frame it does not have", block);
+    return taken;
 }
 
-[[nodiscard]] paddr_t take_block_locked(const u64 *level, usize level_words, usize level_count,
-                                        usize frames_per_block)
+[[nodiscard]] paddr_t take_2m_locked()
 {
-    const usize block = find_first_set(level, level_words, level_count);
-
-    if (block == NPOS)
+    if (g_allocator.whole_head == NIL)
         return INVALID_PHYSICAL_ADDRESS;
 
-    const usize first = block * frames_per_block;
+    const block_id block{g_allocator.whole_head};
+    const frame_id first = first_frame_of(block);
 
-    apply_range(g_allocator.frames, first, frames_per_block, false);
-    g_allocator.free_frames -= frames_per_block;
-    refresh_frame_range(first, frames_per_block);
+    g_allocator.frames.clear(first.raw, FRAMES_PER_2M);
+    g_allocator.free_frames -= FRAMES_PER_2M;
+    set_free_count(block, 0);
 
-    return static_cast<paddr_t>(first) << FRAME_SHIFT;
+    return address_of(first);
 }
 
-// One page of the named size, naturally aligned. Each case is an index lookup rather than a
-// search, which is what lets a batch be served without scanning anything.
-[[nodiscard]] paddr_t take_page_locked(page_size size)
+// A gigabyte is 512 whole blocks in a row, which the lists cannot express, so it is looked for.
+// Sixteen candidates that give up on their first used block is cheap enough for a request that
+// hands out a gigabyte.
+[[nodiscard]] paddr_t take_1g_locked()
 {
-    switch (size) {
-        case page_size::SMALL_4K:
-            return take_frame_locked();
-        case page_size::LARGE_2M:
-            return take_block_locked(g_allocator.free_2m, L1_WORDS, BLOCK_2M_COUNT, FRAMES_PER_2M);
-        case page_size::HUGE_1G:
-            return take_block_locked(g_allocator.free_1g, L2_WORDS, BLOCK_1G_COUNT, FRAMES_PER_1G);
+    for (usize gib = 0; gib < GIB_COUNT; ++gib) {
+        const block_id first_block{gib * BLOCKS_PER_1G};
+
+        usize whole = 0;
+
+        while (whole < BLOCKS_PER_1G &&
+               g_allocator.free_in[first_block.raw + whole] == FRAMES_PER_2M)
+            ++whole;
+
+        if (whole != BLOCKS_PER_1G)
+            continue;
+
+        const frame_id first = first_frame_of(first_block);
+
+        g_allocator.frames.clear(first.raw, FRAMES_PER_1G);
+        g_allocator.free_frames -= FRAMES_PER_1G;
+
+        for (usize i = 0; i < BLOCKS_PER_1G; ++i)
+            set_free_count(first_block + i, 0);
+
+        return address_of(first);
     }
 
     return INVALID_PHYSICAL_ADDRESS;
 }
 
-// How many pages of this size could be handed out right now. Exact rather than an estimate:
-// taking one 4 KiB page costs one frame, one 2 MiB page costs one free_2m bit, and one 1 GiB
-// page costs one free_1g bit - so a batch that passes this check cannot fail partway.
-[[nodiscard]] usize available_pages_locked(page_size size)
-{
-    switch (size) {
-        case page_size::SMALL_4K:
-            return g_allocator.free_frames;
-        case page_size::LARGE_2M:
-            return g_allocator.free_2m_count;
-        case page_size::HUGE_1G:
-            return g_allocator.free_1g_count;
-    }
-
-    return 0;
-}
-
 // Shared by every release path. Everything it rejects is a caller bug rather than a runtime
 // condition, so it panics instead of reporting.
-void release_locked(paddr_t base, page_size size)
+void release_locked(page_size size, paddr_t base)
 {
     if (!g_allocator.initialized)
         KPANIC("pmm: release of {:#018X} before the allocator is initialised", base);
@@ -412,61 +314,80 @@ void release_locked(paddr_t base, page_size size)
     if (!is_aligned<paddr_t>(base, bytes_in(size)))
         KPANIC("pmm: release of {:#018X}, which is not aligned to {} bytes", base, bytes_in(size));
 
-    const usize frame_count = frames_in(size);
-    const usize first = static_cast<usize>(base >> FRAME_SHIFT);
+    const usize    count = frames_in(size);
+    const frame_id first = frame_at(base);
 
-    if (first >= g_allocator.managed_frames || frame_count > g_allocator.managed_frames - first)
-        KPANIC("pmm: release of {} frames at {:#018X} leaves the managed range", frame_count, base);
+    if (first.raw >= g_allocator.managed_frames || count > g_allocator.managed_frames - first.raw)
+        KPANIC("pmm: release of {} frames at {:#018X} leaves the managed range", count, base);
 
-    for (usize i = 0; i < frame_count; ++i)
-        if (test_index(g_allocator.frames, first + i))
-            KPANIC("pmm: double free of frame {:#018X} in a {} frame release at {:#018X}",
-                   static_cast<paddr_t>(first + i) << FRAME_SHIFT, frame_count, base);
+    // A frame in the range that is already free means the caller is handing back something it
+    // does not hold.
+    const usize already_free = g_allocator.frames.find_set_in(first.raw, count);
 
-    apply_range(g_allocator.frames, first, frame_count, true);
-    g_allocator.free_frames += frame_count;
-    refresh_frame_range(first, frame_count);
+    if (already_free != NPOS)
+        KPANIC("pmm: double free of frame {:#018X} in a {} frame release at {:#018X}",
+               address_of(frame_id{already_free}), count, base);
+
+    g_allocator.frames.set(first.raw, count);
+    g_allocator.free_frames += count;
+
+    const block_id block = block_of(first);
+
+    if (count < FRAMES_PER_2M) {
+        set_free_count(block, g_allocator.free_in[block.raw] + count);
+        return;
+    }
+
+    for (usize i = 0; i < count / FRAMES_PER_2M; ++i)
+        set_free_count(block + i, FRAMES_PER_2M);
 }
 
 // =================================================================================================
 // Ingestion
 //
-// Four passes over the boot description, none of which depends on the order the regions
-// arrive in or on their being disjoint. Marking is idempotent, so an overlap costs nothing and
-// a region described twice is described once.
+// Passes over the boot description that depend neither on the order regions arrive in nor on
+// their being disjoint. Marking is idempotent, so an overlap costs nothing.
 // =================================================================================================
 
-void reset_bitmaps()
+void reset_state()
 {
-    for (usize word = 0; word < L0_WORDS; ++word)
-        g_allocator.frames[word] = 0;
+    g_allocator.frames.reset();
 
-    for (usize word = 0; word < L1_WORDS; ++word) {
-        g_allocator.free_2m[word] = 0;
-        g_allocator.partial_2m[word] = 0;
+    for (usize block = 0; block < BLOCK_COUNT; ++block) {
+        g_allocator.free_in[block] = 0;
+        g_allocator.next[block] = NIL;
+        g_allocator.prev[block] = NIL;
     }
 
-    for (usize word = 0; word < L2_WORDS; ++word)
-        g_allocator.free_1g[word] = 0;
+    g_allocator.whole_head = NIL;
+    g_allocator.broken_head = NIL;
+    g_allocator.free_frames = 0;
+}
 
-    g_allocator.free_2m_count = 0;
-    g_allocator.free_1g_count = 0;
+[[nodiscard]] paddr_t range_end(paddr_t base, u64 length)
+{
+    return length > all_bits<paddr_t>() - base ? all_bits<paddr_t>() : base + length;
 }
 
 // Usable memory rounds inward and everything else rounds outward, so a frame that is only
 // partly usable is never handed out and a frame that is partly something else is never taken.
+// The saturating align_up is because the boot description promises nothing about its own edges.
 void mark_range(paddr_t base, u64 length, paddr_t limit, bool usable)
 {
     if (length == 0)
         return;
 
-    const paddr_t raw_end = range_end_saturating(base, length);
+    const auto align_up_saturating = [](paddr_t value) {
+        return value > all_bits<paddr_t>() - (FRAME_SIZE - 1)
+                   ? align_down<paddr_t>(all_bits<paddr_t>(), FRAME_SIZE)
+                   : align_up<paddr_t>(value, FRAME_SIZE);
+    };
 
+    const paddr_t raw_end = range_end(base, length);
     const paddr_t first =
-        usable ? align_up_saturating(base, FRAME_SIZE) : align_down<paddr_t>(base, FRAME_SIZE);
+        usable ? align_up_saturating(base) : align_down<paddr_t>(base, FRAME_SIZE);
 
-    paddr_t end = usable ? align_down<paddr_t>(raw_end, FRAME_SIZE)
-                         : align_up_saturating(raw_end, FRAME_SIZE);
+    paddr_t end = usable ? align_down<paddr_t>(raw_end, FRAME_SIZE) : align_up_saturating(raw_end);
 
     if (end > limit)
         end = limit;
@@ -474,10 +395,59 @@ void mark_range(paddr_t base, u64 length, paddr_t limit, bool usable)
     if (first >= end)
         return;
 
-    apply_range(g_allocator.frames, first >> FRAME_SHIFT, (end - first) >> FRAME_SHIFT, usable);
+    const usize count = static_cast<usize>((end - first) >> FRAME_SHIFT);
+
+    if (usable)
+        g_allocator.frames.set(frame_at(first).raw, count);
+    else
+        g_allocator.frames.clear(frame_at(first).raw, count);
 }
 
-[[nodiscard]] paddr_t highest_usable_end(const kernel::boot::info &boot)
+void ingest(const kernel::boot::info &boot, paddr_t limit)
+{
+    // Everything is occupied until a usable region says otherwise. Deriving free memory as the
+    // complement of what was reserved would hand out any region the description lost.
+    for (usize i = 0; i < boot.memory_map.count; ++i)
+        if (boot.memory_map[i].kind == kernel::boot::memory_kind::USABLE)
+            mark_range(boot.memory_map[i].base, boot.memory_map[i].length, limit, true);
+
+    // Real mode IVT, BDA, EBDA, and whatever else the firmware still believes it owns.
+    mark_range(0, 1024 * 1024, limit, false);
+
+    const paddr_t image_first = static_cast<paddr_t>(reinterpret_cast<uptr>(boot_start));
+    const paddr_t image_end = static_cast<paddr_t>(reinterpret_cast<uptr>(kernel_physical_end));
+
+    if (image_end > image_first)
+        mark_range(image_first, image_end - image_first, limit, false);
+
+    for (usize i = 0; i < boot.reserved.count; ++i)
+        mark_range(boot.reserved[i].base, boot.reserved[i].length, limit, false);
+
+    // Module bytes were never copied out of where the bootloader put them.
+    for (usize i = 0; i < boot.modules.count; ++i)
+        mark_range(boot.modules[i].range.base, boot.modules[i].range.length, limit, false);
+
+    // An MMIO aperture rather than RAM, and commonly absent from the memory map entirely.
+    if (boot.framebuffer.present)
+        mark_range(boot.framebuffer.address,
+                   static_cast<u64>(boot.framebuffer.pitch) * boot.framebuffer.height, limit,
+                   false);
+}
+
+// Counts and lists are a fold of the finished bitmap, so they are built once from it rather
+// than maintained across ingestion.
+void build_lists()
+{
+    for (usize i = 0; i < BLOCK_COUNT; ++i) {
+        const block_id block{i};
+        const usize    free = g_allocator.frames.count_set(i * WORDS_PER_BLOCK, WORDS_PER_BLOCK);
+
+        set_free_count(block, free);
+        g_allocator.free_frames += free;
+    }
+}
+
+[[nodiscard]] paddr_t usable_ceiling(const kernel::boot::info &boot)
 {
     paddr_t highest = 0;
 
@@ -487,99 +457,13 @@ void mark_range(paddr_t base, u64 length, paddr_t limit, bool usable)
         if (region.kind != kernel::boot::memory_kind::USABLE || region.length == 0)
             continue;
 
-        const paddr_t end = range_end_saturating(region.base, region.length);
+        const paddr_t end = range_end(region.base, region.length);
 
         if (end > highest)
             highest = end;
     }
 
-    return highest;
-}
-
-void add_usable_memory(const kernel::boot::info &boot, paddr_t limit)
-{
-    for (usize i = 0; i < boot.memory_map.count; ++i) {
-        const auto &region = boot.memory_map[i];
-
-        if (region.kind != kernel::boot::memory_kind::USABLE)
-            continue;
-
-        mark_range(region.base, region.length, limit, true);
-    }
-}
-
-// Logged as it goes, because "how much memory did the kernel keep for itself" is otherwise a
-// subtraction nobody can check against anything.
-void reserve_and_log(const char *what, paddr_t base, u64 length, paddr_t limit)
-{
-    if (length == 0)
-        return;
-
-    mark_range(base, length, limit, false);
-
-    KPRINTLN("[pmm]   reserve {:#018X}..{:#018X} {}", base, range_end_saturating(base, length),
-             what);
-}
-
-void reserve_occupied_ranges(const kernel::boot::info &boot, paddr_t limit)
-{
-    // Real mode IVT, BDA, EBDA, and whatever else the firmware still believes it owns.
-    reserve_and_log("low memory", 0, 1024 * 1024, limit);
-
-    const paddr_t image_first = static_cast<paddr_t>(reinterpret_cast<uptr>(boot_start));
-    const paddr_t image_end = static_cast<paddr_t>(reinterpret_cast<uptr>(kernel_physical_end));
-
-    if (image_end > image_first)
-        reserve_and_log("kernel image", image_first, image_end - image_first, limit);
-
-    for (usize i = 0; i < boot.reserved.count; ++i)
-        reserve_and_log("boot protocol", boot.reserved[i].base, boot.reserved[i].length, limit);
-
-    // Module bytes were never copied out of where the bootloader put them.
-    for (usize i = 0; i < boot.modules.count; ++i)
-        reserve_and_log("module", boot.modules[i].range.base, boot.modules[i].range.length, limit);
-
-    // An MMIO aperture rather than RAM, and commonly absent from the memory map entirely, so
-    // it cannot be inferred from the regions above.
-    if (boot.framebuffer.present)
-        reserve_and_log("framebuffer", boot.framebuffer.address,
-                        static_cast<u64>(boot.framebuffer.pitch) * boot.framebuffer.height, limit);
-}
-
-void rebuild_derived_levels()
-{
-    for (usize block = 0; block < BLOCK_2M_COUNT; ++block)
-        refresh_2m(block);
-
-    for (usize block = 0; block < BLOCK_1G_COUNT; ++block)
-        refresh_1g(block);
-}
-
-// =================================================================================================
-// Reporting
-// =================================================================================================
-
-void log_memory_map(const kernel::boot::info &boot)
-{
-    KPRINTLN("[pmm] boot memory map ({} regions)", boot.memory_map.count);
-
-    for (usize i = 0; i < boot.memory_map.count; ++i) {
-        const auto &region = boot.memory_map[i];
-
-        KPRINTLN("[pmm]   {:#018X}..{:#018X} {}", region.base,
-                 range_end_saturating(region.base, region.length),
-                 kernel::boot::describe(region.kind));
-    }
-}
-
-void log_totals()
-{
-    const usize free_kib = g_allocator.free_frames * (FRAME_SIZE / 1024);
-    const usize managed_kib = g_allocator.managed_frames * (FRAME_SIZE / 1024);
-
-    KPRINTLN("[pmm] managed={} KiB free={} KiB ({} frames, {} free 2M, {} free 1G)", managed_kib,
-             free_kib, g_allocator.free_frames, g_allocator.free_2m_count,
-             g_allocator.free_1g_count);
+    return highest > MAX_PHYSICAL_MEMORY ? MAX_PHYSICAL_MEMORY : highest;
 }
 
 }  // namespace
@@ -598,19 +482,31 @@ bool alloc_pages(page_size size, usize count, paddr_t *out)
 
     kernel::sync::spinlock_guard guard(g_allocator.lock);
 
-    if (!g_allocator.initialized || count > available_pages_locked(size))
+    if (!g_allocator.initialized || count * frames_in(size) > g_allocator.free_frames)
         return false;
 
-    // The check above is exact, so nothing below can come up short. Every page is an index
-    // lookup, so a batch costs one lock acquisition and no search - and consecutive 4 KiB
-    // pages come out of the same partially used block until it is empty, which keeps them
-    // together and confines the damage to one block.
-    for (usize i = 0; i < count; ++i) {
-        out[i] = take_page_locked(size);
+    if (size == page_size::SMALL_4K) {
+        // Frames are counted, so the check above is exact and nothing below comes up short.
+        const usize taken = take_frames_locked(count, out);
 
-        if (out[i] == INVALID_PHYSICAL_ADDRESS)
-            KPANIC("pmm: {} pages of {} bytes were available but page {} could not be taken", count,
-                   bytes_in(size), i);
+        if (taken != count)
+            KPANIC("pmm: {} frames were free but only {} could be taken", count, taken);
+
+        return true;
+    }
+
+    // Whole blocks are not counted - finding out how many exist costs the same as taking them -
+    // so a large request is attempted and handed straight back if the machine came up short.
+    for (usize taken = 0; taken < count; ++taken) {
+        out[taken] = size == page_size::LARGE_2M ? take_2m_locked() : take_1g_locked();
+
+        if (out[taken] != INVALID_PHYSICAL_ADDRESS)
+            continue;
+
+        for (usize i = 0; i < taken; ++i)
+            release_locked(size, out[i]);
+
+        return false;
     }
 
     return true;
@@ -627,7 +523,7 @@ void free_pages(page_size size, usize count, const paddr_t *pages)
     kernel::sync::spinlock_guard guard(g_allocator.lock);
 
     for (usize i = 0; i < count; ++i)
-        release_locked(pages[i], size);
+        release_locked(size, pages[i]);
 }
 
 paddr_t alloc_page(page_size size)
@@ -655,53 +551,24 @@ kernel::core::init_result component::init_allocator()
     if (!boot.valid)
         return kernel::core::Err(init_error::DEPENDENCY_UNAVAILABLE);
 
-    log_memory_map(boot);
+    const paddr_t limit = align_down<paddr_t>(usable_ceiling(boot), FRAME_SIZE);
 
-    paddr_t highest = highest_usable_end(boot);
-
-    if (highest == 0)
+    if (limit == 0)
         return kernel::core::Err(init_error::NO_USABLE_MEMORY);
 
-    if (highest > MAX_PHYSICAL_MEMORY) {
-        KPRINTLN(
-            "[pmm] usable memory reaches {:#018X}; managing the first {} KiB and ignoring "
-            "the rest",
-            highest, MAX_PHYSICAL_MEMORY / 1024);
+    kernel::sync::spinlock_guard guard(g_allocator.lock);
 
-        highest = MAX_PHYSICAL_MEMORY;
-    }
+    g_allocator.initialized = false;
+    g_allocator.managed_frames = static_cast<usize>(limit >> FRAME_SHIFT);
 
-    highest = align_down<paddr_t>(highest, FRAME_SIZE);
+    reset_state();
+    ingest(boot, limit);
+    build_lists();
 
-    if (highest == 0)
+    if (g_allocator.free_frames == 0)
         return kernel::core::Err(init_error::NO_USABLE_MEMORY);
 
-    {
-        kernel::sync::spinlock_guard guard(g_allocator.lock);
-
-        g_allocator.initialized = false;
-        g_allocator.managed_frames = static_cast<usize>(highest >> FRAME_SHIFT);
-        g_allocator.partial_hint = 0;
-
-        // Everything is occupied until a usable region says otherwise. Deriving free memory
-        // as the complement of what was reserved would hand out any region the description
-        // lost.
-        reset_bitmaps();
-
-        add_usable_memory(boot, highest);
-        reserve_occupied_ranges(boot, highest);
-
-        rebuild_derived_levels();
-
-        g_allocator.free_frames = popcount(g_allocator.frames, L0_WORDS);
-
-        if (g_allocator.free_frames == 0)
-            return kernel::core::Err(init_error::NO_USABLE_MEMORY);
-
-        g_allocator.initialized = true;
-
-        log_totals();
-    }
+    g_allocator.initialized = true;
 
     return kernel::core::Ok();
 }
