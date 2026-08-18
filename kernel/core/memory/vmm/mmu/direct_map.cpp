@@ -43,6 +43,11 @@ bool direct_map_contains(vaddr_t virtual_address)
 
 void *direct_map(paddr_t physical_address)
 {
+    // Past the window there is no alias to hand back. Returning DIRECT_MAP_BASE + physical
+    // anyway lands in the next PML4 slot, which is a pointer that looks fine and faults on use.
+    if (physical_address >= DIRECT_MAP_SIZE)
+        return nullptr;
+
     return reinterpret_cast<void *>(DIRECT_MAP_BASE + physical_address);
 }
 

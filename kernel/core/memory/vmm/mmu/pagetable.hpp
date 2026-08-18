@@ -99,12 +99,33 @@ struct page_flags {
     bool cache_disable{};
 };
 
+// A resolved translation. frame and offset are kept apart because they answer different
+// questions: a caller re-mapping or freeing the page wants the frame, one chasing a pointer
+// wants the exact address. Fusing them into one field meant every frame user had to mask the
+// offset back out using size, and getting that wrong is silent.
 struct mapping {
     bool       present{};
-    paddr_t    physical{};
+    paddr_t    frame{};
+    u64        offset{};
     page_size  size{};
     page_flags flags{};
+
+    [[nodiscard]] paddr_t physical() const
+    {
+        return frame + offset;
+    }
 };
+
+// =================================================================================================
+// Reserved tables
+//
+// The bootstrap tables are static objects inside the kernel image rather than PMM frames, so an
+// emptied one must never be handed to the frame allocator - that is a free of memory the PMM has
+// marked reserved, which panics. The bootstrap registers the image's physical range here so the
+// walker can tell the two kinds of table apart when it collects empty ones.
+// =================================================================================================
+
+void set_reserved_table_range(paddr_t first, paddr_t last);
 
 // =================================================================================================
 // Page table
@@ -160,8 +181,17 @@ public:
         root_m = root;
     }
 
+    // Establishes a mapping, replacing any existing one of the same size at this address. A
+    // mapping of a *different* size is refused rather than torn down, because deciding that the
+    // caller meant to drop the other 511 pages of a large page is not this layer's call.
     [[nodiscard]] bool map(vaddr_t virtual_address, paddr_t physical_address, page_size size,
                            page_flags flags);
+
+    // Rewrites the permissions of an existing leaf, leaving the frame alone. What a caller
+    // hardening an already-mapped region actually means - map() would force it to restate the
+    // physical address it is deliberately not changing.
+    [[nodiscard]] bool protect(vaddr_t virtual_address, page_size size, page_flags flags);
+
     [[nodiscard]] bool unmap(vaddr_t virtual_address, page_size size);
     [[nodiscard]] mapping translate(vaddr_t virtual_address) const;
 };

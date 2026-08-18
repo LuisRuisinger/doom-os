@@ -104,6 +104,14 @@ target_compile_options(kernel.elf PRIVATE
         -ffile-prefix-map=${CMAKE_SOURCE_DIR}/=
         -ffreestanding
         -mno-red-zone
+        # The kernel never enables SSE - CR4.OSFXSR stays clear - so an SSE instruction faults
+        # with #UD wherever it lands. Without these the compiler is free to reach for xmm
+        # registers on its own, for something as ordinary as zeroing a local array or returning
+        # a struct by value, and the resulting trap looks nothing like the code that caused it.
+        -mno-sse
+        -mno-sse2
+        -mno-mmx
+        -mno-80387
         -nostdlib
         $<$<COMPILE_LANGUAGE:CXX>:-fno-exceptions>
         $<$<COMPILE_LANGUAGE:CXX>:-fno-rtti>
