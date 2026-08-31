@@ -1,15 +1,18 @@
 # =================================================================================================
 # Kernel C++ runtime check
 #
-# Run against an image built with no application, where every byte came from the kernel. The
-# kernel is written in a C++ subset with no runtime: no virtual functions, no global operator new,
-# and no object whose construction or destruction happens at runtime. That rule is what lets the
-# C++ runtime live in libos and be linked, or not, on the application's say-so.
+# Run against an image built with no application, where every byte came from the kernel.
 #
-# Most of it enforces itself. A vtable needs __cxa_pure_virtual and a `new` needs operator new,
-# neither of which exists in a STDLIB NONE image, so either one is an undefined symbol at link
-# time. A global constructor is the exception: it emits an .init_array entry that simply never
-# runs, with nothing undefined and no diagnostic. That is the case worth a check.
+# Virtual functions and function-local statics are fine: kernel/runtime/cxx_abi.cpp supplies what
+# they need, so they work whatever the application linked. Global operator new is still absent, and
+# a `new` in kernel code is an undefined symbol at link time, which is the intended answer.
+#
+# A namespace-scope object needing runtime construction is the one case that fails silently, and it
+# fails for an ordering reason rather than a missing symbol. There is one .init_array and one walk
+# of it, and that walk is the last node of the boot graph so that an application constructor finds
+# a heap and legal SSE behind it. A kernel global would therefore be constructed after every
+# component that could use it - the wrong end of boot, with no diagnostic. Constant-initialise it
+# instead (constinit says so at compile time), or put it behind an init() the graph calls.
 # =================================================================================================
 
 execute_process(
@@ -29,11 +32,11 @@ endif()
 if(_symbols MATCHES "_GLOBAL__sub_I")
     message(FATAL_ERROR
             "The kernel contains a global constructor.\n"
-            "An image with no application has nothing that may construct at runtime: the kernel "
-            "is written in a C++ subset with no runtime, and the .init_array walk lives in libos "
-            "on the application's behalf. A namespace-scope object needing a constructor here "
-            "would silently never be constructed. Make it constant-initialised - constinit will "
-            "say so at compile time - or move it behind an explicit init() the boot graph calls.")
+            "The .init_array walk is the last node of the boot graph, so that an application "
+            "constructor finds a live heap and legal SSE behind it. A kernel global would be "
+            "constructed there too - after every component that could use it. Make it "
+            "constant-initialised (constinit will say so at compile time), or move it behind an "
+            "explicit init() the boot graph calls.")
 endif()
 
 foreach(_bound init_array_start init_array_end fini_array_start fini_array_end)
