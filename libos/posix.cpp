@@ -3,6 +3,7 @@
 // =================================================================================================
 
 #include "kernel/arch/x86_64/cpu/cpu.hpp"
+#include "kernel/arch/x86_64/cpu/registers.hpp"
 #include "kernel/boot/boot_info.hpp"
 #include "kernel/core/memory/pmm/pmm.hpp"
 #include "kernel/core/memory/vmm/mmu/direct_map.hpp"
@@ -17,7 +18,9 @@
 #include <errno.h>
 #include <fcntl.h>
 #include <sys/stat.h>
+#include <sys/time.h>
 #include <sys/types.h>
+#include <time.h>
 #include <unistd.h>
 
 // =================================================================================================
@@ -45,6 +48,7 @@
 namespace {
 
 using kernel::core::paddr_t;
+using kernel::core::u32;
 using kernel::core::u64;
 using kernel::core::u8;
 using kernel::core::usize;
@@ -347,6 +351,163 @@ extern "C" void _exit(int status)
 }
 
 // =================================================================================================
+// Entropy
+//
+// The one name in this block that is implemented rather than refused, because refusing it is
+// worse than it looks. A language runtime asks for entropy in places nothing in the source
+// suggests: Rust seeds every HashMap from it, so a stub here removes std::collections from the
+// image for a reason no backtrace would explain. RDRAND is on every x86_64 part worth targeting
+// and costs ten lines, so the honest answer is cheaper than the excuse.
+//
+// CPUID is checked rather than assumed - RDRAND is not architectural, and executing it without
+// the bit is #UD. The retry bound is Intel's advice: the instruction reports failure through CF
+// when the entropy pool is momentarily drained, and a bounded retry distinguishes that from a
+// part where the DRNG is genuinely broken, which some errata describe.
+// =================================================================================================
+
+namespace {
+
+constexpr u32 CPUID_FEATURE_LEAF = 1;
+constexpr u32 CPUID_ECX_RDRAND = 1u << 30;
+constexpr int RDRAND_ATTEMPTS = 10;
+
+bool rdrand_supported()
+{
+    namespace cpu = kernel::arch::x86_64::cpu;
+
+    if (cpu::cpuid(0).eax < CPUID_FEATURE_LEAF) {
+        return false;
+    }
+
+    return (cpu::cpuid(CPUID_FEATURE_LEAF).ecx & CPUID_ECX_RDRAND) != 0;
+}
+
+bool rdrand64(u64 &out)
+{
+    for (int attempt = 0; attempt < RDRAND_ATTEMPTS; ++attempt) {
+        u64           value;
+        unsigned char carry;
+
+        asm volatile("rdrand %0; setc %1" : "=r"(value), "=qm"(carry)::"cc");
+
+        if (carry) {
+            out = value;
+            return true;
+        }
+    }
+
+    return false;
+}
+
+}  // namespace
+
+extern "C" ssize_t getrandom(void *buffer, size_t length, unsigned int flags)
+{
+    static_cast<void>(flags);
+
+    if (buffer == nullptr) {
+        errno = EFAULT;
+        return -1;
+    }
+
+    if (!rdrand_supported()) {
+        errno = ENOSYS;
+        return -1;
+    }
+
+    u8   *out = static_cast<u8 *>(buffer);
+    usize done = 0;
+
+    while (done < length) {
+        u64 word;
+
+        if (!rdrand64(word)) {
+            errno = EIO;
+            return -1;
+        }
+
+        const usize chunk = (length - done) < sizeof word ? (length - done) : sizeof word;
+
+        for (usize i = 0; i < chunk; ++i) {
+            out[done + i] = static_cast<u8>(word >> (i * 8));
+        }
+
+        done += chunk;
+    }
+
+    return static_cast<ssize_t>(done);
+}
+
+// BSD's spelling of the same thing, and the one a few runtimes reach for first. All or nothing by
+// contract, which getrandom already is here.
+extern "C" int getentropy(void *buffer, size_t length)
+{
+    if (length > 256) {
+        errno = EIO;
+        return -1;
+    }
+
+    return getrandom(buffer, length, 0) < 0 ? -1 : 0;
+}
+
+// =================================================================================================
+// Time
+//
+// Refused, not faked. There is no timer subsystem, so every answer this could give would be a
+// lie a caller might difference against a later one and conclude that no time passes - which is
+// indistinguishable from a hung clock and much harder to find than a failed call.
+//
+// ENOSYS rather than a panic: a runtime that asks the time is usually able to carry on without
+// it, and Rust's std maps a failing clock to Unsupported rather than aborting.
+// =================================================================================================
+
+extern "C" int clock_gettime(clockid_t clock_id, struct timespec *out)
+{
+    static_cast<void>(clock_id);
+    static_cast<void>(out);
+
+    errno = ENOSYS;
+    return -1;
+}
+
+extern "C" int _gettimeofday(struct timeval *out, void *timezone)
+{
+    static_cast<void>(out);
+    static_cast<void>(timezone);
+
+    errno = ENOSYS;
+    return -1;
+}
+
+// There is one thread of control and nothing to wake it, so a sleep that returned would be a busy
+// loop of unknown length and one that blocked would never end.
+extern "C" int nanosleep(const struct timespec *requested, struct timespec *remaining)
+{
+    static_cast<void>(requested);
+    static_cast<void>(remaining);
+
+    errno = ENOSYS;
+    return -1;
+}
+
+// =================================================================================================
+// Environment
+//
+// Empty rather than absent. getenv walks this array and has no way to ask whether an environment
+// exists, so the terminator is the whole contract: every lookup misses, nothing faults.
+// =================================================================================================
+
+namespace {
+
+char *g_empty_environment[] = {nullptr};
+
+}  // namespace
+
+extern "C" {
+char **environ = g_empty_environment;
+}
+
+// =================================================================================================
 // Plain POSIX names
 //
 // newlib's reentrant wrappers - _write_r and its siblings, which are what printf and fopen sit on
@@ -371,6 +532,7 @@ extern "C" void *sbrk(ptrdiff_t increment) POSIX_ALIAS(_sbrk);
 extern "C" int isatty(int fd) POSIX_ALIAS(_isatty);
 extern "C" pid_t getpid(void) POSIX_ALIAS(_getpid);
 extern "C" int kill(int pid, int signal) POSIX_ALIAS(_kill);
+extern "C" int gettimeofday(struct timeval *out, void *timezone) POSIX_ALIAS(_gettimeofday);
 
 #undef POSIX_ALIAS
 
