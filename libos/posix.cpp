@@ -40,7 +40,9 @@
 
 // One thread of control, one errno. glibc-shaped callers reach it through __errno_location, which
 // libos/glibc_abi.cpp points here.
-extern "C" int errno = 0;
+extern "C" {
+int errno = 0;
+}
 
 namespace {
 

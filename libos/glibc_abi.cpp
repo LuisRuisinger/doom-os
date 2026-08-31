@@ -39,6 +39,13 @@
 // first std function executes. That is kernel work, and it is the real prerequisite.
 // =================================================================================================
 
+// Every definition in this file is weak. libos supplies the glibc ABI so that an object built for
+// Linux resolves, but an application that brings its own C library - a musl staticlib, a Rust std
+// carrying its personality routine - has the real implementation, and the real one must win. A
+// strong definition here would be a multiple-definition error instead, which is how this file
+// first met Rust's std.
+#define DOOM_OS_WEAK __attribute__((weak))
+
 namespace {
 
 using namespace libos::abi;  // NOLINT(google-build-using-namespace)
@@ -62,7 +69,7 @@ bool report_once(const char *name, bool &reported)
 }  // namespace
 
 #define DOOM_OS_GLIBC_STUB(name, result)                     \
-    extern "C" long name(...)                                \
+    extern "C" DOOM_OS_WEAK long name(...)                   \
     {                                                        \
         static bool reported_m = false;                      \
         report_once(#name, reported_m);                      \
@@ -268,7 +275,7 @@ DOOM_OS_GLIBC_STUB(__xpg_strerror_r, -1)
 
 // glibc reaches errno through a function so that it can be per-thread. There is one thread here,
 // so it is the single errno libos/posix.cpp defines - the same object every other file means.
-extern "C" int *__errno_location()
+extern "C" DOOM_OS_WEAK int *__errno_location()
 {
     return &errno;
 }
@@ -276,19 +283,19 @@ extern "C" int *__errno_location()
 // No auxiliary vector: nothing loads an ELF here, the kernel calls main directly. Zero is the
 // documented answer for an absent entry, and callers treat it as "not provided" rather than as a
 // value, which is exactly right.
-extern "C" unsigned long getauxval(unsigned long type)
+extern "C" DOOM_OS_WEAK unsigned long getauxval(unsigned long type)
 {
     static_cast<void>(type);
 
     return 0;
 }
 
-extern "C" const char *gnu_get_libc_version()
+extern "C" DOOM_OS_WEAK const char *gnu_get_libc_version()
 {
     return "2.39";
 }
 
-extern "C" int posix_memalign(void **out, kernel::core::usize alignment, kernel::core::usize size)
+extern "C" DOOM_OS_WEAK int posix_memalign(void **out, kernel::core::usize alignment, kernel::core::usize size)
 {
     static_cast<void>(alignment);
     static_cast<void>(size);
@@ -300,7 +307,7 @@ extern "C" int posix_memalign(void **out, kernel::core::usize alignment, kernel:
     return libos::abi::ENOMEM;
 }
 
-extern "C" long sysconf(int name)
+extern "C" DOOM_OS_WEAK long sysconf(int name)
 {
     // _SC_PAGESIZE is the one a runtime asks before it can lay anything out, and answering it
     // wrongly is not recoverable, so it is answered rather than refused.
@@ -320,7 +327,7 @@ extern "C" long sysconf(int name)
 }
 
 // Reached only from code that already decided to die, so there is nothing to return to.
-extern "C" [[noreturn]] void __compilerrt_abort_impl(const char *file, int line, const char *func)
+extern "C" [[noreturn]] DOOM_OS_WEAK void __compilerrt_abort_impl(const char *file, int line, const char *func)
 {
     KPANIC("compiler-rt abort in {} at {}:{}", func, file, line);
 }
@@ -328,7 +335,7 @@ extern "C" [[noreturn]] void __compilerrt_abort_impl(const char *file, int line,
 // The generic syscall entry glibc exposes for calls it has no wrapper for. Rust's std reaches it
 // for getrandom and futex. Dispatching it properly is the shape of the eventual Linux ABI layer;
 // until then it refuses, which is distinguishable from a syscall that silently did nothing.
-extern "C" long syscall(long number, ...)
+extern "C" DOOM_OS_WEAK long syscall(long number, ...)
 {
     KPRINTLN("[glibc] unimplemented syscall {}", number);
 
@@ -338,7 +345,7 @@ extern "C" long syscall(long number, ...)
 
 // General-dynamic TLS. Reached before main on any std binary, and there is nothing sensible to
 // return, so it stops here rather than handing back a pointer into nothing.
-extern "C" [[noreturn]] void *__tls_get_addr(void *descriptor)
+extern "C" [[noreturn]] DOOM_OS_WEAK void *__tls_get_addr(void *descriptor)
 {
     static_cast<void>(descriptor);
 
@@ -346,7 +353,9 @@ extern "C" [[noreturn]] void *__tls_get_addr(void *descriptor)
 }
 
 // Rust names this in .eh_frame even under panic=abort. Nothing unwinds here.
-extern "C" [[noreturn]] int rust_eh_personality()
+extern "C" [[noreturn]] DOOM_OS_WEAK int rust_eh_personality()
 {
     KPANIC("rust_eh_personality: nothing unwinds in this image");
 }
+
+#undef DOOM_OS_WEAK
