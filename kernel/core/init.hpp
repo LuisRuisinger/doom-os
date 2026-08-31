@@ -30,7 +30,7 @@ struct default_init_logger {
     template <typename Component, typename Backing>
     void fail(Backing &, init_error error)
     {
-        KPRINTLN("[init] {}: FAIL ({})", Component::name, describe(error));
+        KPRINTLN("[init] {}: FAIL ({})", Component::name, error);
     }
 };
 

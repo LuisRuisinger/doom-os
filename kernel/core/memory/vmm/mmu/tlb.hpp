@@ -11,7 +11,7 @@ namespace kernel::core::memory::vmm::mmu::tlb {
 
 using kernel::core::vaddr_t;
 
-void flush(vaddr_t virtual_address);
+void flush(vaddr_t vaddr);
 void flush_all();
 void flush_all_global();
 

@@ -13,6 +13,7 @@
 
 #include "kernel/core/component.hpp"
 #include "kernel/core/types.hpp"
+#include "kernel/debug/formatter.hpp"
 
 namespace kernel::boot {
 
@@ -147,24 +148,6 @@ enum class memory_kind : u32 {
     DEFECTIVE,
 };
 
-inline const char *describe(memory_kind kind)
-{
-    switch (kind) {
-        case memory_kind::USABLE:
-            return "usable";
-        case memory_kind::RESERVED:
-            return "reserved";
-        case memory_kind::ACPI_RECLAIMABLE:
-            return "acpi reclaimable";
-        case memory_kind::ACPI_NVS:
-            return "acpi nvs";
-        case memory_kind::DEFECTIVE:
-            return "defective";
-    }
-
-    return "unknown";
-}
-
 struct address_range {
     paddr_t base{};
     u64     length{};
@@ -264,5 +247,27 @@ concept boot_protocol = requires(const handoff &source, info &out) {
 };
 
 }  // namespace kernel::boot
+
+// =================================================================================================
+// Formatting
+//
+// bounded_string keeps its storage private, so reflect cannot walk it and the aggregate formatter
+// will not accept it. Without this leaf, printing anything that contains one - module_info, and
+// so the module table - fails deep inside the field walker rather than here. The string is always
+// NUL-terminated, so the ordinary string emitter is all it needs.
+// =================================================================================================
+
+namespace kernel::debug::detail {
+
+template <kernel::core::usize Capacity>
+struct formatter<kernel::boot::bounded_string<Capacity>> {
+    template <format_spec Spec>
+    static void emit(const kernel::boot::bounded_string<Capacity> &value)
+    {
+        emit_string_value<Spec>(value.c_str());
+    }
+};
+
+}  // namespace kernel::debug::detail
 
 #endif  // DOOM_OS_KERNEL_BOOT_PROTOCOL_HPP_

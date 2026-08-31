@@ -12,6 +12,7 @@
 // Kernel files
 // =================================================================================================
 
+#include "kernel/core/reflect.hpp"
 #include "kernel/debug/emit.hpp"
 
 namespace kernel::debug {
@@ -220,6 +221,113 @@ struct formatter<T> {
     static void emit(T value)
     {
         emit_pointer_value<Spec>(static_cast<const volatile void *>(value));
+    }
+};
+
+// =================================================================================================
+// Reflected values
+//
+// reflect answers what fields a type has, and these three specialisations are the whole of its
+// contact with kprint. A flags struct or an error enum then formats without a formatter of its
+// own, which is what stops this file growing a specialisation per struct as the kernel does.
+//
+// Names come out of __PRETTY_FUNCTION__ as a pointer and a length into the middle of that
+// signature, so they are not NUL-terminated. Every path below carries the length explicitly:
+// handing name.data() to a C-string emitter runs off the end of the name and prints the rest of
+// the mangled signature.
+// =================================================================================================
+
+// Defined below, in the dispatch section. Declared here because the aggregate formatter recurses
+// through it to reach its fields.
+template <format_spec Spec, typename T>
+inline void emit_value(const T &value);
+
+template <typename T>
+concept reflect_string_value = std::same_as<T, reflect::str_view>;
+
+template <typename T>
+concept enum_value = std::is_enum_v<T>;
+
+// str_view keeps its storage private, so it is not an aggregate and never reaches this one -
+// which is what keeps it disjoint from reflect_string_value above.
+template <typename T>
+concept reflectable_value = reflect::reflectable<T>;
+
+template <reflect_string_value T>
+struct formatter<T> {
+    template <format_spec Spec>
+    static void emit(reflect::str_view value)
+    {
+        static_assert(Spec.presentation_value == presentation::DEFAULT ||
+                          Spec.presentation_value == presentation::STRING,
+                      "unsupported format specifier for string");
+
+        usize length = value.size();
+
+        if constexpr (Spec.has_precision) {
+            if (length > Spec.precision) {
+                length = Spec.precision;
+            }
+        }
+
+        emit_padded<Spec>("", 0, value.data(), length, false);
+    }
+};
+
+template <enum_value T>
+struct formatter<T> {
+    template <format_spec Spec>
+    static void emit(T value)
+    {
+        using underlying = std::underlying_type_t<T>;
+
+        // An explicit numeric spec asks for the value, not the name.
+        if constexpr (Spec.presentation_value == presentation::DECIMAL ||
+                      Spec.presentation_value == presentation::HEX_LOWER ||
+                      Spec.presentation_value == presentation::HEX_UPPER) {
+            formatter<underlying>::template emit<Spec>(static_cast<underlying>(value));
+        } else {
+            const reflect::str_view name = reflect::enum_name(value);
+
+            // No enumerator names this value: a cast, a mask, or a field that was corrupted.
+            // Printing the number beats printing nothing, and this is a panic path.
+            if (name.empty()) {
+                formatter<underlying>::template emit<Spec>(static_cast<underlying>(value));
+                return;
+            }
+
+            formatter<reflect::str_view>::template emit<Spec>(name);
+        }
+    }
+};
+
+template <reflectable_value T>
+struct formatter<T> {
+    template <format_spec Spec>
+    static void emit(const T &value)
+    {
+        static_assert(!Spec.has_precision, "precision is not supported for aggregate formats");
+
+        emit_char('{');
+
+        bool first = true;
+
+        reflect::for_each_field(value, [&](reflect::str_view name, const auto &field) {
+            if (!first) {
+                emit_bytes(", ", 2);
+            }
+
+            first = false;
+
+            emit_bytes(name.data(), name.size());
+            emit_char('=');
+
+            // The spec reaches the leaves rather than the braces: {:#018X} on a register frame
+            // is what makes every register in it print as padded hex.
+            emit_value<Spec>(field);
+        });
+
+        emit_char('}');
     }
 };
 

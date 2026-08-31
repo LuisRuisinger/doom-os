@@ -10,6 +10,8 @@
 #include "kernel/boot/boot_info.hpp"
 #include "kernel/core/component.hpp"
 #include "kernel/core/memory/pmm/pmm.hpp"
+#include "kernel/core/memory/vmm/mmu/mmu.hpp"
+#include "kernel/runtime/init.hpp"
 
 namespace kernel::boot {
 // =================================================================================================
@@ -34,9 +36,14 @@ using platform_roots = kernel::core::type_list<kernel::arch::x86_64::core_init::
 // fault in any of them is reportable. The phases are separate graphs rather than roots of one
 // graph because their relative order would otherwise come from position in a type_list, which
 // is the kind of ordering nobody writes down and everybody eventually breaks.
+//
+// Rooted on the C++ runtime rather than on the MMU, because the runtime depends on it: the sort
+// pulls in mmu -> pmm -> boot_info underneath and puts global construction last, where it has a
+// heap to allocate from. Stating it as an edge rather than as a second call after this graph is
+// the difference between an ordering the compiler checks and one a comment asks for.
 // =================================================================================================
 
-using boot_roots = kernel::core::type_list<kernel::core::memory::pmm::component>;
+using boot_roots = kernel::core::type_list<kernel::runtime::component>;
 
 }  // namespace kernel::boot
 

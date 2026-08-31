@@ -5,6 +5,7 @@
 #include "kernel/debug/kpanic.hpp"
 
 #include "kernel/arch/x86_64/cpu/cpu.hpp"
+#include "kernel/core/reflect.hpp"
 #include "kernel/debug/kprint.hpp"
 
 namespace kernel::debug {
@@ -13,20 +14,26 @@ namespace kernel::debug {
 // Kernel panic
 // =================================================================================================
 
+// The frame's fields are the register list, so this walks whatever registers.hpp currently
+// declares. That header already says a register is added by editing one list rather than every
+// place that enumerates one; until now the dump was one of the places that did.
+static constexpr kernel::core::usize REGISTERS_PER_LINE = 3;
+
 static void dump_panic_registers(const panic_register_frame &r)
 {
-    KPRINTLN("  rax: {:#018X}   rbx: {:#018X}   rcx: {:#018X}", r.rax, r.rbx, r.rcx);
-    KPRINTLN("  rdx: {:#018X}   rsi: {:#018X}   rdi: {:#018X}", r.rdx, r.rsi, r.rdi);
-    KPRINTLN("  rbp: {:#018X}   rsp: {:#018X}   rip: {:#018X}", r.rbp, r.rsp, r.rip);
+    kernel::core::usize column = 0;
 
-    KPRINTLN("  r8 : {:#018X}   r9 : {:#018X}   r10: {:#018X}", r.r8, r.r9, r.r10);
-    KPRINTLN("  r11: {:#018X}   r12: {:#018X}   r13: {:#018X}", r.r11, r.r12, r.r13);
-    KPRINTLN("  r14: {:#018X}   r15: {:#018X}   flg: {:#018X}", r.r14, r.r15, r.rflags);
+    reflect::for_each_field(r, [&](reflect::str_view name, const auto &value) {
+        KPRINT("  {:<6} {:#018X}", name, value);
 
-    KPRINTLN("  cr0: {:#018X}   cr2: {:#018X}   cr3: {:#018X}", r.cr0, r.cr2, r.cr3);
-    KPRINTLN("  cr4: {:#018X}   cs : {:#018X}   ss : {:#018X}", r.cr4, r.cs, r.ss);
-    KPRINTLN("  ds : {:#018X}   es : {:#018X}   fs : {:#018X}", r.ds, r.es, r.fs);
-    KPRINTLN("  gs : {:#018X}", r.gs);
+        ++column;
+        if (column % REGISTERS_PER_LINE == 0)
+            detail::emit_char('\n');
+    });
+
+    // The register list does not have to divide evenly; close the line if one is still open.
+    if (column % REGISTERS_PER_LINE != 0)
+        detail::emit_char('\n');
 }
 
 [[noreturn]] void kpanic(const char *message, void *frame, const char *file, int line,

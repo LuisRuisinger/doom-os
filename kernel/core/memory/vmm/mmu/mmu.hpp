@@ -8,7 +8,6 @@
 #include "kernel/core/component.hpp"
 #include "kernel/core/memory/pmm/pmm.hpp"
 #include "kernel/core/memory/vmm/mmu/direct_map.hpp"
-#include "kernel/core/memory/vmm/mmu/features.hpp"
 #include "kernel/core/memory/vmm/mmu/pagetable.hpp"
 #include "kernel/core/types.hpp"
 

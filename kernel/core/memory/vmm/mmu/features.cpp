@@ -5,6 +5,7 @@
 #include "kernel/core/memory/vmm/mmu/features.hpp"
 
 #include "kernel/arch/x86_64/cpu/registers.hpp"
+#include "kernel/core/memory/page.hpp"
 
 namespace kernel::core::memory::vmm::mmu {
 
@@ -13,6 +14,7 @@ namespace {
 using kernel::arch::x86_64::cpu::CR4_PAGE_GLOBAL_ENABLE;
 using kernel::arch::x86_64::cpu::EFER_NO_EXECUTE_ENABLE;
 using kernel::arch::x86_64::cpu::MSR_EFER;
+
 using kernel::core::u32;
 
 // =================================================================================================
@@ -27,7 +29,8 @@ inline constexpr u32 EDX_PAGE_GLOBAL_ENABLE = u32{1} << 13;
 inline constexpr u32 EDX_NO_EXECUTE = u32{1} << 20;
 inline constexpr u32 EDX_GIB_PAGES = u32{1} << 26;
 
-paging_features g_features{};
+bool g_nx_enabled{};
+bool g_global_pages_enabled{};
 
 }  // namespace
 
@@ -43,22 +46,36 @@ void enable_paging_features()
     const u32 extended_edx =
         extended_max >= CPUID_EXTENDED_FEATURES ? regs::cpuid(CPUID_EXTENDED_FEATURES).edx : 0;
 
-    g_features.nx = (extended_edx & EDX_NO_EXECUTE) != 0;
-    g_features.gib_pages = (extended_edx & EDX_GIB_PAGES) != 0;
-    g_features.global = (regs::cpuid(CPUID_BASE).edx & EDX_PAGE_GLOBAL_ENABLE) != 0;
+    const bool nx_supported = (extended_edx & EDX_NO_EXECUTE) != 0;
+    const bool global_pages_supported = (regs::cpuid(CPUID_BASE).edx & EDX_PAGE_GLOBAL_ENABLE) != 0;
 
-    // Order matters against the encoders: a flag is only published as enabled once the control
-    // register agrees, so nothing can write an NX bit into an entry before EFER.NXE is set.
-    if (g_features.nx)
+    if (nx_supported) {
         regs::write_msr(MSR_EFER, regs::read_msr(MSR_EFER) | EFER_NO_EXECUTE_ENABLE);
+        g_nx_enabled = true;
+    }
 
-    if (g_features.global)
+    if (global_pages_supported) {
         regs::write_cr4(regs::read_cr4() | CR4_PAGE_GLOBAL_ENABLE);
+        g_global_pages_enabled = true;
+    }
+
+    kernel::core::memory::set_hw_allocatable(page_size::SIZE_1G,
+                                             (extended_edx & EDX_GIB_PAGES) != 0);
 }
 
-const paging_features &features()
+bool nx_enabled()
 {
-    return g_features;
+    return g_nx_enabled;
+}
+
+bool global_pages_enabled()
+{
+    return g_global_pages_enabled;
+}
+
+bool gib_pages_supported()
+{
+    return is_hw_allocatable(page_size::SIZE_1G) == page_hw_allocatability::YES;
 }
 
 }  // namespace kernel::core::memory::vmm::mmu

@@ -11,15 +11,30 @@
 // Kernel files
 // =================================================================================================
 
+#include "kernel/core/bitmap.hpp"
+#include "kernel/core/memory/page.hpp"
 #include "kernel/core/types.hpp"
 
 namespace kernel::core::memory::vmm::mmu {
 
 using kernel::core::paddr_t;
 using kernel::core::u64;
-using kernel::core::u8;
 using kernel::core::usize;
 using kernel::core::vaddr_t;
+using kernel::core::memory::bytes_in;
+using kernel::core::memory::is_hw_allocatable;
+using kernel::core::memory::page;
+using kernel::core::memory::page_1g;
+using kernel::core::memory::page_2m;
+using kernel::core::memory::page_4k;
+using kernel::core::memory::page_hw_allocatability;
+using kernel::core::memory::page_size;
+using kernel::core::memory::PAGE_SHIFT_1G;
+using kernel::core::memory::PAGE_SHIFT_2M;
+using kernel::core::memory::PAGE_SHIFT_4K;
+using kernel::core::memory::PAGE_SIZE_1G;
+using kernel::core::memory::PAGE_SIZE_2M;
+using kernel::core::memory::PAGE_SIZE_4K;
 
 // =================================================================================================
 // Paging constants
@@ -27,44 +42,19 @@ using kernel::core::vaddr_t;
 
 inline constexpr usize ENTRIES_PER_TABLE = 512;
 
-inline constexpr u64 PAGE_SHIFT_4K = 12;
-inline constexpr u64 PAGE_SHIFT_2M = 21;
-inline constexpr u64 PAGE_SHIFT_1G = 30;
 inline constexpr u64 PML4_SLOT_SIZE = u64{1} << 39;
-
-inline constexpr u64 PAGE_SIZE_4K = u64{1} << PAGE_SHIFT_4K;
-inline constexpr u64 PAGE_SIZE_2M = u64{1} << PAGE_SHIFT_2M;
-inline constexpr u64 PAGE_SIZE_1G = u64{1} << PAGE_SHIFT_1G;
 
 inline constexpr vaddr_t KERNEL_BASE = static_cast<vaddr_t>(DOOM_OS_KERNEL_VMA);
 inline constexpr vaddr_t DIRECT_MAP_BASE = static_cast<vaddr_t>(DOOM_OS_DIRECT_MAP_BASE);
 inline constexpr u64     DIRECT_MAP_SIZE = static_cast<u64>(DOOM_OS_MAX_PHYSICAL_MEMORY);
+
+inline constexpr u64 EARLY_MAP_SIZE = static_cast<u64>(DOOM_OS_EARLY_MAP_SIZE);
 
 static_assert((KERNEL_BASE & (PAGE_SIZE_1G - 1)) == 0, "kernel base must be 1 GiB aligned");
 static_assert((DIRECT_MAP_BASE & (PML4_SLOT_SIZE - 1)) == 0,
               "direct map base must be 512 GiB aligned");
 static_assert(DIRECT_MAP_SIZE % PAGE_SIZE_2M == 0,
               "direct map size must be expressible as 2 MiB leaves");
-
-enum class page_size : u8 {
-    SIZE_4K,
-    SIZE_2M,
-    SIZE_1G,
-};
-
-[[nodiscard]] inline constexpr u64 bytes_in(page_size size)
-{
-    switch (size) {
-        case page_size::SIZE_4K:
-            return PAGE_SIZE_4K;
-        case page_size::SIZE_2M:
-            return PAGE_SIZE_2M;
-        case page_size::SIZE_1G:
-            return PAGE_SIZE_1G;
-    }
-
-    return 0;
-}
 
 [[nodiscard]] inline constexpr usize pml4_index(vaddr_t address)
 {
@@ -90,14 +80,17 @@ enum class page_size : u8 {
 // Page attributes
 // =================================================================================================
 
-struct page_flags {
-    bool writable{};
-    bool executable{};
-    bool user{};
-    bool global{};
-    bool write_through{};
-    bool cache_disable{};
-};
+using page_flags = kernel::core::utils::bitmap<64, u64>;
+
+inline constexpr u64 PAGE_FLAG_WRITABLE = u64{1} << 1;
+inline constexpr u64 PAGE_FLAG_USER = u64{1} << 2;
+inline constexpr u64 PAGE_FLAG_WRITE_THROUGH = u64{1} << 3;
+inline constexpr u64 PAGE_FLAG_CACHE_DISABLE = u64{1} << 4;
+inline constexpr u64 PAGE_FLAG_GLOBAL = u64{1} << 8;
+inline constexpr u64 PAGE_FLAG_NO_EXECUTE = u64{1} << 63;
+inline constexpr u64 PAGE_FLAGS_MASK = PAGE_FLAG_WRITABLE | PAGE_FLAG_USER |
+                                       PAGE_FLAG_WRITE_THROUGH | PAGE_FLAG_CACHE_DISABLE |
+                                       PAGE_FLAG_GLOBAL | PAGE_FLAG_NO_EXECUTE;
 
 // A resolved translation. frame and offset are kept apart because they answer different
 // questions: a caller re-mapping or freeing the page wants the frame, one chasing a pointer

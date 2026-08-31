@@ -61,9 +61,6 @@ private:
     }
 
     // Bits [0, last].
-    //
-    // mask() returning all bits when asked for the complete word makes
-    // offset_of(last) == WORD_BITS - 1 work without shifting by WORD_BITS.
     [[nodiscard]] static constexpr __attribute__((always_inline)) StorageType mask_upto(usize last)
     {
         return mask<StorageType>(offset_of(last) + 1);

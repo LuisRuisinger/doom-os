@@ -6,6 +6,7 @@
 // =================================================================================================
 
 #include "kernel/arch/x86_64/cpu/cpu.hpp"
+#include "kernel/arch/x86_64/cpu/fpu.hpp"
 #include "kernel/arch/x86_64/exceptions/exceptions.hpp"
 #include "kernel/core/component.hpp"
 
@@ -52,11 +53,16 @@ DOOM_OS_BIND_CORE_RESOURCE(kernel::arch::x86_64::idt::core_component,
 //
 // The IDT is the last thing to go live on a core, so its dependency closure is the whole
 // per-core graph: stacks -> tss -> gdt, exceptions -> idt.
+//
+// The FPU is a second root rather than a link in that chain. It depends on nothing and nothing
+// depends on it - no kernel code uses x87 or SSE - so hanging it off the IDT closure would state
+// an ordering that does not exist.
 // =================================================================================================
 
 namespace kernel::arch::x86_64::core_wiring {
 
-using core_roots = kernel::core::type_list<kernel::arch::x86_64::idt::core_component>;
+using core_roots = kernel::core::type_list<kernel::arch::x86_64::idt::core_component,
+                                           kernel::arch::x86_64::cpu::fpu_component>;
 
 }  // namespace kernel::arch::x86_64::core_wiring
 

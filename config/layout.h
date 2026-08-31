@@ -17,6 +17,14 @@
 #define DOOM_OS_KERNEL_VMA 0xffffffff80000000
 
 /*
+ * Permanent physical direct map. Physical address P is reachable at
+ * DOOM_OS_DIRECT_MAP_BASE + P once the VMM switches away from the early boot tables.
+ *
+ * The base is 512 GiB aligned so a single PML4 slot owns the whole region.
+ */
+#define DOOM_OS_DIRECT_MAP_BASE 0xffff800000000000
+
+/*
  * How much the early page tables cover, from DOOM_OS_KERNEL_VMA and from 0. One page directory
  * of 2 MiB entries, so this caps at 1 GiB. The linker script asserts the kernel image fits.
  */

@@ -20,6 +20,10 @@ extern "C" init_function __fini_array_end[];
 
 // =================================================================================================
 // Global constructors
+//
+// Empty on an image with no application: the kernel is written in a C++ subset with no runtime
+// and contributes no entries, which cmake/CheckKernelRuntime.cmake enforces on a STDLIB NONE
+// build. Everything walked here is the application's.
 // =================================================================================================
 
 void call_global_constructors()

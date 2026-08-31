@@ -13,14 +13,31 @@
 
 #include "kernel/boot/boot_info.hpp"
 #include "kernel/core/component.hpp"
+#include "kernel/core/memory/page.hpp"
 #include "kernel/core/types.hpp"
 
 namespace kernel::core::memory::pmm {
 
 using kernel::core::paddr_t;
 using kernel::core::u64;
-using kernel::core::u8;
 using kernel::core::usize;
+using kernel::core::memory::bytes_in;
+using kernel::core::memory::frames_in;
+using kernel::core::memory::FRAME_SHIFT;
+using kernel::core::memory::FRAME_SIZE;
+using kernel::core::memory::FRAMES_PER_1G;
+using kernel::core::memory::FRAMES_PER_2M;
+using kernel::core::memory::is_page_size;
+using kernel::core::memory::is_sw_allocatable;
+using kernel::core::memory::page;
+using kernel::core::memory::page_1g;
+using kernel::core::memory::page_2m;
+using kernel::core::memory::page_4k;
+using kernel::core::memory::page_size;
+using kernel::core::memory::page_size_of;
+using kernel::core::memory::PAGE_SIZE_1G;
+using kernel::core::memory::PAGE_SIZE_2M;
+using kernel::core::memory::PAGE_SIZE_4K;
 
 // =================================================================================================
 // Constants
@@ -30,46 +47,15 @@ using kernel::core::usize;
 // be large and aligned.
 // =================================================================================================
 
-inline constexpr u64 FRAME_SIZE = 4096;
-inline constexpr u64 FRAME_SHIFT = 12;
-
-inline constexpr usize FRAMES_PER_2M = 512;
-inline constexpr usize FRAMES_PER_1G = FRAMES_PER_2M * 512;
-
 inline constexpr u64   MAX_PHYSICAL_MEMORY = DOOM_OS_MAX_PHYSICAL_MEMORY;
 inline constexpr usize MAX_FRAMES = MAX_PHYSICAL_MEMORY / FRAME_SIZE;
 
 inline constexpr paddr_t INVALID_PHYSICAL_ADDRESS = ~paddr_t{0};
 
 static_assert(u64{1} << FRAME_SHIFT == FRAME_SIZE);
-static_assert(MAX_PHYSICAL_MEMORY % (FRAMES_PER_1G * FRAME_SIZE) == 0,
+static_assert(MAX_PHYSICAL_MEMORY % PAGE_SIZE_1G == 0,
               "the physical ceiling must be a whole number of 1 GiB blocks, so that no block is "
               "partially outside the managed range");
-
-enum class page_size : u8 {
-    SMALL_4K,
-    LARGE_2M,
-    HUGE_1G,
-};
-
-[[nodiscard]] inline constexpr usize frames_in(page_size size)
-{
-    switch (size) {
-        case page_size::SMALL_4K:
-            return 1;
-        case page_size::LARGE_2M:
-            return FRAMES_PER_2M;
-        case page_size::HUGE_1G:
-            return FRAMES_PER_1G;
-    }
-
-    return 0;
-}
-
-[[nodiscard]] inline constexpr u64 bytes_in(page_size size)
-{
-    return frames_in(size) * FRAME_SIZE;
-}
 
 // =================================================================================================
 // PMM API
@@ -85,7 +71,7 @@ enum class page_size : u8 {
 [[nodiscard]] bool alloc_pages(page_size size, usize count, paddr_t *out);
 void free_pages(page_size size, usize count, const paddr_t *pages);
 
-[[nodiscard]] paddr_t alloc_page(page_size size = page_size::SMALL_4K);
+[[nodiscard]] paddr_t alloc_page(page_size size = page_size::SIZE_4K);
 void free_page(page_size size, paddr_t base);
 
 // =================================================================================================
@@ -94,19 +80,6 @@ void free_page(page_size size, paddr_t base);
 // A page named by its byte count, so a call site says span_2m and is wrong at compile time
 // rather than at run time.
 // =================================================================================================
-
-[[nodiscard]] inline constexpr bool is_page_size(u64 bytes)
-{
-    return bytes == bytes_in(page_size::SMALL_4K) || bytes == bytes_in(page_size::LARGE_2M) ||
-           bytes == bytes_in(page_size::HUGE_1G);
-}
-
-[[nodiscard]] inline constexpr page_size page_size_of(u64 bytes)
-{
-    return bytes == bytes_in(page_size::SMALL_4K)   ? page_size::SMALL_4K
-           : bytes == bytes_in(page_size::LARGE_2M) ? page_size::LARGE_2M
-                                                    : page_size::HUGE_1G;
-}
 
 template <u64 Bytes>
 struct span {
@@ -128,8 +101,8 @@ struct span {
 };
 
 using span_4k = span<FRAME_SIZE>;
-using span_2m = span<2 * 1024 * 1024>;
-using span_1g = span<1024 * 1024 * 1024>;
+using span_2m = span<PAGE_SIZE_2M>;
+using span_1g = span<PAGE_SIZE_1G>;
 
 // =================================================================================================
 // Component

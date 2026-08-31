@@ -5,6 +5,7 @@
 #include "kernel/arch/x86_64/exceptions/exceptions.hpp"
 
 #include "kernel/arch/x86_64/cpu/cpu.hpp"
+#include "kernel/arch/x86_64/cpu/registers.hpp"
 #include "kernel/arch/x86_64/idt/idt.hpp"
 #include "kernel/arch/x86_64/tss/tss.hpp"
 #include "kernel/debug/kpanic.hpp"
@@ -245,28 +246,17 @@ static const cpu::stack &fatal_exception_stack(cpu::local_state &cpu, u8 vector)
 // - then override every field the exception frame actually recorded.
 // =================================================================================================
 
-#define DOOM_OS_READ_SEGMENT_REGISTER(field__, asm_name__)        \
-    do {                                                          \
-        kernel::core::u16 value__;                                \
-        asm volatile("mov %%" asm_name__ ", %0" : "=r"(value__)); \
-        out.field__ = value__;                                    \
-    } while (0);
-
-#define DOOM_OS_READ_CONTROL_REGISTER(field__, asm_name__)        \
-    do {                                                          \
-        u64 value__;                                              \
-        asm volatile("mov %%" asm_name__ ", %0" : "=r"(value__)); \
-        out.field__ = value__;                                    \
-    } while (0);
-
+// The general-purpose registers come from the exception frame, which recorded them as they were
+// when the fault hit. Everything else is still live in the CPU and is read back here.
 static void capture_ambient_registers(kernel::debug::panic_register_frame &out)
 {
-    DOOM_OS_KPANIC_SEGS(DOOM_OS_READ_SEGMENT_REGISTER)
-    DOOM_OS_KPANIC_CRS(DOOM_OS_READ_CONTROL_REGISTER)
-}
+#define DOOM_OS_CAPTURE(name__, asm_name__) out.name__ = kernel::arch::x86_64::cpu::read_##name__();
 
-#undef DOOM_OS_READ_SEGMENT_REGISTER
-#undef DOOM_OS_READ_CONTROL_REGISTER
+    DOOM_OS_X86_SEGS(DOOM_OS_CAPTURE)
+    DOOM_OS_X86_CRS(DOOM_OS_CAPTURE)
+
+#undef DOOM_OS_CAPTURE
+}
 
 static kernel::debug::panic_register_frame panic_frame_from(const exception_frame &frame)
 {
@@ -299,12 +289,57 @@ static kernel::debug::panic_register_frame panic_frame_from(const exception_fram
     return __panic_frame;
 }
 
+// =================================================================================================
+// Page fault cause
+//
+// The #PF error code is a bitfield the manual describes one bit at a time, so a raw hex dump of
+// it is the least useful thing to print at the moment a fault is killing the kernel. Decoding it
+// into named fields costs nothing at runtime, and the field names are the output: the formatter
+// walks this struct rather than a hand-written list that could disagree with it.
+//
+// Bit 0 is the odd one out - it reports a protection violation when set and a not-present page
+// when clear - so it is named for what a set bit means, like the rest.
+// =================================================================================================
+
+static constexpr u64 PAGE_FAULT_VECTOR = 14;
+
+struct page_fault_cause {
+    bool protection_violation;
+    bool write;
+    bool user;
+    bool reserved_bit;
+    bool instruction_fetch;
+    bool protection_key;
+    bool shadow_stack;
+};
+
+static page_fault_cause decode_page_fault(u64 error_code)
+{
+    const auto bit = [error_code](u64 index) { return (error_code & (u64{1} << index)) != 0; };
+
+    return page_fault_cause{
+        .protection_violation = bit(0),
+        .write = bit(1),
+        .user = bit(2),
+        .reserved_bit = bit(3),
+        .instruction_fetch = bit(4),
+        .protection_key = bit(5),
+        .shadow_stack = bit(6),
+    };
+}
+
 [[noreturn]] void panic_unhandled_exception(const exception_frame &frame)
 {
     const auto  vector = frame.vector;
     const auto *name = vector < CPU_EXCEPTION_COUNT ? EXCEPTION_NAMES[vector] : "unknown exception";
 
     auto dump = panic_frame_from(frame);
+
+    // capture_ambient_registers already read CR2, which is where the #PF address lives.
+    if (vector == PAGE_FAULT_VECTOR) {
+        KPANIC_WITH_FRAME(dump, "[exception] {} address={:#018X} error={:#x} cause={}", name,
+                          dump.cr2, frame.error_code, decode_page_fault(frame.error_code));
+    }
 
     KPANIC_WITH_FRAME(dump, "[exception] {} vector={} error={:#018X}", name, vector,
                       frame.error_code);

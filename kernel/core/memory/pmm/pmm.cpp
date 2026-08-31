@@ -485,7 +485,7 @@ bool alloc_pages(page_size size, usize count, paddr_t *out)
     if (!g_allocator.initialized || count * frames_in(size) > g_allocator.free_frames)
         return false;
 
-    if (size == page_size::SMALL_4K) {
+    if (size == page_size::SIZE_4K) {
         // Frames are counted, so the check above is exact and nothing below comes up short.
         const usize taken = take_frames_locked(count, out);
 
@@ -498,7 +498,7 @@ bool alloc_pages(page_size size, usize count, paddr_t *out)
     // Whole blocks are not counted - finding out how many exist costs the same as taking them -
     // so a large request is attempted and handed straight back if the machine came up short.
     for (usize taken = 0; taken < count; ++taken) {
-        out[taken] = size == page_size::LARGE_2M ? take_2m_locked() : take_1g_locked();
+        out[taken] = size == page_size::SIZE_2M ? take_2m_locked() : take_1g_locked();
 
         if (out[taken] != INVALID_PHYSICAL_ADDRESS)
             continue;

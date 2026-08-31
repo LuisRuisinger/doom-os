@@ -81,14 +81,18 @@ SECTIONS
 
     .text ALIGN(4K) : AT(ADDR(.text) - KERNEL_VMA)
     {
+        __text_start = .;
         *(.text .text.*)
         *(.gnu.linkonce.t.*)
+        __text_end = .;
     } :text
 
     .rodata ALIGN(4K) : AT(ADDR(.rodata) - KERNEL_VMA)
     {
+        __rodata_start = .;
         *(.rodata .rodata.*)
         *(.gnu.linkonce.r.*)
+        __rodata_end = .;
     } :rodata
 
     /*
@@ -99,8 +103,10 @@ SECTIONS
      */
     .data.rel.ro ALIGN(4K) : AT(ADDR(.data.rel.ro) - KERNEL_VMA)
     {
+        __data_rel_ro_start = .;
         *(.data.rel.ro .data.rel.ro.*)
         *(.data.rel.ro.local .data.rel.ro.local.*)
+        __data_rel_ro_end = .;
     } :data
 
     .init_array ALIGN(8) : AT(ADDR(.init_array) - KERNEL_VMA)
@@ -119,13 +125,45 @@ SECTIONS
         __fini_array_end = .;
     } :data
 
+    /* GCC emits global constructors into either .init_array or the legacy .ctors, and which one
+       is decided when GCC itself is configured, not by any flag we can pass here. A cross GCC
+       built --without-headers cannot run the configure probe that selects .init_array, so it
+       falls back to .ctors unless it was built --enable-initfini-array.
+       libos/crt.cpp walks .init_array. Collecting .ctors here and asserting it empty is what
+       stops a toolchain of the wrong kind from silently dropping every constructor in the image
+       into an orphan section nothing ever calls. */
+    .ctors ALIGN(8) : AT(ADDR(.ctors) - KERNEL_VMA)
+    {
+        __ctors_start = .;
+        KEEP(*(SORT_BY_NAME(.ctors.*)))
+        KEEP(*(.ctors))
+        __ctors_end = .;
+    } :data
+
+    .dtors ALIGN(8) : AT(ADDR(.dtors) - KERNEL_VMA)
+    {
+        __dtors_start = .;
+        KEEP(*(SORT_BY_NAME(.dtors.*)))
+        KEEP(*(.dtors))
+        __dtors_end = .;
+    } :data
+
+    ASSERT(__ctors_end == __ctors_start,
+           "This toolchain emits .ctors instead of .init_array, so global constructors would \
+never run. Rebuild the toolchain image with --enable-initfini-array.")
+
+    ASSERT(__dtors_end == __dtors_start,
+           "This toolchain emits .dtors instead of .fini_array.")
+
     .data ALIGN(4K) : AT(ADDR(.data) - KERNEL_VMA)
     {
+        __data_start = .;
         *(.data .data.*)
         *(.gnu.linkonce.d.*)
 
         *(.got .got.*)
         *(.got.plt .got.plt.*)
+        __data_end = .;
     } :data
 
     .bss ALIGN(4K) : AT(ADDR(.bss) - KERNEL_VMA)

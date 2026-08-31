@@ -31,6 +31,9 @@ using no_deps = type_list<>;
 // across the graph so the runner can log any component's failure without knowing which one
 // it ran; a component with a richer error domain of its own should keep that domain private
 // and convert at the boundary with RESULT_ERROR_CONVERSION.
+//
+// There is no describe() to keep in step with this list: kprint reflects an enum to its
+// enumerator name, so a category added here prints without anything else being edited.
 // =================================================================================================
 
 enum class init_error : u8 {
@@ -41,26 +44,6 @@ enum class init_error : u8 {
     NO_USABLE_MEMORY,
     HARDWARE_UNSUPPORTED,
 };
-
-inline const char *describe(init_error error)
-{
-    switch (error) {
-        case init_error::UNSPECIFIED:
-            return "unspecified failure";
-        case init_error::DEPENDENCY_UNAVAILABLE:
-            return "a dependency published no usable state";
-        case init_error::INVALID_BOOT_DATA:
-            return "boot data missing or malformed";
-        case init_error::CAPACITY_EXCEEDED:
-            return "input exceeds a compile-time capacity";
-        case init_error::NO_USABLE_MEMORY:
-            return "no usable memory in the boot memory map";
-        case init_error::HARDWARE_UNSUPPORTED:
-            return "required hardware feature is unavailable";
-    }
-
-    return "unknown error";
-}
 
 using init_result = Result<void, init_error>;
 

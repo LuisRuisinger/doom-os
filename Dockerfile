@@ -13,6 +13,7 @@ ARG TARGET=x86_64-elf
 ARG PREFIX=/opt/cross
 ARG BINUTILS_VERSION=2.46.1
 ARG GCC_VERSION=15.3.0
+ARG NEWLIB_VERSION=4.4.0.20231231
 
 ENV PATH="${PREFIX}/bin:${PATH}"
 
@@ -35,6 +36,13 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 
 WORKDIR /tmp/cross
 
+# --enable-initfini-array is not optional here. GCC decides between .init_array and the legacy
+# .ctors by probing the target libc and binutils at configure time, and a --without-headers cross
+# build has no libc to probe, so it silently falls back to .ctors. The linker script collects
+# .init_array, so without this flag every global constructor in the image lands in a section
+# nothing walks and never runs. config/linker.ld.in asserts .ctors is empty to catch a toolchain
+# built without it.
+#
 # libstdc++ is built freestanding (--disable-hosted-libstdcxx), which installs only the subset
 # C++20 requires of a freestanding implementation: <type_traits>, <concepts>, <bit>, <limits>,
 # <new>, <exception>, <cstddef>, <cstdint> and friends. All header-only template machinery, so
@@ -68,6 +76,7 @@ RUN wget -q "https://ftp.gnu.org/gnu/binutils/binutils-${BINUTILS_VERSION}.tar.x
       --disable-libgomp \
       --disable-libquadmath \
       --disable-libatomic \
+      --enable-initfini-array \
       --disable-hosted-libstdcxx \
       --disable-libstdcxx-verbose \
       --disable-libstdcxx-pch \
@@ -79,6 +88,50 @@ RUN wget -q "https://ftp.gnu.org/gnu/binutils/binutils-${BINUTILS_VERSION}.tar.x
     && make install-target-libstdc++-v3 \
     && cd / \
     && rm -rf /tmp/cross
+
+# =================================================================================================
+# newlib
+#
+# The C library the application links against. The kernel does not: it keeps building -nostdlib,
+# and newlib only ever reaches the application and the POSIX shim.
+#
+# Built against the cross GCC that was just installed, so GCC does not have to be rebuilt - newlib
+# installs into ${PREFIX}/${TARGET}/{include,lib}, which x86_64-elf-gcc already searches.
+#
+# CFLAGS_FOR_TARGET repeats the flags that describe the machine rather than the code. SSE is not
+# among them: newlib is application-side, its optimised string routines want XMM, and the kernel
+# sets CR4.OSFXSR before calling main precisely so they can have it.
+#
+# -mno-red-zone stays, because an interrupt at the same privilege level does not switch stacks and
+# lands on top of the red zone. -mcmodel=kernel stays for the same reason it is on the kernel: the
+# image is linked into the higher half.
+#
+# --disable-newlib-io-float keeps the double formatting paths out of printf, which is what makes
+# a libc usable at all on a target with no FPU enabled.
+#
+# Syscalls are deliberately left enabled - the default - so the library expects a porting layer to
+# be linked in rather than stubbed out by libnosys. What it expects to find is the unprefixed
+# names: the reentrant wrappers reference write, sbrk and friends directly, which is what
+# _syslist.h does under MISSING_SYSCALL_NAMES, and no public wrapper over _write is shipped.
+# libos/posix.cpp defines both spellings for that reason.
+# =================================================================================================
+
+WORKDIR /tmp/newlib
+
+RUN wget -q "https://sourceware.org/pub/newlib/newlib-${NEWLIB_VERSION}.tar.gz" \
+    && tar -xf "newlib-${NEWLIB_VERSION}.tar.gz" \
+    && mkdir build-newlib \
+    && cd build-newlib \
+    && CFLAGS_FOR_TARGET="-O2 -ffreestanding -mno-red-zone -mcmodel=kernel" \
+       "../newlib-${NEWLIB_VERSION}/configure" \
+      --target="${TARGET}" \
+      --prefix="${PREFIX}" \
+      --disable-multilib \
+      --disable-newlib-io-float \
+    && make -j"$(nproc)" \
+    && make install \
+    && cd / \
+    && rm -rf /tmp/newlib
 
 # =================================================================================================
 # Development image
@@ -144,6 +197,7 @@ RUN wget -qO- https://apt.llvm.org/llvm-snapshot.gpg.key \
 COPY --from=toolchain /opt/cross /opt/cross
 
 RUN x86_64-elf-gcc --version \
+    && test -f "${PREFIX}/${TARGET}/lib/libc.a" \
     && x86_64-elf-g++ --version \
     && grub-mkrescue --version \
     && qemu-system-x86_64 --version \

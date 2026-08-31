@@ -12,6 +12,7 @@
 #include "kernel/boot/boot_info.hpp"
 #include "kernel/core/bits.hpp"
 #include "kernel/core/memory/vmm/mmu/entry.hpp"
+#include "kernel/core/memory/vmm/mmu/features.hpp"
 #include "kernel/core/memory/vmm/mmu/mmu.hpp"
 #include "kernel/core/memory/vmm/mmu/tlb.hpp"
 #include "kernel/sync/spinlock.hpp"
@@ -27,13 +28,10 @@ using kernel::core::utils::align_down;
 using kernel::core::utils::align_up;
 using kernel::core::utils::is_aligned;
 
-inline constexpr usize EARLY_PD_ENTRY_COUNT =
-    static_cast<usize>(static_cast<u64>(DOOM_OS_EARLY_MAP_SIZE) / PAGE_SIZE_2M);
+inline constexpr usize EARLY_PD_ENTRY_COUNT = static_cast<usize>(EARLY_MAP_SIZE / PAGE_SIZE_2M);
 inline constexpr usize DIRECT_PD_COUNT = static_cast<usize>(DIRECT_MAP_SIZE / PAGE_SIZE_1G);
 
-inline constexpr u64 EARLY_MAP_SIZE = static_cast<u64>(DOOM_OS_EARLY_MAP_SIZE);
-
-static_assert(static_cast<u64>(DOOM_OS_EARLY_MAP_SIZE) % PAGE_SIZE_2M == 0);
+static_assert(EARLY_MAP_SIZE % PAGE_SIZE_2M == 0);
 static_assert(EARLY_PD_ENTRY_COUNT <= ENTRIES_PER_TABLE);
 static_assert(DIRECT_PD_COUNT > 0);
 static_assert(DIRECT_PD_COUNT <= ENTRIES_PER_TABLE);
@@ -218,24 +216,13 @@ void link_bootstrap_tables()
 
 [[nodiscard]] bool build_bootstrap_tables(const kernel::boot::info &boot)
 {
-    const page_flags identity_flags{
-        .writable = true,
-        .executable = false,
-        .user = false,
-        .global = false,
-    };
-    const page_flags kernel_flags{
-        .writable = true,
-        .executable = true,
-        .user = false,
-        .global = true,
-    };
-    const page_flags direct_flags{
-        .writable = true,
-        .executable = false,
-        .user = false,
-        .global = true,
-    };
+    page_flags identity_flags{};
+    page_flags kernel_flags{};
+    page_flags direct_flags{};
+
+    identity_flags.word(0) = PAGE_FLAG_WRITABLE | PAGE_FLAG_NO_EXECUTE;
+    kernel_flags.word(0) = PAGE_FLAG_WRITABLE | PAGE_FLAG_GLOBAL;
+    direct_flags.word(0) = PAGE_FLAG_WRITABLE | PAGE_FLAG_GLOBAL | PAGE_FLAG_NO_EXECUTE;
 
     clear_bootstrap_tables();
     link_bootstrap_tables();
@@ -265,24 +252,13 @@ void link_bootstrap_tables()
 
 [[nodiscard]] bool protect_kernel_image()
 {
-    const page_flags writable_data{
-        .writable = true,
-        .executable = false,
-        .user = false,
-        .global = true,
-    };
-    const page_flags text{
-        .writable = false,
-        .executable = true,
-        .user = false,
-        .global = true,
-    };
-    const page_flags rodata{
-        .writable = false,
-        .executable = false,
-        .user = false,
-        .global = true,
-    };
+    page_flags writable_data{};
+    page_flags text{};
+    page_flags rodata{};
+
+    writable_data.word(0) = PAGE_FLAG_WRITABLE | PAGE_FLAG_GLOBAL | PAGE_FLAG_NO_EXECUTE;
+    text.word(0) = PAGE_FLAG_GLOBAL;
+    rodata.word(0) = PAGE_FLAG_GLOBAL | PAGE_FLAG_NO_EXECUTE;
 
     if (!map_kernel_region(__data_rel_ro_start, kernel_end, writable_data))
         return false;
@@ -376,7 +352,7 @@ bool map_range(vaddr_t virtual_address, paddr_t physical_address, u64 length, pa
     if (!map_range_no_flush(virtual_address, physical_address, length, size, flags))
         return false;
 
-    if (flags.global && features().global)
+    if ((flags.word(0) & PAGE_FLAG_GLOBAL) != 0 && global_pages_enabled())
         tlb::flush_all_global();
     else
         tlb::flush_all();

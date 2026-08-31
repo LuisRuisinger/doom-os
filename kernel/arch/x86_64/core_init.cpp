@@ -29,8 +29,7 @@ struct core_logger {
     template <typename Component>
     void fail(cpu::local_state &cpu, kernel::core::init_error error)
     {
-        KPRINTLN("[init][core {}] {}: FAIL ({})", cpu.logical_id(), Component::name,
-                 kernel::core::describe(error));
+        KPRINTLN("[init][core {}] {}: FAIL ({})", cpu.logical_id(), Component::name, error);
     }
 };
 
