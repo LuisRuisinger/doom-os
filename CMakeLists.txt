@@ -277,6 +277,10 @@ if(NOT DOOM_OS_LINK_NEWLIB)
     # The POSIX shim exists to be called by newlib and includes newlib headers. Without newlib it is
     # not merely unused, it cannot compile against a --without-headers toolchain.
     list(REMOVE_ITEM LIBOS_SOURCES ${DOOM_OS_ROOT}/libos/posix.cpp)
+
+    # The glibc ABI surface sits on top of newlib and includes its headers, so it goes the same
+    # way. Without a C library there is nothing for a Linux object to resolve against anyway.
+    list(REMOVE_ITEM LIBOS_SOURCES ${DOOM_OS_ROOT}/libos/glibc_abi.cpp)
 endif()
 
 # =================================================================================================
