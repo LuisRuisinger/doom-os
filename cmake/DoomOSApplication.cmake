@@ -1,41 +1,18 @@
 # =================================================================================================
 # DoomOS application support
+#
+# An application enters the image as object files and nothing else. The project does not compile
+# it, does not know what language it was written in, and does not read it: the only contract is at
+# link time, where the objects must define main with C linkage and resolve against what the image
+# already provides. Everything a source-level path could have checked - kernel-private includes,
+# freestanding flags - is unavailable once the answer is an object, so the contract is stated
+# rather than enforced. See doom_os_application() for it.
 # =================================================================================================
-
-function(doom_os_reject_internal_application_include_dir include_dir)
-    get_filename_component(_application_include_dir "${include_dir}" ABSOLUTE BASE_DIR "${CMAKE_CURRENT_SOURCE_DIR}")
-    get_filename_component(_kernel_dir "${DOOM_OS_ROOT}/kernel" ABSOLUTE)
-    get_filename_component(_libos_dir "${DOOM_OS_ROOT}/libos" ABSOLUTE)
-
-    string(FIND "${_application_include_dir}/" "${_kernel_dir}/" _kernel_dir_pos)
-    string(FIND "${_application_include_dir}/" "${_libos_dir}/" _libos_dir_pos)
-
-    if(_kernel_dir_pos EQUAL 0 OR _libos_dir_pos EQUAL 0)
-        message(FATAL_ERROR
-                "Application include directory '${include_dir}' points at kernel internals. "
-                "An application reaches the kernel through the C library, not directly.")
-    endif()
-endfunction()
-
-function(doom_os_check_application_source source_file)
-    get_filename_component(_source_file "${source_file}" ABSOLUTE BASE_DIR "${CMAKE_CURRENT_SOURCE_DIR}")
-    if(NOT EXISTS "${_source_file}")
-        message(FATAL_ERROR "Application source '${source_file}' does not exist")
-    endif()
-
-    file(READ "${_source_file}" _application_source)
-    if(_application_source MATCHES
-       "#[ \t]*include[ \t]*[<\"](kernel/(arch|boot|core|debug|runtime|sync)|libos)/")
-        message(FATAL_ERROR
-                "Application source '${source_file}' includes a kernel-private header. "
-                "An application reaches the kernel through the C library, not directly.")
-    endif()
-endfunction()
 
 function(doom_os_application application_name)
     set(_options)
     set(_one_value_args STDLIB)
-    set(_multi_value_args SOURCES INCLUDE_DIRECTORIES COMPILE_DEFINITIONS)
+    set(_multi_value_args OBJECTS DEPENDS)
 
     cmake_parse_arguments(APPLICATION
             "${_options}"
@@ -43,8 +20,16 @@ function(doom_os_application application_name)
             "${_multi_value_args}"
             ${ARGN})
 
-    if(NOT APPLICATION_SOURCES)
-        message(FATAL_ERROR "doom_os_application(${application_name}) requires SOURCES")
+    if(APPLICATION_UNPARSED_ARGUMENTS)
+        message(FATAL_ERROR
+                "doom_os_application(${application_name}) got unexpected arguments: "
+                "${APPLICATION_UNPARSED_ARGUMENTS}. Applications are linked as objects; there is "
+                "no SOURCES form. Compile with whatever toolchain the application is written for "
+                "and pass the result in OBJECTS.")
+    endif()
+
+    if(NOT APPLICATION_OBJECTS)
+        message(FATAL_ERROR "doom_os_application(${application_name}) requires OBJECTS")
     endif()
 
     if(NOT APPLICATION_STDLIB)
@@ -61,34 +46,20 @@ function(doom_os_application application_name)
                 "An application is already defined (${_existing}). A unikernel image holds one.")
     endif()
 
-    set(_target "doom_os_application_${application_name}")
-
-    add_library(${_target} OBJECT ${APPLICATION_SOURCES})
-    target_compile_definitions(${_target} PRIVATE ${APPLICATION_COMPILE_DEFINITIONS})
-    target_compile_definitions(${_target} PRIVATE DOOM_OS_APPLICATION_STDLIB_${_stdlib}=1)
-    target_include_directories(${_target} PRIVATE ${DOOM_OS_ROOT}/include)
-    target_link_libraries(${_target} PRIVATE doom_os_config)
-
-    doom_os_configure_freestanding_target(${_target} ALLOW_SSE)
-
-    foreach(_source IN LISTS APPLICATION_SOURCES)
-        doom_os_check_application_source("${_source}")
+    # A path handed in from a custom command is an object to link, not a source to compile, and
+    # CMake has to be told both that and that it does not exist yet. Generator expressions are
+    # left alone: $<TARGET_OBJECTS:...> already carries the same meaning.
+    foreach(_object IN LISTS APPLICATION_OBJECTS)
+        if(NOT _object MATCHES "\\$<")
+            set_source_files_properties(${_object} PROPERTIES EXTERNAL_OBJECT TRUE GENERATED TRUE)
+        endif()
     endforeach()
 
-    foreach(_include_dir IN LISTS APPLICATION_INCLUDE_DIRECTORIES)
-        doom_os_reject_internal_application_include_dir("${_include_dir}")
-    endforeach()
-
-    if(APPLICATION_INCLUDE_DIRECTORIES)
-        target_include_directories(${_target} PRIVATE ${APPLICATION_INCLUDE_DIRECTORIES})
-    endif()
-
-    set_property(GLOBAL PROPERTY DOOM_OS_APPLICATION_TARGET ${_target})
+    set_property(GLOBAL PROPERTY DOOM_OS_APPLICATION_TARGET ${application_name})
     set_property(GLOBAL PROPERTY DOOM_OS_APPLICATION_STDLIB ${_stdlib})
+    set_property(GLOBAL PROPERTY DOOM_OS_APPLICATION_OBJECTS "${APPLICATION_OBJECTS}")
 
-    if(TARGET kernel.elf)
-        target_sources(kernel.elf PRIVATE $<TARGET_OBJECTS:${_target}>)
-    else()
-        set_property(GLOBAL PROPERTY DOOM_OS_APPLICATION_OBJECTS "$<TARGET_OBJECTS:${_target}>")
+    if(APPLICATION_DEPENDS)
+        set_property(GLOBAL PROPERTY DOOM_OS_APPLICATION_DEPENDS "${APPLICATION_DEPENDS}")
     endif()
 endfunction()

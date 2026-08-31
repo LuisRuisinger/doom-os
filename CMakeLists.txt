@@ -224,6 +224,8 @@ if(DOOM_OS_APPLICATION_DIR)
 endif()
 
 get_property(DOOM_OS_APPLICATION_OBJECTS GLOBAL PROPERTY DOOM_OS_APPLICATION_OBJECTS)
+get_property(DOOM_OS_APPLICATION_DEPENDS GLOBAL PROPERTY DOOM_OS_APPLICATION_DEPENDS)
+get_property(DOOM_OS_DRIVER_DEPENDS GLOBAL PROPERTY DOOM_OS_DRIVER_DEPENDS)
 get_property(DOOM_OS_APPLICATION_STDLIB GLOBAL PROPERTY DOOM_OS_APPLICATION_STDLIB)
 get_property(DOOM_OS_DRIVER_STDLIBS GLOBAL PROPERTY DOOM_OS_DRIVER_STDLIBS)
 
@@ -328,6 +330,12 @@ add_executable(kernel.elf
         $<TARGET_OBJECTS:doom_os_libos>)
 
 add_dependencies(kernel.elf linker-script)
+
+# Objects produced by a custom command rather than a CMake target carry no dependency of their own,
+# so an application or driver that builds itself out-of-band names what has to run first.
+if(DOOM_OS_APPLICATION_DEPENDS OR DOOM_OS_DRIVER_DEPENDS)
+    add_dependencies(kernel.elf ${DOOM_OS_APPLICATION_DEPENDS} ${DOOM_OS_DRIVER_DEPENDS})
+endif()
 
 target_include_directories(kernel.elf PRIVATE
         ${DOOM_OS_ROOT}
