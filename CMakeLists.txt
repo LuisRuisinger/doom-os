@@ -44,11 +44,36 @@ endif()
 # Sources
 # ==================================================================================================
 
+# kernel/arch is globbed per architecture rather than wholesale. The architecture setting has to
+# decide which port is compiled or it decides nothing: a sweep of kernel/ would take every arch
+# directory present and hand the linker two definitions of the same entry point.
+
 file(GLOB_RECURSE KERNEL_CXX_SOURCES CONFIGURE_DEPENDS
         ${DOOM_OS_ROOT}/kernel/*.cpp)
 
 file(GLOB_RECURSE KERNEL_ASM_SOURCES CONFIGURE_DEPENDS
         ${DOOM_OS_ROOT}/kernel/*.S)
+
+file(GLOB_RECURSE KERNEL_FOREIGN_ARCH_SOURCES CONFIGURE_DEPENDS
+        ${DOOM_OS_ROOT}/kernel/arch/*.cpp
+        ${DOOM_OS_ROOT}/kernel/arch/*.S)
+
+file(GLOB_RECURSE KERNEL_ARCH_SOURCES CONFIGURE_DEPENDS
+        ${DOOM_OS_ROOT}/kernel/arch/${DOOM_OS_ARCHITECTURE_ID}/*.cpp
+        ${DOOM_OS_ROOT}/kernel/arch/${DOOM_OS_ARCHITECTURE_ID}/*.S)
+
+if(NOT KERNEL_ARCH_SOURCES)
+    message(FATAL_ERROR
+            "No sources under kernel/arch/${DOOM_OS_ARCHITECTURE_ID}. "
+            "DOOM_OS_ARCHITECTURE names a port that is not in the tree.")
+endif()
+
+foreach(_foreign IN LISTS KERNEL_FOREIGN_ARCH_SOURCES)
+    if(NOT _foreign IN_LIST KERNEL_ARCH_SOURCES)
+        list(REMOVE_ITEM KERNEL_CXX_SOURCES ${_foreign})
+        list(REMOVE_ITEM KERNEL_ASM_SOURCES ${_foreign})
+    endif()
+endforeach()
 
 file(GLOB_RECURSE KERNEL_HEADERS CONFIGURE_DEPENDS
         ${DOOM_OS_ROOT}/kernel/*.hpp

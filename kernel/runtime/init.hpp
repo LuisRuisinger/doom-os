@@ -16,7 +16,7 @@ void call_global_destructors();
 struct component
     : kernel::core::component<component, kernel::core::no_resource,
                               kernel::core::memory::vmm::mmu::component> {
-    static constexpr auto *name = "CGC";
+    static constexpr auto *name = "RUNTIME";
 
     template <typename View>
     static kernel::core::init_result init(View)

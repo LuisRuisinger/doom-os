@@ -20,18 +20,6 @@ function(doom_os_normalize_board out_var board)
     set(${out_var} "${_board_id}" PARENT_SCOPE)
 endfunction()
 
-function(doom_os_bool_to_on_off out_var value)
-    string(TOUPPER "${value}" _value_id)
-
-    if(_value_id MATCHES "^(1|ON|TRUE|YES)$")
-        set(${out_var} ON PARENT_SCOPE)
-    elseif(_value_id MATCHES "^(0|OFF|FALSE|NO)$")
-        set(${out_var} OFF PARENT_SCOPE)
-    else()
-        message(FATAL_ERROR "Expected a boolean value, got '${value}'")
-    endif()
-endfunction()
-
 function(doom_os_normalize_stdlib out_var stdlib)
     string(TOUPPER "${stdlib}" _stdlib_id)
     string(REPLACE "-" "_" _stdlib_id "${_stdlib_id}")
@@ -65,11 +53,10 @@ if(NOT DOOM_OS_BOARD_ID STREQUAL "qemu_x86_64")
             "The only implemented board is qemu_x86_64.")
 endif()
 
-if(NOT DOOM_OS_ARCHITECTURE_ID STREQUAL "x86_64")
-    message(FATAL_ERROR
-            "Unsupported DOOM_OS_ARCHITECTURE='${DOOM_OS_ARCHITECTURE}'. "
-            "The only implemented architecture is x86_64.")
-endif()
+# No whitelist of implemented architectures. kernel/arch/<id> is globbed by this id, so the tree
+# is the list: naming a port that is not there fails with "No sources under kernel/arch/<id>",
+# which needs no editing when one is added. The toolchain check below still applies, and is the
+# one that catches the common mistake of a setting that disagrees with the compiler.
 
 if(CMAKE_SYSTEM_PROCESSOR)
     string(TOLOWER "${CMAKE_SYSTEM_PROCESSOR}" DOOM_OS_TOOLCHAIN_PROCESSOR_ID)
@@ -95,72 +82,11 @@ if(NOT DOOM_OS_HAS_FPU)
             "Unsupported DOOM_OS_HAS_FPU=OFF. The current x86_64 core wiring enables the FPU.")
 endif()
 
+# No compile definitions. The board, architecture, MMU and FPU settings decided which sources are
+# compiled and which components the platform wiring lists; nothing in the tree branches on them at
+# preprocessing time, and a macro no source reads is a claim the build cannot check.
+
 add_library(doom_os_config INTERFACE)
-
-target_compile_definitions(doom_os_config INTERFACE
-        DOOM_OS_BOARD_QEMU_X86_64=1
-        DOOM_OS_ARCH_X86_64=1
-        DOOM_OS_HAS_MMU=1
-        DOOM_OS_HAS_FPU=1)
-
-function(doom_os_require_config)
-    set(_options)
-    set(_one_value_args BOARD ARCHITECTURE MMU FPU)
-    set(_multi_value_args)
-
-    cmake_parse_arguments(REQUIRE "${_options}" "${_one_value_args}" "${_multi_value_args}"
-                          ${ARGN})
-
-    if(REQUIRE_UNPARSED_ARGUMENTS)
-        message(FATAL_ERROR
-                "doom_os_require_config() got unexpected arguments: "
-                "${REQUIRE_UNPARSED_ARGUMENTS}")
-    endif()
-
-    if(DEFINED REQUIRE_BOARD)
-        doom_os_normalize_board(_required_board "${REQUIRE_BOARD}")
-
-        if(NOT _required_board STREQUAL DOOM_OS_BOARD_ID)
-            message(FATAL_ERROR
-                    "Project '${CMAKE_CURRENT_SOURCE_DIR}' requires "
-                    "BOARD=${_required_board}, but DoomOS is configured with "
-                    "BOARD=${DOOM_OS_BOARD_ID}.")
-        endif()
-    endif()
-
-    if(DEFINED REQUIRE_ARCHITECTURE)
-        doom_os_normalize_architecture(_required_architecture "${REQUIRE_ARCHITECTURE}")
-
-        if(NOT _required_architecture STREQUAL DOOM_OS_ARCHITECTURE_ID)
-            message(FATAL_ERROR
-                    "Project '${CMAKE_CURRENT_SOURCE_DIR}' requires "
-                    "ARCHITECTURE=${_required_architecture}, but DoomOS is configured with "
-                    "ARCHITECTURE=${DOOM_OS_ARCHITECTURE_ID}.")
-        endif()
-    endif()
-
-    if(DEFINED REQUIRE_MMU)
-        doom_os_bool_to_on_off(_required_mmu "${REQUIRE_MMU}")
-        doom_os_bool_to_on_off(_configured_mmu "${DOOM_OS_HAS_MMU}")
-
-        if(NOT _required_mmu STREQUAL _configured_mmu)
-            message(FATAL_ERROR
-                    "Project '${CMAKE_CURRENT_SOURCE_DIR}' requires MMU=${_required_mmu}, "
-                    "but DoomOS is configured with MMU=${_configured_mmu}.")
-        endif()
-    endif()
-
-    if(DEFINED REQUIRE_FPU)
-        doom_os_bool_to_on_off(_required_fpu "${REQUIRE_FPU}")
-        doom_os_bool_to_on_off(_configured_fpu "${DOOM_OS_HAS_FPU}")
-
-        if(NOT _required_fpu STREQUAL _configured_fpu)
-            message(FATAL_ERROR
-                    "Project '${CMAKE_CURRENT_SOURCE_DIR}' requires FPU=${_required_fpu}, "
-                    "but DoomOS is configured with FPU=${_configured_fpu}.")
-        endif()
-    endif()
-endfunction()
 
 message(STATUS
         "DoomOS config: board=${DOOM_OS_BOARD_ID}, architecture=${DOOM_OS_ARCHITECTURE_ID}, "

@@ -10,12 +10,6 @@
 # different DOOM_OS_APPLICATION_DIR is how the image swaps one for another.
 # =================================================================================================
 
-doom_os_require_config(
-        BOARD qemu_x86_64
-        ARCHITECTURE x86_64
-        MMU ON
-        FPU ON)
-
 doom_os_application(simd
         STDLIB NEWLIB_CXX
         SOURCES simd.cpp)

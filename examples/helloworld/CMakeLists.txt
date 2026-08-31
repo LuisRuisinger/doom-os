@@ -11,12 +11,6 @@
 # the integrator's choice rather than this repository's.
 # =================================================================================================
 
-doom_os_require_config(
-        BOARD qemu_x86_64
-        ARCHITECTURE x86_64
-        MMU ON
-        FPU ON)
-
 doom_os_application(helloworld
         STDLIB NEWLIB
         SOURCES hello.c)
