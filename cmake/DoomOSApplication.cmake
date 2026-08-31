@@ -38,14 +38,28 @@ function(doom_os_application application_name)
                 "An application is already defined (${_existing}). A unikernel image holds one.")
     endif()
 
-    # A path handed in from a custom command is an object to link, not a source to compile, and
-    # CMake has to be told both that and that it does not exist yet. Generator expressions are
-    # left alone: $<TARGET_OBJECTS:...> already carries the same meaning.
+    # Archives are not objects and must not be treated as one. An application handed in as a .a
+    # needs --whole-archive, because the thing that makes it the application - its main - would
+    # otherwise never be extracted: libos/entry.cpp defines a weak main, a weak definition already
+    # satisfies the reference, and the linker then has no reason to open the archive at all. The
+    # image would link cleanly and boot to "no application linked", which is the worst way for
+    # this to fail.
+    set(_application_objects)
+
     foreach(_object IN LISTS APPLICATION_OBJECTS)
-        if(NOT _object MATCHES "\\$<")
+        if(_object MATCHES "\\.a$")
+            set_property(GLOBAL APPEND PROPERTY DOOM_OS_APPLICATION_ARCHIVES "${_object}")
+        elseif(_object MATCHES "\\$<")
+            list(APPEND _application_objects "${_object}")
+        else()
+            # A path from a custom command is an object to link, not a source to compile, and
+            # CMake has to be told both that and that it does not exist yet.
             set_source_files_properties(${_object} PROPERTIES EXTERNAL_OBJECT TRUE GENERATED TRUE)
+            list(APPEND _application_objects "${_object}")
         endif()
     endforeach()
+
+    set(APPLICATION_OBJECTS "${_application_objects}")
 
     set_property(GLOBAL PROPERTY DOOM_OS_APPLICATION_TARGET ${application_name})
     set_property(GLOBAL PROPERTY DOOM_OS_APPLICATION_OBJECTS "${APPLICATION_OBJECTS}")

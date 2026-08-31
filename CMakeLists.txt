@@ -282,6 +282,13 @@ target_link_options(kernel.elf PRIVATE
         # look into max-page-size
         -Wl,-z,max-page-size=0x1000)
 
+get_property(DOOM_OS_APPLICATION_ARCHIVES GLOBAL PROPERTY DOOM_OS_APPLICATION_ARCHIVES)
+
+foreach(_archive IN LISTS DOOM_OS_APPLICATION_ARCHIVES)
+    target_link_options(kernel.elf PRIVATE
+            "-Wl,--whole-archive" "${_archive}" "-Wl,--no-whole-archive")
+endforeach()
+
 target_link_libraries(kernel.elf PRIVATE gcc)
 
 # Relink linker script if changes are applied
