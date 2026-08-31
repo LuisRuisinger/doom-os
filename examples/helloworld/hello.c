@@ -1,41 +1,44 @@
 /* =================================================================================================
  * Hello world
  *
- * An ordinary C program. It includes no kernel header and knows nothing about the machine it runs
- * on - it defines main and calls the C library, which is the whole point: the same source builds
- * hosted on Linux and here.
+ * An ordinary C program that includes no kernel header and links no C library. It calls write,
+ * which is a POSIX name libos implements directly - so this is the whole boundary, with nothing
+ * in between.
  *
- * What is worth following is where the calls end up. printf and malloc are newlib's; newlib
- * reaches the machine through _write and _sbrk; those live in libos/posix.cpp and
- * forward to the kernel's serial emitter and physical allocator.
+ * A program wanting printf, malloc or strlen brings a libc that provides them; DoomOS supplies
+ * the x86_64 Linux ABI underneath, not the library on top of it. That is the same decision as
+ * the application being an object rather than a source file: the image resolves symbols, it does
+ * not choose your toolchain.
  *
- * None of that is a syscall. Every arrow in that chain is a direct call resolved by the linker,
- * because the application, the C library, the shim and the kernel are one binary at one privilege
- * level. That is the whole of what makes this a unikernel.
+ * None of this is a syscall. Every arrow is a direct call the linker resolved, because the
+ * application, libos and the kernel are one binary at one privilege level.
  * ============================================================================================== */
 
-#include <stdio.h>
-#include <stdlib.h>
-#include <string.h>
+typedef unsigned long size_t;
+typedef long          ssize_t;
+
+ssize_t write(int fd, const void *buffer, size_t count);
+
+static size_t length_of(const char *text)
+{
+    size_t length = 0;
+
+    while (text[length] != '\0') {
+        ++length;
+    }
+
+    return length;
+}
+
+static void say(const char *text)
+{
+    write(1, text, length_of(text));
+}
 
 int main(void)
 {
-    /* printf -> newlib stdio -> _write(1, ...) -> kernel::debug::detail::emit_bytes -> serial. */
-    printf("hello from userspace, such as it is\n");
-
-    /* malloc -> newlib -> _sbrk -> pmm::alloc_page. Proves the heap path independently of stdio,
-     * which matters because the two fail in very different places. */
-    char *greeting = malloc(64);
-
-    if (greeting == NULL) {
-        printf("malloc failed: the program break never came up\n");
-        return 1;
-    }
-
-    strcpy(greeting, "and this string lives in a PMM page");
-    printf("%s\n", greeting);
-
-    free(greeting);
+    say("hello from userspace, such as it is\n");
+    say("no libc in this image: write() is libos, and libos is the kernel\n");
 
     return 0;
 }

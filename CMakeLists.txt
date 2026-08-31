@@ -151,55 +151,12 @@ get_property(DOOM_OS_DRIVER_OBJECTS GLOBAL PROPERTY DOOM_OS_DRIVER_OBJECTS)
 # =================================================================================================
 # Standard libraries
 #
-# Kernel code stays freestanding. Applications must declare their standard-library layer, and
-# drivers may declare one when they deliberately depend on it. The final image links only the
-# layers selected by those target declarations.
+# There are none. Which C or C++ library an image carries is the integrator's decision, exactly as
+# the application and its drivers are: libos implements the x86_64 Linux ABI those libraries sit
+# on, and the objects handed to doom_os_application() bring whatever they were built against.
 #
-# Asking the compiler beats probing for a path: -print-file-name answers with the absolute path
-# when it can find the archive and echoes the bare name back when it cannot.
+# The kernel itself links no library but libgcc, whose helpers the compiler emits calls to.
 # =================================================================================================
-
-execute_process(
-        COMMAND ${CMAKE_CXX_COMPILER} -print-file-name=libc.a
-        OUTPUT_VARIABLE DOOM_OS_LIBC_ARCHIVE
-        OUTPUT_STRIP_TRAILING_WHITESPACE
-        ERROR_QUIET)
-
-if(IS_ABSOLUTE "${DOOM_OS_LIBC_ARCHIVE}" AND EXISTS "${DOOM_OS_LIBC_ARCHIVE}")
-    set(DOOM_OS_HAVE_LIBC TRUE)
-    message(STATUS "C library: ${DOOM_OS_LIBC_ARCHIVE}")
-else()
-    set(DOOM_OS_HAVE_LIBC FALSE)
-    message(STATUS "C library: none")
-endif()
-
-execute_process(
-        COMMAND ${CMAKE_CXX_COMPILER} -print-file-name=libstdc++.a
-        OUTPUT_VARIABLE DOOM_OS_LIBSTDCXX_ARCHIVE
-        OUTPUT_STRIP_TRAILING_WHITESPACE
-        ERROR_QUIET)
-
-if(IS_ABSOLUTE "${DOOM_OS_LIBSTDCXX_ARCHIVE}" AND EXISTS "${DOOM_OS_LIBSTDCXX_ARCHIVE}")
-    set(DOOM_OS_HAVE_LIBSTDCXX TRUE)
-    message(STATUS "C++ library: ${DOOM_OS_LIBSTDCXX_ARCHIVE}")
-else()
-    set(DOOM_OS_HAVE_LIBSTDCXX FALSE)
-    message(STATUS "C++ library: none")
-endif()
-
-execute_process(
-        COMMAND ${CMAKE_CXX_COMPILER} -print-file-name=libsupc++.a
-        OUTPUT_VARIABLE DOOM_OS_LIBSUPCXX_ARCHIVE
-        OUTPUT_STRIP_TRAILING_WHITESPACE
-        ERROR_QUIET)
-
-if(IS_ABSOLUTE "${DOOM_OS_LIBSUPCXX_ARCHIVE}" AND EXISTS "${DOOM_OS_LIBSUPCXX_ARCHIVE}")
-    set(DOOM_OS_HAVE_LIBSUPCXX TRUE)
-    message(STATUS "C++ support library: ${DOOM_OS_LIBSUPCXX_ARCHIVE}")
-else()
-    set(DOOM_OS_HAVE_LIBSUPCXX FALSE)
-    message(STATUS "C++ support library: none")
-endif()
 
 # =================================================================================================
 # Application
@@ -226,63 +183,6 @@ endif()
 get_property(DOOM_OS_APPLICATION_OBJECTS GLOBAL PROPERTY DOOM_OS_APPLICATION_OBJECTS)
 get_property(DOOM_OS_APPLICATION_DEPENDS GLOBAL PROPERTY DOOM_OS_APPLICATION_DEPENDS)
 get_property(DOOM_OS_DRIVER_DEPENDS GLOBAL PROPERTY DOOM_OS_DRIVER_DEPENDS)
-get_property(DOOM_OS_APPLICATION_STDLIB GLOBAL PROPERTY DOOM_OS_APPLICATION_STDLIB)
-get_property(DOOM_OS_DRIVER_STDLIBS GLOBAL PROPERTY DOOM_OS_DRIVER_STDLIBS)
-
-set(DOOM_OS_SELECTED_STDLIBS ${DOOM_OS_APPLICATION_STDLIB} ${DOOM_OS_DRIVER_STDLIBS})
-
-set(DOOM_OS_LINK_NEWLIB FALSE)
-set(DOOM_OS_LINK_LIBSTDCXX FALSE)
-
-foreach(_stdlib IN LISTS DOOM_OS_SELECTED_STDLIBS)
-    if(NOT _stdlib OR _stdlib STREQUAL "NONE")
-    elseif(_stdlib STREQUAL "NEWLIB")
-        set(DOOM_OS_LINK_NEWLIB TRUE)
-    elseif(_stdlib STREQUAL "NEWLIB_CXX")
-        set(DOOM_OS_LINK_NEWLIB TRUE)
-        set(DOOM_OS_LINK_LIBSTDCXX TRUE)
-    else()
-        message(FATAL_ERROR
-                "Unsupported stdlib '${_stdlib}'. Expected NONE, NEWLIB or NEWLIB_CXX.")
-    endif()
-endforeach()
-
-if(NOT DOOM_OS_SELECTED_STDLIBS)
-    set(DOOM_OS_SELECTED_STDLIBS NONE)
-endif()
-
-list(REMOVE_DUPLICATES DOOM_OS_SELECTED_STDLIBS)
-message(STATUS "Selected stdlibs: ${DOOM_OS_SELECTED_STDLIBS}")
-
-if(DOOM_OS_LINK_NEWLIB AND NOT DOOM_OS_HAVE_LIBC)
-    message(FATAL_ERROR
-            "A selected target requires newlib, but the cross toolchain has no C library.\n"
-            "newlib is built by the Dockerfile's newlib stage - rebuild the container image, "
-            "then configure again.")
-endif()
-
-if(DOOM_OS_LINK_LIBSTDCXX AND NOT DOOM_OS_HAVE_LIBSTDCXX)
-    message(FATAL_ERROR
-            "A selected target requires libstdc++, but the cross toolchain has no "
-            "C++ standard library.")
-endif()
-
-if(DOOM_OS_LINK_LIBSTDCXX AND NOT DOOM_OS_HAVE_LIBSUPCXX)
-    message(FATAL_ERROR
-            "A selected target requires libstdc++, but the cross toolchain has no "
-            "C++ support library.")
-endif()
-
-if(NOT DOOM_OS_LINK_NEWLIB)
-    # The POSIX shim exists to be called by newlib and includes newlib headers. Without newlib it is
-    # not merely unused, it cannot compile against a --without-headers toolchain.
-    list(REMOVE_ITEM LIBOS_SOURCES ${DOOM_OS_ROOT}/libos/posix.cpp)
-
-    # The glibc ABI surface sits on top of newlib and includes its headers, so it goes the same
-    # way. Without a C library there is nothing for a Linux object to resolve against anyway.
-    list(REMOVE_ITEM LIBOS_SOURCES ${DOOM_OS_ROOT}/libos/glibc_abi.cpp)
-endif()
-
 # =================================================================================================
 # Linker script
 #
@@ -381,15 +281,6 @@ target_link_options(kernel.elf PRIVATE
         # TODO
         # look into max-page-size
         -Wl,-z,max-page-size=0x1000)
-
-if(DOOM_OS_LINK_LIBSTDCXX)
-    target_link_libraries(kernel.elf PRIVATE stdc++)
-    target_link_libraries(kernel.elf PRIVATE supc++)
-endif()
-
-if(DOOM_OS_LINK_NEWLIB)
-    target_link_libraries(kernel.elf PRIVATE c)
-endif()
 
 target_link_libraries(kernel.elf PRIVATE gcc)
 

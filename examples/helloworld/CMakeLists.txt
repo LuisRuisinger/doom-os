@@ -29,5 +29,5 @@ target_compile_options(helloworld_objects PRIVATE
         -Wpedantic)
 
 doom_os_application(helloworld
-        STDLIB NEWLIB
+
         OBJECTS $<TARGET_OBJECTS:helloworld_objects>)

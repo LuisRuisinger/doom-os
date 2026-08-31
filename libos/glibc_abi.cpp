@@ -7,10 +7,10 @@
 #include "kernel/debug/kprint.hpp"
 
 // =================================================================================================
-// Newlib files
+// libos files
 // =================================================================================================
 
-#include <errno.h>
+#include "libos/abi.hpp"
 
 // =================================================================================================
 // glibc ABI
@@ -40,6 +40,8 @@
 // =================================================================================================
 
 namespace {
+
+using namespace libos::abi;  // NOLINT(google-build-using-namespace)
 
 using kernel::core::i32;
 using kernel::core::u64;
@@ -265,7 +267,7 @@ DOOM_OS_GLIBC_STUB(__xpg_strerror_r, -1)
 // =================================================================================================
 
 // glibc reaches errno through a function so that it can be per-thread. There is one thread here,
-// so it is newlib's single errno - which is the same object every other file in this image means.
+// so it is the single errno libos/posix.cpp defines - the same object every other file means.
 extern "C" int *__errno_location()
 {
     return &errno;
@@ -295,7 +297,7 @@ extern "C" int posix_memalign(void **out, kernel::core::usize alignment, kernel:
         *out = nullptr;
     }
 
-    return ENOMEM;
+    return libos::abi::ENOMEM;
 }
 
 extern "C" long sysconf(int name)

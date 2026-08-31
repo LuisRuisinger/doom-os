@@ -12,16 +12,10 @@
 #include "kernel/runtime/memory.hpp"
 
 // =================================================================================================
-// Newlib files
+// libos files
 // =================================================================================================
 
-#include <errno.h>
-#include <fcntl.h>
-#include <sys/stat.h>
-#include <sys/time.h>
-#include <sys/types.h>
-#include <time.h>
-#include <unistd.h>
+#include "libos/abi.hpp"
 
 // =================================================================================================
 // POSIX shim
@@ -29,12 +23,11 @@
 // Definitions for the POSIX names that have to reach the kernel, and nothing else. The split is
 // not arbitrary: read/write/open/close/lseek/fstat/sbrk are the only calls in a C runtime that
 // cannot be answered by computation alone. printf, malloc, memcpy and the string functions have
-// nothing to forward to; newlib supplies those.
+// nothing to forward to, so whichever libc the integrator links supplies those.
 //
-// Every call is defined once under newlib's underscore-prefixed porting name and exported again
-// under its plain POSIX name, because which of the two libc reaches for is a property of how
-// newlib was configured rather than something this file can pick. See the alias block at the
-// bottom. errno belongs to newlib and is not defined here.
+// One spelling per call. There is no libc in this repository to have an opinion about underscore
+// prefixes, so these are the plain names an x86_64 Linux object resolves against, and errno lives
+// here because nothing else owns it.
 //
 // There is no syscall here. No instruction traps, no ring changes, no register marshalling: the
 // application, this file and the kernel are one binary at one privilege level, so these are calls
@@ -45,7 +38,13 @@
 // runtime lie.
 // =================================================================================================
 
+// One thread of control, one errno. glibc-shaped callers reach it through __errno_location, which
+// libos/glibc_abi.cpp points here.
+extern "C" int errno = 0;
+
 namespace {
+
+using namespace libos::abi;  // NOLINT(google-build-using-namespace) - this file *is* the ABI
 
 using kernel::core::paddr_t;
 using kernel::core::u32;
@@ -137,7 +136,7 @@ bool ensure_break()
 // Console
 // =================================================================================================
 
-extern "C" ssize_t _write(int fd, const void *buffer, size_t count)
+extern "C" ssize_t write(int fd, const void *buffer, size_t count)
 {
     if (fd != STDOUT_FILENO && fd != STDERR_FILENO) {
         errno = EBADF;
@@ -156,7 +155,7 @@ extern "C" ssize_t _write(int fd, const void *buffer, size_t count)
 // memory the bootloader placed and nothing here has to touch a device.
 // =================================================================================================
 
-extern "C" int _open(const char *path, int flags, ...)
+extern "C" int open(const char *path, int flags, ...)
 {
     if (path == nullptr || (flags & O_WRONLY) != 0 || (flags & O_RDWR) != 0) {
         errno = EINVAL;
@@ -201,7 +200,7 @@ extern "C" int _open(const char *path, int flags, ...)
     return -1;
 }
 
-extern "C" ssize_t _read(int fd, void *buffer, size_t count)
+extern "C" ssize_t read(int fd, void *buffer, size_t count)
 {
     // No keyboard driver yet, so stdin is at end of file rather than pretending to block.
     if (is_console(fd)) {
@@ -224,7 +223,7 @@ extern "C" ssize_t _read(int fd, void *buffer, size_t count)
     return static_cast<ssize_t>(length);
 }
 
-extern "C" off_t _lseek(int fd, off_t offset, int whence)
+extern "C" off_t lseek(int fd, off_t offset, int whence)
 {
     descriptor *entry = file_descriptor(fd);
 
@@ -254,7 +253,7 @@ extern "C" off_t _lseek(int fd, off_t offset, int whence)
     return target;
 }
 
-extern "C" int _close(int fd)
+extern "C" int close(int fd)
 {
     descriptor *entry = file_descriptor(fd);
 
@@ -268,18 +267,18 @@ extern "C" int _close(int fd)
     return 0;
 }
 
-extern "C" int _fstat(int fd, struct stat *out)
+extern "C" int fstat(int fd, stat *out)
 {
     if (out == nullptr) {
         errno = EINVAL;
         return -1;
     }
 
-    // Field by field rather than aggregate initialisation: this is newlib's struct stat, whose
-    // first members are st_dev and st_ino, so a braced list would quietly fill in the wrong two.
+    // Field by field rather than aggregate initialisation: st_dev and st_ino come first in the
+    // Linux layout, so a braced list would quietly fill in the wrong two.
     if (is_console(fd)) {
-        out->st_mode = S_IFCHR;
-        out->st_size = 0;
+        out->mode = S_IFCHR;
+        out->size = 0;
 
         return 0;
     }
@@ -291,8 +290,8 @@ extern "C" int _fstat(int fd, struct stat *out)
         return -1;
     }
 
-    out->st_mode = S_IFREG;
-    out->st_size = static_cast<off_t>(entry->size);
+    out->mode = S_IFREG;
+    out->size = static_cast<off_t>(entry->size);
 
     return 0;
 }
@@ -301,7 +300,7 @@ extern "C" int _fstat(int fd, struct stat *out)
 // Memory
 // =================================================================================================
 
-extern "C" void *_sbrk(ptrdiff_t increment)
+extern "C" void *sbrk(ptrdiff_t increment)
 {
     if (!ensure_break()) {
         errno = ENOMEM;
@@ -323,19 +322,19 @@ extern "C" void *_sbrk(ptrdiff_t increment)
 // Process
 // =================================================================================================
 
-extern "C" int _isatty(int fd)
+extern "C" int isatty(int fd)
 {
     return is_console(fd) ? 1 : 0;
 }
 
-extern "C" pid_t _getpid(void)
+extern "C" pid_t getpid(void)
 {
     return 1;
 }
 
-// Referenced by newlib's abort() path. There is one thread of control and nothing to signal it
+// Referenced by any libc's abort() path. There is one thread of control and nothing to signal it
 // with, so the only honest answer is a refusal.
-extern "C" int _kill(int pid, int signal)
+extern "C" int kill(int pid, int signal)
 {
     static_cast<void>(pid);
     static_cast<void>(signal);
@@ -461,7 +460,7 @@ extern "C" int getentropy(void *buffer, size_t length)
 // it, and Rust's std maps a failing clock to Unsupported rather than aborting.
 // =================================================================================================
 
-extern "C" int clock_gettime(clockid_t clock_id, struct timespec *out)
+extern "C" int clock_gettime(clockid_t clock_id, timespec *out)
 {
     static_cast<void>(clock_id);
     static_cast<void>(out);
@@ -470,7 +469,7 @@ extern "C" int clock_gettime(clockid_t clock_id, struct timespec *out)
     return -1;
 }
 
-extern "C" int _gettimeofday(struct timeval *out, void *timezone)
+extern "C" int gettimeofday(timeval *out, void *timezone)
 {
     static_cast<void>(out);
     static_cast<void>(timezone);
@@ -481,7 +480,7 @@ extern "C" int _gettimeofday(struct timeval *out, void *timezone)
 
 // There is one thread of control and nothing to wake it, so a sleep that returned would be a busy
 // loop of unknown length and one that blocked would never end.
-extern "C" int nanosleep(const struct timespec *requested, struct timespec *remaining)
+extern "C" int nanosleep(const timespec *requested, timespec *remaining)
 {
     static_cast<void>(requested);
     static_cast<void>(remaining);
@@ -505,50 +504,4 @@ char *g_empty_environment[] = {nullptr};
 
 extern "C" {
 char **environ = g_empty_environment;
-}
-
-// =================================================================================================
-// Plain POSIX names
-//
-// newlib's reentrant wrappers - _write_r and its siblings, which are what printf and fopen sit on
-// - call the bottom of the library under one of two spellings. A newlib built the usual way calls
-// _write and ships a public write() that forwards to it; a newlib built with MISSING_SYSCALL_NAMES
-// has _syslist.h rewrite _write to write throughout libc and ships no wrapper at all. This
-// toolchain's is the second kind, so the unprefixed names are the ones left undefined at link
-// time.
-//
-// Aliasing rather than reimplementing keeps one body per call whichever spelling is used. The weak
-// binding preserves what the prefix was for: an application defining its own write() overrides
-// these rather than colliding with them.
-// =================================================================================================
-
-#define POSIX_ALIAS(target) __attribute__((weak, alias(#target)))
-
-extern "C" int open(const char *path, int flags, ...) POSIX_ALIAS(_open);
-extern "C" off_t lseek(int fd, off_t offset, int whence) POSIX_ALIAS(_lseek);
-extern "C" int close(int fd) POSIX_ALIAS(_close);
-extern "C" int fstat(int fd, struct stat *out) POSIX_ALIAS(_fstat);
-extern "C" void *sbrk(ptrdiff_t increment) POSIX_ALIAS(_sbrk);
-extern "C" int isatty(int fd) POSIX_ALIAS(_isatty);
-extern "C" pid_t getpid(void) POSIX_ALIAS(_getpid);
-extern "C" int kill(int pid, int signal) POSIX_ALIAS(_kill);
-extern "C" int gettimeofday(struct timeval *out, void *timezone) POSIX_ALIAS(_gettimeofday);
-
-#undef POSIX_ALIAS
-
-// read and write are forwarded rather than aliased. newlib declares the public pair as returning
-// _READ_WRITE_RETURN_TYPE, which is int on this target, while _read and _write return ssize_t: an
-// alias would give one body two return types, which is a lie the pair can avoid telling for the
-// price of a jump. Neither result overflows the narrower type - a count is bounded by the size_t
-// the caller asked for, and the only other answer is -1.
-
-extern "C" __attribute__((weak)) _READ_WRITE_RETURN_TYPE write(int fd, const void *buffer,
-                                                               size_t count)
-{
-    return static_cast<_READ_WRITE_RETURN_TYPE>(_write(fd, buffer, count));
-}
-
-extern "C" __attribute__((weak)) _READ_WRITE_RETURN_TYPE read(int fd, void *buffer, size_t count)
-{
-    return static_cast<_READ_WRITE_RETURN_TYPE>(_read(fd, buffer, count));
 }

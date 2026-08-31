@@ -11,7 +11,7 @@
 
 function(doom_os_application application_name)
     set(_options)
-    set(_one_value_args STDLIB)
+    set(_one_value_args)
     set(_multi_value_args OBJECTS DEPENDS)
 
     cmake_parse_arguments(APPLICATION
@@ -32,14 +32,6 @@ function(doom_os_application application_name)
         message(FATAL_ERROR "doom_os_application(${application_name}) requires OBJECTS")
     endif()
 
-    if(NOT APPLICATION_STDLIB)
-        message(FATAL_ERROR
-                "doom_os_application(${application_name}) requires STDLIB. "
-                "Use STDLIB NONE, NEWLIB or NEWLIB_CXX.")
-    endif()
-
-    doom_os_normalize_stdlib(_stdlib "${APPLICATION_STDLIB}")
-
     get_property(_existing GLOBAL PROPERTY DOOM_OS_APPLICATION_TARGET)
     if(_existing)
         message(FATAL_ERROR
@@ -56,7 +48,6 @@ function(doom_os_application application_name)
     endforeach()
 
     set_property(GLOBAL PROPERTY DOOM_OS_APPLICATION_TARGET ${application_name})
-    set_property(GLOBAL PROPERTY DOOM_OS_APPLICATION_STDLIB ${_stdlib})
     set_property(GLOBAL PROPERTY DOOM_OS_APPLICATION_OBJECTS "${APPLICATION_OBJECTS}")
 
     if(APPLICATION_DEPENDS)

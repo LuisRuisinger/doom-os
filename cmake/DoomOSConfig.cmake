@@ -20,21 +20,6 @@ function(doom_os_normalize_board out_var board)
     set(${out_var} "${_board_id}" PARENT_SCOPE)
 endfunction()
 
-function(doom_os_normalize_stdlib out_var stdlib)
-    string(TOUPPER "${stdlib}" _stdlib_id)
-    string(REPLACE "-" "_" _stdlib_id "${_stdlib_id}")
-
-    if(NOT _stdlib_id STREQUAL "NONE" AND
-       NOT _stdlib_id STREQUAL "NEWLIB" AND
-       NOT _stdlib_id STREQUAL "NEWLIB_CXX")
-        message(FATAL_ERROR
-                "Unsupported STDLIB '${stdlib}'. Supported values are NONE, NEWLIB and "
-                "NEWLIB_CXX.")
-    endif()
-
-    set(${out_var} "${_stdlib_id}" PARENT_SCOPE)
-endfunction()
-
 set(DOOM_OS_BOARD "qemu_x86_64" CACHE STRING "Target board/platform")
 set_property(CACHE DOOM_OS_BOARD PROPERTY STRINGS qemu_x86_64 qemu-x86_64)
 

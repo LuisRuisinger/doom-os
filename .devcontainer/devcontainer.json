@@ -24,9 +24,8 @@
   "mounts": [
     "source=${localEnv:HOME}/.bashrc,target=/home/ubuntu/.bashrc,type=bind,readonly"
   ],
-  // The libc line is not decoration. The kernel builds without one, so a toolchain missing newlib
-  // fails nowhere until an application is configured - and an attached container built from a
-  // stale image looks identical to a current one until something asks it for libc.a. Printing the
-  // path at creation is what makes "which image am I on" answerable at a glance.
-  "postCreateCommand": "x86_64-elf-gcc --version && x86_64-elf-g++ --version && cmake --version && ninja --version && clang-format --version && grub-mkrescue --version && qemu-system-x86_64 --version && echo \"libc: $(x86_64-elf-gcc -print-file-name=libc.a)\""
+  // There is no libc to report. The image ships binutils, GCC and libstdc++'s freestanding
+  // headers, and nothing else a build needs - which libc an application links is the
+  // integrator's decision, so an image that supplied one would be making it for them.
+  "postCreateCommand": "x86_64-elf-gcc --version && x86_64-elf-g++ --version && cmake --version && ninja --version && clang-format --version && grub-mkrescue --version && qemu-system-x86_64 --version"
 }

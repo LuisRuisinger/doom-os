@@ -13,7 +13,6 @@ ARG TARGET=x86_64-elf
 ARG PREFIX=/opt/cross
 ARG BINUTILS_VERSION=2.46.1
 ARG GCC_VERSION=15.3.0
-ARG NEWLIB_VERSION=4.4.0.20231231
 
 ENV PATH="${PREFIX}/bin:${PATH}"
 
@@ -90,48 +89,16 @@ RUN wget -q "https://ftp.gnu.org/gnu/binutils/binutils-${BINUTILS_VERSION}.tar.x
     && rm -rf /tmp/cross
 
 # =================================================================================================
-# newlib
+# No C library
 #
-# The C library the application links against. The kernel does not: it keeps building -nostdlib,
-# and newlib only ever reaches the application and the POSIX shim.
+# There is deliberately none. Which libc an image carries is the integrator's decision, the same
+# way the application and its drivers are: libos implements the x86_64 Linux ABI that a libc sits
+# on, and the objects handed to doom_os_application() arrive with whatever they were built
+# against. Building one here would only decide it for them.
 #
-# Built against the cross GCC that was just installed, so GCC does not have to be rebuilt - newlib
-# installs into ${PREFIX}/${TARGET}/{include,lib}, which x86_64-elf-gcc already searches.
-#
-# CFLAGS_FOR_TARGET repeats the flags that describe the machine rather than the code. SSE is not
-# among them: newlib is application-side, its optimised string routines want XMM, and the kernel
-# sets CR4.OSFXSR before calling main precisely so they can have it.
-#
-# -mno-red-zone stays, because an interrupt at the same privilege level does not switch stacks and
-# lands on top of the red zone. -mcmodel=kernel stays for the same reason it is on the kernel: the
-# image is linked into the higher half.
-#
-# --disable-newlib-io-float keeps the double formatting paths out of printf, which is what makes
-# a libc usable at all on a target with no FPU enabled.
-#
-# Syscalls are deliberately left enabled - the default - so the library expects a porting layer to
-# be linked in rather than stubbed out by libnosys. What it expects to find is the unprefixed
-# names: the reentrant wrappers reference write, sbrk and friends directly, which is what
-# _syslist.h does under MISSING_SYSCALL_NAMES, and no public wrapper over _write is shipped.
-# libos/posix.cpp defines both spellings for that reason.
+# libstdc++ above is installed for its headers, not its archives. The freestanding subset is
+# header-only template machinery the kernel uses; nothing links -lstdc++ or -lsupc++.
 # =================================================================================================
-
-WORKDIR /tmp/newlib
-
-RUN wget -q "https://sourceware.org/pub/newlib/newlib-${NEWLIB_VERSION}.tar.gz" \
-    && tar -xf "newlib-${NEWLIB_VERSION}.tar.gz" \
-    && mkdir build-newlib \
-    && cd build-newlib \
-    && CFLAGS_FOR_TARGET="-O2 -ffreestanding -mno-red-zone -mcmodel=kernel" \
-       "../newlib-${NEWLIB_VERSION}/configure" \
-      --target="${TARGET}" \
-      --prefix="${PREFIX}" \
-      --disable-multilib \
-      --disable-newlib-io-float \
-    && make -j"$(nproc)" \
-    && make install \
-    && cd / \
-    && rm -rf /tmp/newlib
 
 # =================================================================================================
 # Development image

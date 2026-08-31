@@ -36,7 +36,7 @@ endfunction()
 
 function(doom_os_driver driver_name)
     set(_options)
-    set(_one_value_args STDLIB)
+    set(_one_value_args)
     set(_multi_value_args OBJECTS DEPENDS)
 
     cmake_parse_arguments(DRIVER "${_options}" "${_one_value_args}" "${_multi_value_args}"
@@ -53,13 +53,6 @@ function(doom_os_driver driver_name)
         message(FATAL_ERROR "doom_os_driver(${driver_name}) requires OBJECTS")
     endif()
 
-    if(DRIVER_STDLIB)
-        doom_os_normalize_stdlib(_stdlib "${DRIVER_STDLIB}")
-    else()
-        set(_stdlib NONE)
-    endif()
-
-    set_property(GLOBAL APPEND PROPERTY DOOM_OS_DRIVER_STDLIBS ${_stdlib})
     set_property(GLOBAL APPEND PROPERTY DOOM_OS_DRIVER_OBJECTS "${DRIVER_OBJECTS}")
 
     if(DRIVER_DEPENDS)

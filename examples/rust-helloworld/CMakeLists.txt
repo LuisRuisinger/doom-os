@@ -56,6 +56,6 @@ add_custom_command(
 add_custom_target(rust_helloworld_object DEPENDS ${_rust_object})
 
 doom_os_application(rust_helloworld
-        STDLIB NEWLIB
+
         OBJECTS ${_rust_object}
         DEPENDS rust_helloworld_object)
