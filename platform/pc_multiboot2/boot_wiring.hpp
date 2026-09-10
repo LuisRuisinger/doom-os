@@ -1,5 +1,5 @@
-#ifndef DOOM_OS_KERNEL_BOOT_BOOT_WIRING_HPP_
-#define DOOM_OS_KERNEL_BOOT_BOOT_WIRING_HPP_
+#ifndef DOOM_OS_PLATFORM_PC_MULTIBOOT2_BOOT_WIRING_HPP_
+#define DOOM_OS_PLATFORM_PC_MULTIBOOT2_BOOT_WIRING_HPP_
 
 // =================================================================================================
 // Kernel files
@@ -23,4 +23,4 @@ static_assert(boot_protocol<active_boot_protocol>);
 
 }  // namespace kernel::boot
 
-#endif  // DOOM_OS_KERNEL_BOOT_BOOT_WIRING_HPP_
+#endif  // DOOM_OS_PLATFORM_PC_MULTIBOOT2_BOOT_WIRING_HPP_

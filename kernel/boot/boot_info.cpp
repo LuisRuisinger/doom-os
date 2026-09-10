@@ -4,7 +4,7 @@
 
 #include "kernel/boot/boot_info.hpp"
 
-#include "kernel/boot/boot_wiring.hpp"
+#include "platform/pc_multiboot2/boot_wiring.hpp"
 
 namespace kernel::boot::boot_info {
 
@@ -59,7 +59,7 @@ bool available()
 // much to stage on the kernel stack.
 // =================================================================================================
 
-kernel::core::init_result component::parse()
+kernel::init::init_result component::parse()
 {
     g_info.reset();
 
@@ -76,7 +76,7 @@ kernel::core::init_result component::parse()
     // valid is set.
     if (g_info.truncated()) {
         g_info.reset();
-        return kernel::core::Err(kernel::core::init_error::CAPACITY_EXCEEDED);
+        return kernel::core::Err(kernel::init::init_error::CAPACITY_EXCEEDED);
     }
 
     g_info.valid = true;

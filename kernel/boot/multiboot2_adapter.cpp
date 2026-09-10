@@ -194,10 +194,10 @@ void translate_acpi(const tag_header &tag, kernel::core::u8 revision, kernel::bo
 // Multiboot2 adapter
 // =================================================================================================
 
-kernel::core::init_result adapter::parse(const kernel::boot::handoff &source,
+kernel::init::init_result adapter::parse(const kernel::boot::handoff &source,
                                          kernel::boot::info          &out)
 {
-    using kernel::core::init_error;
+    using kernel::init::init_error;
 
     if (source.magic != BOOTLOADER_MAGIC)
         return kernel::core::Err(init_error::INVALID_BOOT_DATA);

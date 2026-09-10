@@ -21,7 +21,7 @@ namespace kernel::boot::multiboot2 {
 struct adapter {
     static constexpr auto *name = "multiboot2";
 
-    static kernel::core::init_result parse(const kernel::boot::handoff &source,
+    static kernel::init::init_result parse(const kernel::boot::handoff &source,
                                            kernel::boot::info          &out);
 };
 

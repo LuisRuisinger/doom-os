@@ -1,24 +1,26 @@
-#ifndef DOOM_OS_KERNEL_BOOT_BOOT_PLAN_HPP_
-#define DOOM_OS_KERNEL_BOOT_BOOT_PLAN_HPP_
+#ifndef DOOM_OS_PLATFORM_PC_MULTIBOOT2_BOOT_PLAN_HPP_
+#define DOOM_OS_PLATFORM_PC_MULTIBOOT2_BOOT_PLAN_HPP_
 
 // =================================================================================================
 // Kernel files
 // =================================================================================================
 
-#include "kernel/arch/x86_64/core_init.hpp"
-#include "kernel/arch/x86_64/serial/serial.hpp"
 #include "kernel/boot/boot_info.hpp"
-#include "kernel/core/component.hpp"
-#include "kernel/core/memory/pmm/pmm.hpp"
-#include "kernel/core/memory/vmm/mmu/mmu.hpp"
+#include "kernel/init/component.hpp"
+#include "arch/x86_64/lapic/lapic.hpp"
+#include "arch/x86_64/mmu/mmu.hpp"
+#include "arch/x86_64/core_init.hpp"
+#include "kernel/mm/kheap.hpp"
+#include "kernel/mm/pmm.hpp"
 #include "kernel/runtime/init.hpp"
+#include "platform/pc_multiboot2/early_console.hpp"
 
-namespace kernel::boot {
+namespace kernel::platform::pc_multiboot2 {
 // =================================================================================================
 // Early boot
 // =================================================================================================
 
-using early_boot_roots = kernel::core::type_list<kernel::arch::x86_64::serial::component>;
+using early_boot_roots = kernel::init::type_list<early_console::component>;
 
 // =================================================================================================
 // Platform boot
@@ -27,7 +29,7 @@ using early_boot_roots = kernel::core::type_list<kernel::arch::x86_64::serial::c
 // IDT is live an exception is a triple fault: silent reset, no panic, no register dump.
 // =================================================================================================
 
-using platform_roots = kernel::core::type_list<kernel::arch::x86_64::core_init::component>;
+using platform_roots = kernel::init::type_list<kernel::arch::x86_64::core_init::component>;
 
 // =================================================================================================
 // Main boot
@@ -37,14 +39,15 @@ using platform_roots = kernel::core::type_list<kernel::arch::x86_64::core_init::
 // graph because their relative order would otherwise come from position in a type_list, which
 // is the kind of ordering nobody writes down and everybody eventually breaks.
 //
-// Rooted on the C++ runtime rather than on the MMU, because the runtime depends on it: the sort
-// pulls in mmu -> pmm -> boot_info underneath and puts global construction last, where it has a
-// heap to allocate from. Stating it as an edge rather than as a second call after this graph is
-// the difference between an ordering the compiler checks and one a comment asks for.
+// LAPIC is the PC-specific consumer of the generic ACPI table transport. Its dependency pulls in
+// boot_info -> pmm -> mmu -> vmm -> acpi before the MADT is parsed. The C++ runtime remains a root
+// because global constructors are entitled to allocate, and the heap pulls its own dependencies in
+// through the same checked graph.
 // =================================================================================================
 
-using boot_roots = kernel::core::type_list<kernel::runtime::component>;
+using boot_roots =
+    kernel::init::type_list<kernel::arch::x86_64::lapic::component, kernel::runtime::component>;
 
-}  // namespace kernel::boot
+}  // namespace kernel::platform::pc_multiboot2
 
-#endif  // DOOM_OS_KERNEL_BOOT_BOOT_PLAN_HPP_
+#endif  // DOOM_OS_PLATFORM_PC_MULTIBOOT2_BOOT_PLAN_HPP_

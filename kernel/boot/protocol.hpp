@@ -11,7 +11,7 @@
 // Kernel files
 // =================================================================================================
 
-#include "kernel/core/component.hpp"
+#include "kernel/init/component.hpp"
 #include "kernel/core/types.hpp"
 #include "kernel/debug/formatter.hpp"
 
@@ -243,7 +243,7 @@ struct handoff {
 template <typename T>
 concept boot_protocol = requires(const handoff &source, info &out) {
     { T::name } -> std::convertible_to<const char *>;
-    { T::parse(source, out) } -> std::same_as<kernel::core::init_result>;
+    { T::parse(source, out) } -> std::same_as<kernel::init::init_result>;
 };
 
 }  // namespace kernel::boot

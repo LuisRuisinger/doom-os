@@ -6,7 +6,7 @@
 // =================================================================================================
 
 #include "kernel/boot/protocol.hpp"
-#include "kernel/core/component.hpp"
+#include "kernel/init/component.hpp"
 
 namespace kernel::boot::boot_info {
 
@@ -37,13 +37,13 @@ bool available();
 // Component
 // =================================================================================================
 
-struct component : kernel::core::component<component, kernel::core::no_resource> {
+struct component : kernel::init::component<component, kernel::init::no_resource> {
     static constexpr auto *name = "BOOT_INFO";
 
-    static kernel::core::init_result parse();
+    static kernel::init::init_result parse();
 
     template <typename View>
-    static kernel::core::init_result init(View)
+    static kernel::init::init_result init(View)
     {
         return parse();
     }
