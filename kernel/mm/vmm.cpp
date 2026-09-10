@@ -88,13 +88,9 @@ Result<vaddr_t, vmm_error> map_mmio(paddr_t physical_address, usize bytes)
         g_mmio.cursor += length;
     }
 
-    auto map_result =
-        map_range(virt_start, phys_base, length, page_size::SIZE_4K, flags_mmio());
-
-    if (map_result.is_err())
-        return kernel::core::Err(map_result.unwrap_err_ref());
-
-    return kernel::core::Ok(virt_start + offset);
+    return map_range(virt_start, phys_base, length, page_size::SIZE_4K, flags_mmio()).map([&] {
+        return virt_start + offset;
+    });
 }
 
 kernel::init::init_result component::init_vmm()
