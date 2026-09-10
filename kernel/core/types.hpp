@@ -6,29 +6,33 @@
 // =================================================================================================
 
 #include <stdarg.h>  // va_list
-#include <stddef.h>  // size_t, nullptr_t in C23-ish contexts, offsetof
-#include <stdint.h>  // uint8_t, uint16_t, uint32_t, uint64_t
+
+// =================================================================================================
+// Public ABI files
+// =================================================================================================
+
+#include <uk/types.hpp>
 
 namespace kernel::core {
 
-using u8 = uint8_t;
-using u16 = uint16_t;
-using u32 = uint32_t;
-using u64 = uint64_t;
+using uk::u8;
+using uk::u16;
+using uk::u32;
+using uk::u64;
 
-using i8 = int8_t;
-using i16 = int16_t;
-using i32 = int32_t;
-using i64 = int64_t;
+using uk::i8;
+using uk::i16;
+using uk::i32;
+using uk::i64;
 
-using usize = size_t;
-using isize = intptr_t;
+using uk::usize;
+using uk::isize;
 
-using uptr = uintptr_t;
-using iptr = intptr_t;
+using uk::uptr;
+using uk::iptr;
 
-using paddr_t = u64;
-using vaddr_t = u64;
+using uk::paddr_t;
+using uk::vaddr_t;
 
 }  // namespace kernel::core
 

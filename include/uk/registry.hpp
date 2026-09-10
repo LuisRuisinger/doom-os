@@ -1,20 +1,20 @@
-#ifndef DOOM_OS_KERNEL_INCLUDE_KERNEL_DRIVER_REGISTRY_HPP_
-#define DOOM_OS_KERNEL_INCLUDE_KERNEL_DRIVER_REGISTRY_HPP_
+#ifndef DOOM_OS_INCLUDE_UK_REGISTRY_HPP_
+#define DOOM_OS_INCLUDE_UK_REGISTRY_HPP_
 
 // =================================================================================================
 // Kernel public files
 // =================================================================================================
 
-#include <kernel/driver/types.hpp>
+#include <uk/types.hpp>
 
-namespace kernel::driver::detail {
+namespace uk::detail {
 
 [[noreturn]] void result_error(const char *message);
 
-}  // namespace kernel::driver::detail
+}  // namespace uk::detail
 
 #ifndef RESULT_ERROR
-#    define RESULT_ERROR(message__) ::kernel::driver::detail::result_error(message__)
+#    define RESULT_ERROR(message__) ::uk::detail::result_error(message__)
 #endif
 
 #ifndef RESULT_SMALL_ENUM_SENTINEL_PROBE_SEQUENCE
@@ -27,7 +27,7 @@ namespace kernel::driver::detail {
 
 #include <result/result.hpp>
 
-namespace kernel::driver {
+namespace uk {
 
 using lsr::Err;
 using lsr::Ok;
@@ -139,42 +139,42 @@ public:
     }
 };
 
-}  // namespace kernel::driver
+}  // namespace uk
 
 extern "C" {
 
-extern const kernel::driver::driver_id __start_doom_os_driver_ids[]
+extern const uk::driver_id __start_doom_os_driver_ids[]
     __attribute__((weak));
-extern const kernel::driver::driver_id __stop_doom_os_driver_ids[]
-    __attribute__((weak));
-
-extern const kernel::driver::init_record __start_doom_os_driver_init[]
-    __attribute__((weak));
-extern const kernel::driver::init_record __stop_doom_os_driver_init[]
+extern const uk::driver_id __stop_doom_os_driver_ids[]
     __attribute__((weak));
 
-extern const kernel::driver::exit_record __start_doom_os_driver_exit[]
+extern const uk::init_record __start_doom_os_driver_init[]
     __attribute__((weak));
-extern const kernel::driver::exit_record __stop_doom_os_driver_exit[]
-    __attribute__((weak));
-
-extern const kernel::driver::provide_record __start_doom_os_driver_provides[]
-    __attribute__((weak));
-extern const kernel::driver::provide_record __stop_doom_os_driver_provides[]
+extern const uk::init_record __stop_doom_os_driver_init[]
     __attribute__((weak));
 
-extern const kernel::driver::require_driver_record __start_doom_os_driver_requires_driver[]
+extern const uk::exit_record __start_doom_os_driver_exit[]
     __attribute__((weak));
-extern const kernel::driver::require_driver_record __stop_doom_os_driver_requires_driver[]
+extern const uk::exit_record __stop_doom_os_driver_exit[]
     __attribute__((weak));
 
-extern const kernel::driver::require_capability_record
+extern const uk::provide_record __start_doom_os_driver_provides[]
+    __attribute__((weak));
+extern const uk::provide_record __stop_doom_os_driver_provides[]
+    __attribute__((weak));
+
+extern const uk::require_driver_record __start_doom_os_driver_requires_driver[]
+    __attribute__((weak));
+extern const uk::require_driver_record __stop_doom_os_driver_requires_driver[]
+    __attribute__((weak));
+
+extern const uk::require_capability_record
     __start_doom_os_driver_requires_capability[] __attribute__((weak));
-extern const kernel::driver::require_capability_record
+extern const uk::require_capability_record
     __stop_doom_os_driver_requires_capability[] __attribute__((weak));
 }
 
-namespace kernel::driver::registry {
+namespace uk::registry {
 
 inline section_range<driver_id> drivers()
 {
@@ -210,6 +210,6 @@ inline section_range<require_capability_record> require_capability_records()
         __stop_doom_os_driver_requires_capability};
 }
 
-}  // namespace kernel::driver::registry
+}  // namespace uk::registry
 
-#endif  // DOOM_OS_KERNEL_INCLUDE_KERNEL_DRIVER_REGISTRY_HPP_
+#endif  // DOOM_OS_INCLUDE_UK_REGISTRY_HPP_

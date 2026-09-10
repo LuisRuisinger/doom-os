@@ -2,14 +2,14 @@
 // Kernel files
 // =================================================================================================
 
-#include "kernel/driver/lifecycle.hpp"
+#include "kernel/device/lifecycle.hpp"
 
-#include "kernel/arch/x86_64/cpu/cpu.hpp"
+#include "arch/x86_64/cpu/cpu.hpp"
 #include "kernel/debug/kprint.hpp"
 
-#include <kernel/driver/capability.hpp>
+#include <uk/capability.hpp>
 
-namespace kernel::driver {
+namespace uk {
 
 namespace detail {
 
@@ -602,4 +602,4 @@ const void *find_capability(const capability_key &key)
     return nullptr;
 }
 
-}  // namespace kernel::driver
+}  // namespace uk

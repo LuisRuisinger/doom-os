@@ -1,13 +1,13 @@
-#ifndef DOOM_OS_KERNEL_INCLUDE_KERNEL_DRIVER_CAPABILITY_HPP_
-#define DOOM_OS_KERNEL_INCLUDE_KERNEL_DRIVER_CAPABILITY_HPP_
+#ifndef DOOM_OS_INCLUDE_UK_CAPABILITY_HPP_
+#define DOOM_OS_INCLUDE_UK_CAPABILITY_HPP_
 
 // =================================================================================================
 // Kernel public files
 // =================================================================================================
 
-#include <kernel/driver/registry.hpp>
+#include <uk/registry.hpp>
 
-namespace kernel::driver {
+namespace uk {
 
 // =================================================================================================
 // Capability declarations
@@ -65,6 +65,6 @@ const typename Capability::api &get()
     return *api;
 }
 
-}  // namespace kernel::driver
+}  // namespace uk
 
-#endif  // DOOM_OS_KERNEL_INCLUDE_KERNEL_DRIVER_CAPABILITY_HPP_
+#endif  // DOOM_OS_INCLUDE_UK_CAPABILITY_HPP_

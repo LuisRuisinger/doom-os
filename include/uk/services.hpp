@@ -1,13 +1,13 @@
-#ifndef DOOM_OS_KERNEL_INCLUDE_KERNEL_DRIVER_SERVICES_HPP_
-#define DOOM_OS_KERNEL_INCLUDE_KERNEL_DRIVER_SERVICES_HPP_
+#ifndef DOOM_OS_INCLUDE_UK_SERVICES_HPP_
+#define DOOM_OS_INCLUDE_UK_SERVICES_HPP_
 
 // =================================================================================================
 // Kernel public files
 // =================================================================================================
 
-#include <kernel/driver/types.hpp>
+#include <uk/types.hpp>
 
-namespace kernel::driver::services {
+namespace uk::services {
 
 // =================================================================================================
 // Driver-facing kernel services
@@ -18,12 +18,6 @@ namespace kernel::driver::services {
 // =================================================================================================
 
 using irq_handler = void (*)(void *context);
-
-struct dma_buffer {
-    paddr_t physical{};
-    void   *virtual_address{};
-    usize   size{};
-};
 
 void log(const char *message);
 
@@ -38,9 +32,6 @@ void free(void *ptr);
 [[nodiscard]] bool register_irq(u32 vector, irq_handler handler, void *context);
 void unregister_irq(u32 vector, irq_handler handler, void *context);
 
-[[nodiscard]] dma_buffer dma_alloc(usize bytes, usize alignment);
-void dma_free(dma_buffer buffer);
+}  // namespace uk::services
 
-}  // namespace kernel::driver::services
-
-#endif  // DOOM_OS_KERNEL_INCLUDE_KERNEL_DRIVER_SERVICES_HPP_
+#endif  // DOOM_OS_INCLUDE_UK_SERVICES_HPP_
