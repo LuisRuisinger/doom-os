@@ -1,4 +1,6 @@
-/* kernel/arch/x86_64/exceptions/exception_stubs.S */
+/* arch/x86_64/exceptions/exception_stubs.S */
+
+#include "arch/x86_64/trap/entry.inc"
 
 .intel_syntax noprefix
 
@@ -65,79 +67,7 @@ EXCEPTION_STUB_ERROR 29
 EXCEPTION_STUB_ERROR 30
 EXCEPTION_STUB_NO_ERROR 31
 
-// =================================================================================================
-// Common entry
-// =================================================================================================
-//
-// Stack on entry to x86_64_exception_common:
-//   rsp + 0x00: vector
-//   rsp + 0x08: error code
-//   rsp + 0x10: rip
-//   rsp + 0x18: cs
-//   rsp + 0x20: rflags
-//   rsp + 0x28: interrupted rsp
-//   rsp + 0x30: interrupted ss
-//
-// =================================================================================================
-
-.type x86_64_exception_common, @function
-x86_64_exception_common:
-    cli
-    cld
-
-    push rax
-    push rbx
-    push rcx
-    push rdx
-    push rsi
-    push rdi
-    push rbp
-    push r8
-    push r9
-    push r10
-    push r11
-    push r12
-    push r13
-    push r14
-    push r15
-
-    mov rdi, rsp
-
-    /*
-     * Keep the C++ call ABI-aligned. Exception entry uses qword pushes, so
-     * rsp is expected to be either 16-byte aligned or off by 8 here.
-     */
-    mov rax, rsp
-    and rax, 0x0f
-    jz .Lcall_dispatch
-
-    sub rsp, 8
-    call x86_64_exception_dispatch
-    add rsp, 8
-    jmp .Ldispatch_returned
-
-.Lcall_dispatch:
-    call x86_64_exception_dispatch
-
-.Ldispatch_returned:
-    pop r15
-    pop r14
-    pop r13
-    pop r12
-    pop r11
-    pop r10
-    pop r9
-    pop r8
-    pop rbp
-    pop rdi
-    pop rsi
-    pop rdx
-    pop rcx
-    pop rbx
-    pop rax
-
-    add rsp, 16
-    iretq
+X86_64_TRAP_COMMON_ENTRY x86_64_exception_common, x86_64_exception_dispatch
 
 // =================================================================================================
 // Stub table

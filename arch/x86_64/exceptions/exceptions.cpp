@@ -2,12 +2,12 @@
 // Kernel files
 // =================================================================================================
 
-#include "kernel/arch/x86_64/exceptions/exceptions.hpp"
+#include "arch/x86_64/exceptions/exceptions.hpp"
 
-#include "kernel/arch/x86_64/cpu/cpu.hpp"
-#include "kernel/arch/x86_64/cpu/registers.hpp"
-#include "kernel/arch/x86_64/idt/idt.hpp"
-#include "kernel/arch/x86_64/tss/tss.hpp"
+#include "arch/x86_64/cpu/cpu.hpp"
+#include "arch/x86_64/cpu/registers.hpp"
+#include "arch/x86_64/idt/idt.hpp"
+#include "arch/x86_64/tss/tss.hpp"
 #include "kernel/debug/kpanic.hpp"
 #include "kernel/debug/kprint.hpp"
 
@@ -25,40 +25,6 @@ namespace kernel::arch::x86_64::exceptions {
 
 extern "C" const kernel::arch::x86_64::idt::handler
     x86_64_exception_stub_table[CPU_EXCEPTION_COUNT];
-
-// =================================================================================================
-// Static checks
-// =================================================================================================
-
-static_assert(sizeof(exception_frame) == 22 * sizeof(u64));
-
-#define DOOM_OS_EXCEPTION_FRAME_FIELD(field, index) \
-    static_assert(offsetof(exception_frame, field) == (index) * sizeof(u64))
-
-DOOM_OS_EXCEPTION_FRAME_FIELD(r15, 0);
-DOOM_OS_EXCEPTION_FRAME_FIELD(r14, 1);
-DOOM_OS_EXCEPTION_FRAME_FIELD(r13, 2);
-DOOM_OS_EXCEPTION_FRAME_FIELD(r12, 3);
-DOOM_OS_EXCEPTION_FRAME_FIELD(r11, 4);
-DOOM_OS_EXCEPTION_FRAME_FIELD(r10, 5);
-DOOM_OS_EXCEPTION_FRAME_FIELD(r9, 6);
-DOOM_OS_EXCEPTION_FRAME_FIELD(r8, 7);
-DOOM_OS_EXCEPTION_FRAME_FIELD(rbp, 8);
-DOOM_OS_EXCEPTION_FRAME_FIELD(rdi, 9);
-DOOM_OS_EXCEPTION_FRAME_FIELD(rsi, 10);
-DOOM_OS_EXCEPTION_FRAME_FIELD(rdx, 11);
-DOOM_OS_EXCEPTION_FRAME_FIELD(rcx, 12);
-DOOM_OS_EXCEPTION_FRAME_FIELD(rbx, 13);
-DOOM_OS_EXCEPTION_FRAME_FIELD(rax, 14);
-DOOM_OS_EXCEPTION_FRAME_FIELD(vector, 15);
-DOOM_OS_EXCEPTION_FRAME_FIELD(error_code, 16);
-DOOM_OS_EXCEPTION_FRAME_FIELD(rip, 17);
-DOOM_OS_EXCEPTION_FRAME_FIELD(cs, 18);
-DOOM_OS_EXCEPTION_FRAME_FIELD(rflags, 19);
-DOOM_OS_EXCEPTION_FRAME_FIELD(rsp, 20);
-DOOM_OS_EXCEPTION_FRAME_FIELD(ss, 21);
-
-#undef DOOM_OS_EXCEPTION_FRAME_FIELD
 
 // =================================================================================================
 // Exception metadata
@@ -113,69 +79,38 @@ const char *exception_name(u8 vector)
 // =================================================================================================
 
 #define DOOM_OS_CPU_EXCEPTION_VECTORS(X) \
-    X(0)                                 \
-    X(1)                                 \
-    X(2)                                 \
-    X(3)                                 \
-    X(4)                                 \
-    X(5)                                 \
-    X(6)                                 \
-    X(7)                                 \
-    X(8)                                 \
-    X(9)                                 \
-    X(10)                                \
-    X(11)                                \
-    X(12)                                \
-    X(13)                                \
-    X(14)                                \
-    X(15)                                \
-    X(16)                                \
-    X(17)                                \
-    X(18)                                \
-    X(19)                                \
-    X(20)                                \
-    X(21)                                \
-    X(22)                                \
-    X(23)                                \
-    X(24)                                \
-    X(25)                                \
-    X(26)                                \
-    X(27)                                \
-    X(28)                                \
-    X(29)                                \
-    X(30)                                \
-    X(31)
-
-#define DOOM_OS_WEAK_DEFAULT_EXCEPTION_VECTORS(X) \
-    X(0)                                          \
-    X(1)                                          \
-    X(3)                                          \
-    X(4)                                          \
-    X(5)                                          \
-    X(6)                                          \
-    X(7)                                          \
-    X(9)                                          \
-    X(10)                                         \
-    X(11)                                         \
-    X(12)                                         \
-    X(13)                                         \
-    X(14)                                         \
-    X(15)                                         \
-    X(16)                                         \
-    X(17)                                         \
-    X(19)                                         \
-    X(20)                                         \
-    X(21)                                         \
-    X(22)                                         \
-    X(23)                                         \
-    X(24)                                         \
-    X(25)                                         \
-    X(26)                                         \
-    X(27)                                         \
-    X(28)                                         \
-    X(29)                                         \
-    X(30)                                         \
-    X(31)
+    X(0, fault_exception_type)           \
+    X(1, debug_exception_type)           \
+    X(2, nmi_exception_type)             \
+    X(3, trap_exception_type)            \
+    X(4, trap_exception_type)            \
+    X(5, fault_exception_type)           \
+    X(6, fault_exception_type)           \
+    X(7, fault_exception_type)           \
+    X(8, double_fault_exception_type)    \
+    X(9, fault_exception_type)           \
+    X(10, fault_exception_type)          \
+    X(11, fault_exception_type)          \
+    X(12, fault_exception_type)          \
+    X(13, fault_exception_type)          \
+    X(14, fault_exception_type)          \
+    X(15, reserved_exception_type)       \
+    X(16, fault_exception_type)          \
+    X(17, fault_exception_type)          \
+    X(18, machine_check_exception_type)  \
+    X(19, fault_exception_type)          \
+    X(20, fault_exception_type)          \
+    X(21, fault_exception_type)          \
+    X(22, reserved_exception_type)       \
+    X(23, reserved_exception_type)       \
+    X(24, reserved_exception_type)       \
+    X(25, reserved_exception_type)       \
+    X(26, reserved_exception_type)       \
+    X(27, reserved_exception_type)       \
+    X(28, fault_exception_type)          \
+    X(29, fault_exception_type)          \
+    X(30, fault_exception_type)          \
+    X(31, reserved_exception_type)
 
 // =================================================================================================
 // Validation
@@ -217,19 +152,21 @@ static void validate_handler_vector(const exception_frame &frame, u8 expected)
         KPANIC("[exception] handler/vector mismatch expected={} actual={}", expected, frame.vector);
 }
 
-static const cpu::stack &fatal_exception_stack(cpu::local_state &cpu, u8 vector)
+template <kernel::arch::x86_64::tss::interrupt_stack Stack>
+static const cpu::stack &stack_for_exception_type(cpu::local_state &cpu)
 {
     const cpu::stack_set &stacks = cpu.stacks();
 
-    switch (vector) {
-        case 2:
-            return stacks.nmi();
-        case 8:
-            return stacks.double_fault();
-        case 18:
-            return stacks.machine_check();
-        default:
-            return stacks.kernel();
+    if constexpr (Stack == kernel::arch::x86_64::tss::interrupt_stack::NMI) {
+        return stacks.nmi();
+    } else if constexpr (Stack == kernel::arch::x86_64::tss::interrupt_stack::DOUBLE_FAULT) {
+        return stacks.double_fault();
+    } else if constexpr (Stack == kernel::arch::x86_64::tss::interrupt_stack::MACHINE_CHECK) {
+        return stacks.machine_check();
+    } else {
+        static_assert(Stack == kernel::arch::x86_64::tss::interrupt_stack::NONE,
+                      "exception type references an IST slot without a CPU stack accessor");
+        return stacks.kernel();
     }
 }
 
@@ -345,48 +282,114 @@ static page_fault_cause decode_page_fault(u64 error_code)
                       frame.error_code);
 }
 
-#define DOOM_OS_DEFINE_WEAK_EXCEPTION_HANDLER(vector_id)                        \
+enum class exception_gate : u8 {
+    INTERRUPT,
+    TRAP,
+};
+
+struct fault_exception_type {
+    static constexpr auto interrupt_stack = kernel::arch::x86_64::tss::interrupt_stack::NONE;
+    static constexpr auto gate = exception_gate::INTERRUPT;
+
+    template <u8 Vector>
+    static void handle(cpu::local_state &cpu [[maybe_unused]], exception_frame &frame)
+    {
+        static_assert(Vector < CPU_EXCEPTION_COUNT);
+
+        validate_handler_vector(frame, Vector);
+        panic_unhandled_exception(frame);
+    }
+};
+
+struct debug_exception_type : fault_exception_type {};
+
+struct reserved_exception_type : fault_exception_type {};
+
+struct trap_exception_type : fault_exception_type {
+    static constexpr auto gate = exception_gate::TRAP;
+};
+
+template <typename Derived, kernel::arch::x86_64::tss::interrupt_stack Stack>
+struct fatal_exception_type {
+    static constexpr auto interrupt_stack = Stack;
+    static constexpr auto gate = exception_gate::INTERRUPT;
+
+    template <u8 Vector>
+    static void handle(cpu::local_state &cpu, exception_frame &frame)
+    {
+        static_assert(Vector < CPU_EXCEPTION_COUNT);
+
+        const auto &fatal_stack = stack_for_exception_type<Stack>(cpu);
+
+        validate_handler_vector(frame, Vector);
+
+        auto fatal_dump = panic_frame_from(frame);
+
+        KPANIC_WITH_FRAME(fatal_dump,
+                          "[exception] fatal {}: {} vector={} error={:#018X} "
+                          "stack=[{:#018X}, {:#018X}) size={}",
+                          exception_name(static_cast<u8>(frame.vector)), Derived::fatal_reason,
+                          frame.vector, frame.error_code, fatal_stack.bottom, fatal_stack.top,
+                          fatal_stack.size);
+    }
+};
+
+struct nmi_exception_type
+    : fatal_exception_type<nmi_exception_type, kernel::arch::x86_64::tss::interrupt_stack::NMI> {
+    static constexpr const char *fatal_reason = "non-maskable interrupt";
+};
+
+struct double_fault_exception_type
+    : fatal_exception_type<double_fault_exception_type,
+                           kernel::arch::x86_64::tss::interrupt_stack::DOUBLE_FAULT> {
+    static constexpr const char *fatal_reason = "double fault";
+};
+
+struct machine_check_exception_type
+    : fatal_exception_type<machine_check_exception_type,
+                           kernel::arch::x86_64::tss::interrupt_stack::MACHINE_CHECK> {
+    static constexpr const char *fatal_reason = "machine check";
+};
+
+template <u8 Vector, typename ExceptionType>
+struct exception_descriptor {
+    static constexpr auto vector = Vector;
+    using type = ExceptionType;
+
+    static constexpr auto interrupt_stack = type::interrupt_stack;
+    static constexpr auto gate = type::gate;
+
+    static void handle(cpu::local_state &cpu, exception_frame &frame)
+    {
+        type::template handle<Vector>(cpu, frame);
+    }
+};
+
+template <u8 Vector>
+struct exception_descriptor_for_vector;
+
+#define DOOM_OS_DECLARE_EXCEPTION_DESCRIPTOR(vector_id, exception_type) \
+    template <>                                                        \
+    struct exception_descriptor_for_vector<vector_id>                  \
+        : exception_descriptor<vector_id, exception_type> {};
+
+DOOM_OS_CPU_EXCEPTION_VECTORS(DOOM_OS_DECLARE_EXCEPTION_DESCRIPTOR)
+
+#undef DOOM_OS_DECLARE_EXCEPTION_DESCRIPTOR
+
+#define DOOM_OS_DEFINE_WEAK_EXCEPTION_HANDLER(vector_id, exception_type)         \
     extern "C" void DOOM_OS_EXCEPTION_HANDLER_SYMBOL(vector_id)(                \
         cpu::local_state & cpu, exception_frame & frame) __attribute__((weak)); \
                                                                                 \
     extern "C" void DOOM_OS_EXCEPTION_HANDLER_SYMBOL(vector_id)(                \
         cpu::local_state & cpu [[maybe_unused]], exception_frame & frame)       \
     {                                                                           \
-        static_assert(vector_id < CPU_EXCEPTION_COUNT);                         \
-                                                                                \
-        validate_handler_vector(frame, vector_id);                              \
-                                                                                \
-        panic_unhandled_exception(frame);                                       \
+        exception_descriptor_for_vector<vector_id>::handle(cpu, frame);         \
     }
 
-DOOM_OS_WEAK_DEFAULT_EXCEPTION_VECTORS(DOOM_OS_DEFINE_WEAK_EXCEPTION_HANDLER)
+DOOM_OS_CPU_EXCEPTION_VECTORS(DOOM_OS_DEFINE_WEAK_EXCEPTION_HANDLER)
 
 #undef DOOM_OS_DEFINE_WEAK_EXCEPTION_HANDLER
-
-#define DOOM_OS_DEFINE_FATAL_EXCEPTION_HANDLER(vector_id, reason)                              \
-    DEFINE_EXCEPTION_HANDLER(vector_id)                                                        \
-    {                                                                                          \
-        static_assert(vector_id < CPU_EXCEPTION_COUNT);                                        \
-        const char *fatal_reason = reason;                                                     \
-        const auto &fatal_stack = fatal_exception_stack(cpu, vector_id);                       \
-                                                                                               \
-        validate_handler_vector(frame, vector_id);                                             \
-                                                                                               \
-        auto fatal_dump = panic_frame_from(frame);                                             \
-                                                                                               \
-        KPANIC_WITH_FRAME(fatal_dump,                                                          \
-                          "[exception] fatal {}: {} vector={} error={:#018X} "                 \
-                          "stack=[{:#018X}, {:#018X}) size={}",                                \
-                          exception_name(static_cast<u8>(frame.vector)), fatal_reason,         \
-                          frame.vector, frame.error_code, fatal_stack.bottom, fatal_stack.top, \
-                          fatal_stack.size);                                                   \
-    }
-
-DOOM_OS_DEFINE_FATAL_EXCEPTION_HANDLER(2, "non-maskable interrupt")
-DOOM_OS_DEFINE_FATAL_EXCEPTION_HANDLER(8, "double fault")
-DOOM_OS_DEFINE_FATAL_EXCEPTION_HANDLER(18, "machine check")
-
-#undef DOOM_OS_DEFINE_FATAL_EXCEPTION_HANDLER
 
 // =================================================================================================
 // Handler table
@@ -403,14 +406,13 @@ struct exception_handler_table {
 
 using exception_vector_sequence = std::make_index_sequence<CPU_EXCEPTION_COUNT>;
 
-#define DOOM_OS_EXCEPTION_HANDLER_ENTRY(vector) DOOM_OS_EXCEPTION_HANDLER_SYMBOL(vector),
+#define DOOM_OS_EXCEPTION_HANDLER_ENTRY(vector, exception_type) \
+    DOOM_OS_EXCEPTION_HANDLER_SYMBOL(vector),
 
 static constexpr exception_handler_table EXCEPTION_HANDLERS{
     {DOOM_OS_CPU_EXCEPTION_VECTORS(DOOM_OS_EXCEPTION_HANDLER_ENTRY)}};
 
 #undef DOOM_OS_EXCEPTION_HANDLER_ENTRY
-#undef DOOM_OS_WEAK_DEFAULT_EXCEPTION_VECTORS
-#undef DOOM_OS_CPU_EXCEPTION_VECTORS
 
 // =================================================================================================
 // IDT installation
@@ -419,15 +421,9 @@ static constexpr exception_handler_table EXCEPTION_HANDLERS{
 template <usize Vector>
 static constexpr u8 ist_for_vector()
 {
-    if constexpr (Vector == 2) {
-        return static_cast<u8>(kernel::arch::x86_64::tss::interrupt_stack::NMI);
-    } else if constexpr (Vector == 8) {
-        return static_cast<u8>(kernel::arch::x86_64::tss::interrupt_stack::DOUBLE_FAULT);
-    } else if constexpr (Vector == 18) {
-        return static_cast<u8>(kernel::arch::x86_64::tss::interrupt_stack::MACHINE_CHECK);
-    } else {
-        return static_cast<u8>(kernel::arch::x86_64::tss::interrupt_stack::NONE);
-    }
+    using descriptor = exception_descriptor_for_vector<static_cast<u8>(Vector)>;
+
+    return static_cast<u8>(descriptor::interrupt_stack);
 }
 
 template <usize Vector>
@@ -436,8 +432,9 @@ static void describe_exception_gate(kernel::arch::x86_64::idt::gate_table &gates
     constexpr auto vector = static_cast<u8>(Vector);
     constexpr auto ist = ist_for_vector<Vector>();
     const auto     entry_point = x86_64_exception_stub_table[Vector];
+    using descriptor = exception_descriptor_for_vector<vector>;
 
-    if constexpr (Vector == 3 || Vector == 4) {
+    if constexpr (descriptor::gate == exception_gate::TRAP) {
         gates.set_trap_gate(vector, entry_point, ist);
     } else {
         gates.set_interrupt_gate(vector, entry_point, ist);
@@ -451,16 +448,18 @@ static void describe_exception_gates(kernel::arch::x86_64::idt::gate_table &gate
     (describe_exception_gate<Vectors>(gates), ...);
 }
 
-kernel::core::init_result core_component::describe_gates(
+kernel::init::init_result core_component::describe_gates(
     kernel::arch::x86_64::idt::gate_table &gates)
 {
     describe_exception_gates(gates, exception_vector_sequence{});
     return kernel::core::Ok();
 }
 
+#undef DOOM_OS_CPU_EXCEPTION_VECTORS
+
 }  // namespace kernel::arch::x86_64::exceptions
 
-extern "C" void x86_64_exception_dispatch(kernel::arch::x86_64::exceptions::exception_frame *frame)
+extern "C" void x86_64_exception_dispatch(kernel::arch::x86_64::trap::frame *frame)
 {
     using namespace kernel::arch::x86_64;
 

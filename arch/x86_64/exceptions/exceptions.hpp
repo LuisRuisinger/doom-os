@@ -5,9 +5,10 @@
 // Kernel files
 // =================================================================================================
 
-#include "kernel/arch/x86_64/idt/idt.hpp"
-#include "kernel/core/component.hpp"
+#include "arch/x86_64/idt/idt.hpp"
+#include "arch/x86_64/trap/frame.hpp"
 #include "kernel/core/types.hpp"
+#include "kernel/init/component.hpp"
 
 namespace kernel::arch::x86_64::cpu {
 
@@ -31,34 +32,7 @@ static constexpr u8 CPU_EXCEPTION_COUNT = 32;
 // Exception frame
 // =================================================================================================
 
-struct exception_frame {
-    u64 r15;
-    u64 r14;
-    u64 r13;
-    u64 r12;
-    u64 r11;
-    u64 r10;
-    u64 r9;
-    u64 r8;
-    u64 rbp;
-    u64 rdi;
-    u64 rsi;
-    u64 rdx;
-    u64 rcx;
-    u64 rbx;
-    u64 rax;
-
-    u64 vector;
-    u64 error_code;
-
-    u64 rip;
-    u64 cs;
-    u64 rflags;
-    u64 rsp;
-    u64 ss;
-};
-
-static_assert(sizeof(exception_frame) == 22 * sizeof(u64));
+using exception_frame = kernel::arch::x86_64::trap::frame;
 
 const char *exception_name(u8 vector);
 
@@ -102,13 +76,13 @@ using exception_handler = void (*)(cpu::local_state &cpu, exception_frame &frame
 // this table and installs it; nothing here reaches into the IDT's own state.
 // =================================================================================================
 
-struct core_component : kernel::core::component<core_component, idt::gate_table> {
+struct core_component : kernel::init::component<core_component, idt::gate_table> {
     static constexpr auto *name = "EXCEPTIONS";
 
-    static kernel::core::init_result describe_gates(idt::gate_table &gates);
+    static kernel::init::init_result describe_gates(idt::gate_table &gates);
 
     template <typename View>
-    static kernel::core::init_result init(View view)
+    static kernel::init::init_result init(View view)
     {
         return describe_gates(own(view));
     }
