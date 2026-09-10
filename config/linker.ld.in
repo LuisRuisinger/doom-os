@@ -129,7 +129,7 @@ SECTIONS
        is decided when GCC itself is configured, not by any flag we can pass here. A cross GCC
        built --without-headers cannot run the configure probe that selects .init_array, so it
        falls back to .ctors unless it was built --enable-initfini-array.
-       libos/crt.cpp walks .init_array. Collecting .ctors here and asserting it empty is what
+       kernel/runtime/init.cpp walks .init_array. Collecting .ctors here and asserting it empty is what
        stops a toolchain of the wrong kind from silently dropping every constructor in the image
        into an orphan section nothing ever calls. */
     .ctors ALIGN(8) : AT(ADDR(.ctors) - KERNEL_VMA)

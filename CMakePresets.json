@@ -12,7 +12,7 @@
       "description": "Cross build of the kernel and bootable ISO",
       "generator": "Ninja",
       "binaryDir": "${sourceDir}/build",
-      "toolchainFile": "${sourceDir}/cmake/toolchain-x86_64-elf.cmake",
+      "toolchainFile": "${sourceDir}/cmake/toolchains/x86_64-elf.cmake",
       "cacheVariables": {
         "CMAKE_EXPORT_COMPILE_COMMANDS": "ON"
       }

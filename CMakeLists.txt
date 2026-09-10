@@ -3,13 +3,13 @@ cmake_minimum_required(VERSION 3.22)
 # ==================================================================================================
 # DoomOS
 #
-# cmake -B build -G Ninja -DCMAKE_TOOLCHAIN_FILE=cmake/toolchain-x86_64-elf.cmake
+# cmake -B build -G Ninja -DCMAKE_TOOLCHAIN_FILE=cmake/toolchains/x86_64-elf.cmake
 # cmake --build build
 # ==================================================================================================
 
 if(NOT CMAKE_TOOLCHAIN_FILE AND NOT CMAKE_CROSSCOMPILING)
     message(FATAL_ERROR
-            "Configure with -DCMAKE_TOOLCHAIN_FILE=cmake/toolchain-x86_64-elf.cmake")
+            "Configure with -DCMAKE_TOOLCHAIN_FILE=cmake/toolchains/x86_64-elf.cmake")
 endif()
 
 project(DoomOS
@@ -44,9 +44,9 @@ endif()
 # Sources
 # ==================================================================================================
 
-# kernel/arch is globbed per architecture rather than wholesale. The architecture setting has to
-# decide which port is compiled or it decides nothing: a sweep of kernel/ would take every arch
-# directory present and hand the linker two definitions of the same entry point.
+# arch/ and platform/ are globbed by the selected ids rather than wholesale. Those settings have to
+# decide which port and machine wiring are compiled, or they decide nothing: a sweep of either tree
+# would take every implementation present and hand the linker duplicate entry points.
 
 file(GLOB_RECURSE KERNEL_CXX_SOURCES CONFIGURE_DEPENDS
         ${DOOM_OS_ROOT}/kernel/*.cpp)
@@ -54,34 +54,51 @@ file(GLOB_RECURSE KERNEL_CXX_SOURCES CONFIGURE_DEPENDS
 file(GLOB_RECURSE KERNEL_ASM_SOURCES CONFIGURE_DEPENDS
         ${DOOM_OS_ROOT}/kernel/*.S)
 
-file(GLOB_RECURSE KERNEL_FOREIGN_ARCH_SOURCES CONFIGURE_DEPENDS
-        ${DOOM_OS_ROOT}/kernel/arch/*.cpp
-        ${DOOM_OS_ROOT}/kernel/arch/*.S)
+file(GLOB_RECURSE KERNEL_ARCH_CXX_SOURCES CONFIGURE_DEPENDS
+        ${DOOM_OS_ROOT}/arch/${DOOM_OS_ARCHITECTURE_ID}/*.cpp)
 
-file(GLOB_RECURSE KERNEL_ARCH_SOURCES CONFIGURE_DEPENDS
-        ${DOOM_OS_ROOT}/kernel/arch/${DOOM_OS_ARCHITECTURE_ID}/*.cpp
-        ${DOOM_OS_ROOT}/kernel/arch/${DOOM_OS_ARCHITECTURE_ID}/*.S)
+file(GLOB_RECURSE KERNEL_ARCH_ASM_SOURCES CONFIGURE_DEPENDS
+        ${DOOM_OS_ROOT}/arch/${DOOM_OS_ARCHITECTURE_ID}/*.S)
 
-if(NOT KERNEL_ARCH_SOURCES)
+if(NOT KERNEL_ARCH_CXX_SOURCES AND NOT KERNEL_ARCH_ASM_SOURCES)
     message(FATAL_ERROR
-            "No sources under kernel/arch/${DOOM_OS_ARCHITECTURE_ID}. "
+            "No sources under arch/${DOOM_OS_ARCHITECTURE_ID}. "
             "DOOM_OS_ARCHITECTURE names a port that is not in the tree.")
 endif()
 
-foreach(_foreign IN LISTS KERNEL_FOREIGN_ARCH_SOURCES)
-    if(NOT _foreign IN_LIST KERNEL_ARCH_SOURCES)
-        list(REMOVE_ITEM KERNEL_CXX_SOURCES ${_foreign})
-        list(REMOVE_ITEM KERNEL_ASM_SOURCES ${_foreign})
-    endif()
-endforeach()
+set(DOOM_OS_PLATFORM_DIR ${DOOM_OS_ROOT}/platform/${DOOM_OS_PLATFORM_ID})
+
+if(NOT EXISTS "${DOOM_OS_PLATFORM_DIR}")
+    message(FATAL_ERROR
+            "No platform directory at platform/${DOOM_OS_PLATFORM_ID}. "
+            "DOOM_OS_PLATFORM names machine wiring that is not in the tree.")
+endif()
+
+file(GLOB_RECURSE KERNEL_PLATFORM_CXX_SOURCES CONFIGURE_DEPENDS
+        ${DOOM_OS_PLATFORM_DIR}/*.cpp)
+
+file(GLOB_RECURSE KERNEL_PLATFORM_ASM_SOURCES CONFIGURE_DEPENDS
+        ${DOOM_OS_PLATFORM_DIR}/*.S)
+
+list(APPEND KERNEL_CXX_SOURCES
+        ${KERNEL_ARCH_CXX_SOURCES}
+        ${KERNEL_PLATFORM_CXX_SOURCES})
+
+list(APPEND KERNEL_ASM_SOURCES
+        ${KERNEL_ARCH_ASM_SOURCES}
+        ${KERNEL_PLATFORM_ASM_SOURCES})
 
 file(GLOB_RECURSE KERNEL_HEADERS CONFIGURE_DEPENDS
         ${DOOM_OS_ROOT}/kernel/*.hpp
+        ${DOOM_OS_ROOT}/arch/*.hpp
+        ${DOOM_OS_ROOT}/platform/*.hpp
         ${DOOM_OS_ROOT}/include/*.hpp)
 
 file(GLOB_RECURSE LIBOS_SOURCES CONFIGURE_DEPENDS
-        ${DOOM_OS_ROOT}/libos/*.cpp
-        ${DOOM_OS_ROOT}/libos/*.c)
+        ${DOOM_OS_ROOT}/entry/*.cpp
+        ${DOOM_OS_ROOT}/entry/*.c
+        ${DOOM_OS_ROOT}/posix/*.cpp
+        ${DOOM_OS_ROOT}/posix/*.c)
 
 # ==================================================================================================
 # Dependencies
@@ -101,6 +118,16 @@ FetchContent_Declare(reflect
         GIT_REPOSITORY https://github.com/LuisRuisinger/cpp-reflect.git
         GIT_TAG experimental)
 FetchContent_MakeAvailable(reflect)
+
+# dlmalloc 2.8.6, the kernel heap's free lists. A single unversioned file rather than a repository,
+# so the hash is the pin: an unofficial mirror would be a weaker guarantee than this, not a
+# stronger one. It carries no CMakeLists, so MakeAvailable populates it and nothing more - the
+# object library is built below, against kernel/mm/dlmalloc_config.h.
+FetchContent_Declare(dlmalloc
+        URL https://gee.cs.oswego.edu/pub/misc/malloc.c
+        URL_HASH SHA256=be7be56b40b4b31417e74e77687f9b96127ea6cae534cf236aee40a4c739508d
+        DOWNLOAD_NO_EXTRACT TRUE)
+FetchContent_MakeAvailable(dlmalloc)
 
 # =================================================================================================
 # External directories
@@ -182,6 +209,8 @@ endif()
 
 get_property(DOOM_OS_APPLICATION_OBJECTS GLOBAL PROPERTY DOOM_OS_APPLICATION_OBJECTS)
 get_property(DOOM_OS_APPLICATION_DEPENDS GLOBAL PROPERTY DOOM_OS_APPLICATION_DEPENDS)
+get_property(DOOM_OS_APPLICATION_LIBRARIES GLOBAL PROPERTY DOOM_OS_APPLICATION_LIBRARIES)
+get_property(DOOM_OS_APPLICATION_TARGET GLOBAL PROPERTY DOOM_OS_APPLICATION_TARGET)
 get_property(DOOM_OS_DRIVER_DEPENDS GLOBAL PROPERTY DOOM_OS_DRIVER_DEPENDS)
 # =================================================================================================
 # Linker script
@@ -211,14 +240,41 @@ add_custom_target(linker-script DEPENDS ${DOOM_OS_LINKER_SCRIPT})
 # =================================================================================================
 
 # =================================================================================================
+# dlmalloc
+#
+# Its own translation unit, because the configuration is expressed as macros read before the file
+# is parsed and there is nowhere to put those but ahead of it. NO_WARNINGS is for the source, not
+# for the flags: the ABI options are the same ones the kernel is built with, and have to be.
+#
+# The image exports no malloc. ONLY_MSPACES in the config header is what guarantees that, and the
+# post-build check on kernel.elf is what notices if it ever stops being true.
+# =================================================================================================
+
+add_library(doom_os_dlmalloc OBJECT ${dlmalloc_SOURCE_DIR}/malloc.c)
+
+# For kernel/runtime/memory.h, which the config header reaches for. The C spelling exists so that
+# this translation unit and memory.cpp declare memset and memcpy once between them.
+target_include_directories(doom_os_dlmalloc PRIVATE ${DOOM_OS_ROOT})
+
+target_compile_options(doom_os_dlmalloc PRIVATE
+        -include ${DOOM_OS_ROOT}/kernel/mm/dlmalloc_config.h)
+
+doom_os_configure_freestanding_target(doom_os_dlmalloc NO_WARNINGS)
+
+# =================================================================================================
 # libos
 #
-# Library layer to link application code against
+# Library layer to link application code against. The shape is deliberately small:
+#   entry/ owns the app lifecycle,
+#   posix/ owns ABI declarations, errno storage, weak POSIX fallbacks, and libc/runtime glue,
+#   kernel/*/posix/ owns strong subsystem-specific POSIX adapters.
 # =================================================================================================
 
 add_library(doom_os_libos OBJECT ${LIBOS_SOURCES})
 
-target_include_directories(doom_os_libos PRIVATE ${DOOM_OS_ROOT})
+target_include_directories(doom_os_libos PRIVATE
+        ${DOOM_OS_ROOT}
+        ${DOOM_OS_ROOT}/include)
 target_link_libraries(doom_os_libos PRIVATE
         doom_os_config
         lsr::result
@@ -226,11 +282,16 @@ target_link_libraries(doom_os_libos PRIVATE
 
 doom_os_configure_freestanding_target(doom_os_libos)
 
+if(DOOM_OS_APPLICATION_TARGET)
+    target_compile_definitions(doom_os_libos PRIVATE DOOM_OS_HAS_APPLICATION=1)
+endif()
+
 add_executable(kernel.elf
         ${KERNEL_CXX_SOURCES}
         ${KERNEL_ASM_SOURCES}
         ${DOOM_OS_DRIVER_OBJECTS}
         ${DOOM_OS_APPLICATION_OBJECTS}
+        $<TARGET_OBJECTS:doom_os_dlmalloc>
         $<TARGET_OBJECTS:doom_os_libos>)
 
 add_dependencies(kernel.elf linker-script)
@@ -282,12 +343,9 @@ target_link_options(kernel.elf PRIVATE
         # look into max-page-size
         -Wl,-z,max-page-size=0x1000)
 
-get_property(DOOM_OS_APPLICATION_ARCHIVES GLOBAL PROPERTY DOOM_OS_APPLICATION_ARCHIVES)
-
-foreach(_archive IN LISTS DOOM_OS_APPLICATION_ARCHIVES)
-    target_link_options(kernel.elf PRIVATE
-            "-Wl,--whole-archive" "${_archive}" "-Wl,--no-whole-archive")
-endforeach()
+if(DOOM_OS_APPLICATION_LIBRARIES)
+    target_link_libraries(kernel.elf PRIVATE ${DOOM_OS_APPLICATION_LIBRARIES})
+endif()
 
 target_link_libraries(kernel.elf PRIVATE gcc)
 

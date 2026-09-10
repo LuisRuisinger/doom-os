@@ -39,6 +39,22 @@ if(_symbols MATCHES "_GLOBAL__sub_I")
             "explicit init() the boot graph calls.")
 endif()
 
+# The kernel heap is dlmalloc, and dlmalloc's default build defines malloc. An image with no
+# application is where that is checkable: every symbol in it came from the kernel, so a definition
+# here is unambiguously ours. It would not stay diagnosable once an application is linked - its C
+# library defines the same names legitimately, and the failure is silent anyway. A kernel malloc
+# satisfies the application's reference before its libc archive member is extracted, and the
+# application then allocates out of kernel pools. ONLY_MSPACES in kernel/mm/dlmalloc_config.h is
+# what keeps these symbols out; this is what notices if that ever changes.
+if(_symbols MATCHES "[0-9a-fA-F]+ [TtWw] (malloc|free|calloc|realloc|memalign|posix_memalign)\n")
+    message(FATAL_ERROR
+            "The kernel defines '${CMAKE_MATCH_2}'.\n"
+            "An application brings its own C library, and a definition here resolves that "
+            "library's reference before its archive member is ever extracted - the application "
+            "would allocate from kernel pools with no diagnostic. Check that ONLY_MSPACES is "
+            "still set in kernel/mm/dlmalloc_config.h.")
+endif()
+
 foreach(_bound init_array_start init_array_end fini_array_start fini_array_end)
     if(NOT _symbols MATCHES "([0-9a-fA-F]+) [^ ]+ __${_bound}\n")
         message(FATAL_ERROR "${KERNEL_ELF} defines no __${_bound}")

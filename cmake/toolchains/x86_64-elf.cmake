@@ -1,7 +1,7 @@
 # =================================================================================================
 # Cross toolchain for the bare-metal x86_64-elf target.
 #
-# cmake -B build -G Ninja -DCMAKE_TOOLCHAIN_FILE=cmake/toolchain-x86_64-elf.cmake
+# cmake -B build -G Ninja -DCMAKE_TOOLCHAIN_FILE=cmake/toolchains/x86_64-elf.cmake
 # =================================================================================================
 
 set(CMAKE_SYSTEM_NAME Generic)

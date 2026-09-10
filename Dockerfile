@@ -111,10 +111,14 @@ ARG DEBIAN_FRONTEND=noninteractive
 ARG TARGET=x86_64-elf
 ARG PREFIX=/opt/cross
 ARG CLANG_FORMAT_VERSION=20
+ARG RUST_TOOLCHAIN=stable
+ARG DOOM_OS_RUST_TARGET=x86_64-unknown-linux-musl
 
 ENV TARGET=${TARGET}
 ENV PREFIX=${PREFIX}
-ENV PATH="${PREFIX}/bin:${PATH}"
+ENV CARGO_HOME=/opt/cargo
+ENV RUSTUP_HOME=/opt/rustup
+ENV PATH="${CARGO_HOME}/bin:${PREFIX}/bin:${PATH}"
 
 # The -dev packages are what the cross compiler links against at run time (libgmp, libmpc,
 # libmpfr, libisl, libzstd).
@@ -161,11 +165,25 @@ RUN wget -qO- https://apt.llvm.org/llvm-snapshot.gpg.key \
     && ln -sf "/usr/bin/clang-format-${CLANG_FORMAT_VERSION}" /usr/bin/clang-format \
     && rm -rf /var/lib/apt/lists/*
 
+RUN wget -qO- https://sh.rustup.rs \
+      | sh -s -- -y --no-modify-path \
+        --profile minimal \
+        --default-toolchain "${RUST_TOOLCHAIN}" \
+        --target "${DOOM_OS_RUST_TARGET}" \
+    && rustup --version \
+    && rustc --version \
+    && cargo --version \
+    && chown -R ubuntu:ubuntu "${RUSTUP_HOME}" "${CARGO_HOME}"
+
 COPY --from=toolchain /opt/cross /opt/cross
 
 RUN x86_64-elf-gcc --version \
-    && test -f "${PREFIX}/${TARGET}/lib/libc.a" \
+    && test -f "$(x86_64-elf-gcc -print-libgcc-file-name)" \
     && x86_64-elf-g++ --version \
+    && test -d "${PREFIX}/${TARGET}/include/c++" \
+    && rustup target list --installed | grep -x "${DOOM_OS_RUST_TARGET}" \
+    && test -f "$(rustc --print target-libdir --target "${DOOM_OS_RUST_TARGET}")/self-contained/libunwind.a" \
+    && test -f "$(rustc --print target-libdir --target "${DOOM_OS_RUST_TARGET}")/self-contained/libc.a" \
     && grub-mkrescue --version \
     && qemu-system-x86_64 --version \
     && clang-format --version \
