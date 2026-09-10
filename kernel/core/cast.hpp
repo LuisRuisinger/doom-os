@@ -11,32 +11,28 @@
 #include <utility>
 
 // =================================================================================================
-// Kernel files
-// =================================================================================================
-
-#include "kernel/core/types.hpp"
-
-// =================================================================================================
 // `x as T`
 // =================================================================================================
 //
-// An infix cast: `value as Target`. The bare form picks the cast itself - static_cast when that is
-// well-formed, a checked static_cast for a polymorphic downcast, dynamic_cast where only that is
-// valid, and reinterpret_cast as the last resort for pointer/integer punning. Wrapping the target
-// in a strategy tag pins one cast and refuses everything else:
+// An infix cast that picks the cast itself:
 //
-//     p  as u8*                      automatic (see auto_cast for the order)
-//     p  as to<u8*>                  static_cast only
-//     p  as reinterpret<u8*>         reinterpret_cast only
-//     b  as down<derived*>           static_cast + is_base_of check (+ RTTI check where RTTI exists)
-//     d  as up<base&>                implicit conversion only (boost::implicit_cast)
-//     b  as dynamic<derived*>        dynamic_cast only, requires RTTI - unavailable in the kernel
+//     void *aligned = ((ptr as uintptr_t + (align - 1)) & ~(align - 1)) as void *;
+//
+// Order, per (source, target) pair, decided at compile time - see auto_cast:
+//   1. static_cast where well-formed. A polymorphic downcast is additionally checked against
+//      dynamic_cast where RTTI exists; the kernel has none, so there it is a plain static_cast.
+//   2. dynamic_cast where only that is well-formed (cross-casts, casts across a virtual base).
+//      Never in the kernel: under -fno-rtti dynamic_cast is never well-formed.
+//   3. reinterpret_cast: integer/pointer and pointer/pointer punning. Refused between two
+//      polymorphic class types - that is a cross-cast, which step 2 would have handled with RTTI
+//      and which must not quietly become pointer punning without it. Spell reinterpret_cast.
+//   4. otherwise a static_assert.
 //
 // How the target type gets out of a bare type-id: `as` expands to `->* tag{} ->* new (tag{}) T`.
 // The first ->* binds the operand, the second receives the placement-new expression. The tag
 // overload of operator new is noexcept and returns nullptr, so the new-expression evaluates to a
 // `T*` null pointer and initialises nothing ([expr.new]); its only job is carrying T. The
-// operator->* deduces T from that pointer and dispatches on it. Nothing survives -O2.
+// operator->* deduces T from that pointer. Nothing survives -O2.
 //
 // The alternative front end, `->* &as_t::operator T` with a conversion function template, is the
 // one usually posted. GCC rejects it: `&as_t::operator T` is an unresolved overload set to GCC and
@@ -44,35 +40,17 @@
 // naming a single specialisation. The kernel is built with x86_64-elf-g++, hence new.
 //
 // Consequences of going through new:
-//   - a bare target must be a type `new T` accepts: scalars, pointers, default-constructible
-//     classes. Reference targets and classes without a default constructor need a tag
-//     (`x as to<base&>`);
+//   - the target must be a type `new T` accepts: scalars, pointers, default-constructible classes.
+//     No reference targets - cast the address instead - and no classes without a default
+//     constructor;
 //   - the expression is not a constant expression;
-//   - a bare target greedily absorbs trailing declarators: `x as int * 2` is a cast to int*.
-//     Parenthesise, or use a tag - `>` closes the type.
+//   - the target greedily absorbs trailing declarators: `x as int * 2` is a cast to int*.
+//     Parenthesise: `(x as int) * 2`. Binary operators other than * and & are safe, which is why
+//     `ptr as uintptr_t + (align - 1)` parses as intended - and ->* binds tighter than +.
 //
 // `as` is a global macro. No identifier in the tree spells `as` today; keep it that way.
 
 namespace kernel::core::cast {
-
-// =================================================================================================
-// Strategy tags
-// =================================================================================================
-
-template <class T>
-struct to {};  // static_cast
-
-template <class T>
-struct reinterpret {};  // reinterpret_cast
-
-template <class T>
-struct dynamic {};  // dynamic_cast
-
-template <class T>
-struct down {};  // checked polymorphic downcast (boost::polymorphic_downcast)
-
-template <class T>
-struct up {};  // implicit conversion (boost::implicit_cast)
 
 struct tag {};
 
@@ -94,18 +72,13 @@ using raw_t = std::remove_cv_t<std::remove_pointer_t<std::remove_reference_t<T>>
 // Checked downcast
 // =================================================================================================
 //
-// static_cast, with the base/derived relation checked at compile time and, where RTTI exists, the
-// dynamic type checked at runtime. The kernel builds with -fno-rtti, so there it is the static
-// check only; the runtime check is for hosted builds that include this header.
+// static_cast; where RTTI exists the dynamic type is verified first. The kernel builds with
+// -fno-rtti, so there this is the static_cast alone - the check is for hosted builds that include
+// this header.
 
 template <class To, class From>
 constexpr To checked_downcast(From&& f)
 {
-    static_assert(std::is_pointer_v<std::remove_reference_t<To>> || std::is_reference_v<To>,
-                  "as: down<> targets a pointer or reference");
-    static_assert(std::is_base_of_v<raw_t<From>, raw_t<To>> && !std::is_same_v<raw_t<From>, raw_t<To>>,
-                  "as: down<> target is not derived from the source");
-
     if constexpr (has_rtti) {
         if constexpr (std::is_pointer_v<std::remove_reference_t<To>>) {
             if (!(f == nullptr || dynamic_cast<To>(f) == static_cast<To>(f))) {
@@ -123,14 +96,8 @@ constexpr To checked_downcast(From&& f)
 }
 
 // =================================================================================================
-// Automatic strategy
+// Strategy selection
 // =================================================================================================
-//
-// Order: static_cast, dynamic_cast, reinterpret_cast. Under -fno-rtti, dynamic_cast is never
-// well-formed, so a polymorphic downcast is an unchecked static_cast and a cross-cast has no valid
-// strategy - which is why reinterpret_cast is refused between two class types: without it a
-// sibling cast would silently become pointer punning in the kernel and a dynamic_cast in a hosted
-// build. Class-to-class punning is spelled `reinterpret<>`.
 
 template <class To, class From>
 constexpr decltype(auto) auto_cast(From&& f)
@@ -138,6 +105,7 @@ constexpr decltype(auto) auto_cast(From&& f)
     constexpr bool can_static = requires { static_cast<To>(std::forward<From>(f)); };
     constexpr bool can_dynamic = requires { dynamic_cast<To>(std::forward<From>(f)); };
     constexpr bool can_reinterpret = requires { reinterpret_cast<To>(std::forward<From>(f)); };
+    constexpr bool cross_cast = std::is_polymorphic_v<raw_t<From>> && std::is_polymorphic_v<raw_t<To>>;
 
     // Both static and dynamic: upcast/identity is free, downcast is checked, anything else
     // (polymorphic pointer to void*) is static.
@@ -158,78 +126,13 @@ constexpr decltype(auto) auto_cast(From&& f)
     else if constexpr (can_dynamic) {
         return dynamic_cast<To>(std::forward<From>(f));
     }
-    // Reinterpret: integer/pointer, pointer/pointer - but not class/class, see above.
-    else if constexpr (can_reinterpret && !(std::is_class_v<raw_t<From>> && std::is_class_v<raw_t<To>>)) {
+    // Reinterpret: integer/pointer, pointer/pointer - but not a cross-cast, see the header comment.
+    else if constexpr (can_reinterpret && !cross_cast) {
         return reinterpret_cast<To>(std::forward<From>(f));
     } else {
-        static_assert(always_false_v<To>, "as: no cast strategy applies; spell one with a tag");
+        static_assert(always_false_v<To>, "as: no cast applies");
     }
 }
-
-// =================================================================================================
-// Policies
-// =================================================================================================
-
-template <class Spelled>
-struct policy {  // bare target: automatic
-    template <class From>
-    static constexpr decltype(auto) cast(From&& f)
-    {
-        return auto_cast<Spelled>(std::forward<From>(f));
-    }
-};
-
-template <class To>
-struct policy<to<To>> {
-    template <class From>
-    static constexpr To cast(From&& f)
-    {
-        static_assert(requires { static_cast<To>(std::forward<From>(f)); }, "as: to<> is not a static_cast");
-        return static_cast<To>(std::forward<From>(f));
-    }
-};
-
-template <class To>
-struct policy<reinterpret<To>> {
-    template <class From>
-    static To cast(From&& f)
-    {
-        static_assert(requires { reinterpret_cast<To>(std::forward<From>(f)); },
-                      "as: reinterpret<> is not a reinterpret_cast");
-        return reinterpret_cast<To>(std::forward<From>(f));
-    }
-};
-
-template <class To>
-struct policy<dynamic<To>> {
-    template <class From>
-    static To cast(From&& f)
-    {
-        static_assert(has_rtti, "as: dynamic<> needs RTTI, which the kernel is built without");
-        static_assert(!has_rtti || requires { dynamic_cast<To>(std::forward<From>(f)); },
-                      "as: dynamic<> is not a dynamic_cast");
-        return dynamic_cast<To>(std::forward<From>(f));
-    }
-};
-
-template <class To>
-struct policy<down<To>> {
-    template <class From>
-    static constexpr To cast(From&& f)
-    {
-        return checked_downcast<To>(std::forward<From>(f));
-    }
-};
-
-template <class To>
-struct policy<up<To>> {
-    template <class From>
-    static constexpr To cast(From&& f)
-    {
-        static_assert(std::is_convertible_v<From, To>, "as: up<> is not an implicit conversion");
-        return std::forward<From>(f);
-    }
-};
 
 }  // namespace detail
 
@@ -241,10 +144,10 @@ template <class From>
 struct bound {
     From v;
 
-    template <class Spelled>
-    constexpr decltype(auto) operator->*(Spelled *) const
+    template <class To>
+    constexpr decltype(auto) operator->*(To *) const
     {
-        return detail::policy<Spelled>::cast(std::forward<From>(v));
+        return detail::auto_cast<To>(std::forward<From>(v));
     }
 };
 
