@@ -1,7 +1,7 @@
-#ifndef DOOM_OS_KERNEL_CORE_MEMORY_VMM_MMU_FEATURES_HPP_
-#define DOOM_OS_KERNEL_CORE_MEMORY_VMM_MMU_FEATURES_HPP_
+#ifndef DOOM_OS_ARCH_X86_64_MMU_FEATURES_HPP_
+#define DOOM_OS_ARCH_X86_64_MMU_FEATURES_HPP_
 
-namespace kernel::core::memory::vmm::mmu {
+namespace kernel::arch::x86_64::mmu {
 
 // =================================================================================================
 // Paging feature state
@@ -14,6 +14,6 @@ void enable_paging_features();
 [[nodiscard]] bool global_pages_enabled();
 [[nodiscard]] bool gib_pages_supported();
 
-}  // namespace kernel::core::memory::vmm::mmu
+}  // namespace kernel::arch::x86_64::mmu
 
-#endif  // DOOM_OS_KERNEL_CORE_MEMORY_VMM_MMU_FEATURES_HPP_
+#endif  // DOOM_OS_ARCH_X86_64_MMU_FEATURES_HPP_

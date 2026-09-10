@@ -1,13 +1,13 @@
-#ifndef DOOM_OS_KERNEL_CORE_MEMORY_VMM_MMU_DIRECT_MAP_HPP_
-#define DOOM_OS_KERNEL_CORE_MEMORY_VMM_MMU_DIRECT_MAP_HPP_
+#ifndef DOOM_OS_ARCH_X86_64_MMU_DIRECT_MAP_HPP_
+#define DOOM_OS_ARCH_X86_64_MMU_DIRECT_MAP_HPP_
 
 // =================================================================================================
 // Kernel files
 // =================================================================================================
 
-#include "kernel/core/memory/vmm/mmu/pagetable.hpp"
+#include "arch/x86_64/mmu/pagetable.hpp"
 
-namespace kernel::core::memory::vmm::mmu {
+namespace kernel::arch::x86_64::mmu {
 
 namespace detail {
 
@@ -57,6 +57,6 @@ inline void mark_direct_map_ready()
                : nullptr;
 }
 
-}  // namespace kernel::core::memory::vmm::mmu
+}  // namespace kernel::arch::x86_64::mmu
 
-#endif  // DOOM_OS_KERNEL_CORE_MEMORY_VMM_MMU_DIRECT_MAP_HPP_
+#endif  // DOOM_OS_ARCH_X86_64_MMU_DIRECT_MAP_HPP_

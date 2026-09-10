@@ -8,20 +8,20 @@
 // Kernel files
 // =================================================================================================
 
-#include "kernel/arch/x86_64/cpu/registers.hpp"
+#include "arch/x86_64/cpu/registers.hpp"
 #include "kernel/boot/boot_info.hpp"
 #include "kernel/core/bits.hpp"
-#include "kernel/core/memory/vmm/mmu/entry.hpp"
-#include "kernel/core/memory/vmm/mmu/features.hpp"
-#include "kernel/core/memory/vmm/mmu/mmu.hpp"
-#include "kernel/core/memory/vmm/mmu/tlb.hpp"
+#include "arch/x86_64/mmu/entry.hpp"
+#include "arch/x86_64/mmu/features.hpp"
+#include "arch/x86_64/mmu/mmu.hpp"
+#include "arch/x86_64/mmu/tlb.hpp"
 #include "kernel/sync/spinlock.hpp"
 
-namespace kernel::core::memory::vmm::mmu {
+namespace kernel::arch::x86_64::mmu {
 
 namespace {
 
-using kernel::core::init_error;
+using kernel::init::init_error;
 using kernel::core::uptr;
 using kernel::core::usize;
 using kernel::core::utils::align_down;
@@ -378,4 +378,4 @@ mapping translate(vaddr_t virtual_address)
     return g_kernel_space.translate(virtual_address);
 }
 
-}  // namespace kernel::core::memory::vmm::mmu
+}  // namespace kernel::arch::x86_64::mmu

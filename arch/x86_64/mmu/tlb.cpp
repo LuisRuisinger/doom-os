@@ -2,11 +2,11 @@
 // Kernel files
 // =================================================================================================
 
-#include "kernel/core/memory/vmm/mmu/tlb.hpp"
+#include "arch/x86_64/mmu/tlb.hpp"
 
-#include "kernel/arch/x86_64/cpu/registers.hpp"
+#include "arch/x86_64/cpu/registers.hpp"
 
-namespace kernel::core::memory::vmm::mmu::tlb {
+namespace kernel::arch::x86_64::mmu::tlb {
 
 namespace regs = kernel::arch::x86_64::cpu;
 
@@ -32,4 +32,4 @@ void flush_all_global()
     regs::write_cr4(cr4);
 }
 
-}  // namespace kernel::core::memory::vmm::mmu::tlb
+}  // namespace kernel::arch::x86_64::mmu::tlb

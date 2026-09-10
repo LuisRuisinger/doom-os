@@ -1,14 +1,14 @@
-#ifndef DOOM_OS_KERNEL_CORE_MEMORY_VMM_MMU_ENTRY_HPP_
-#define DOOM_OS_KERNEL_CORE_MEMORY_VMM_MMU_ENTRY_HPP_
+#ifndef DOOM_OS_ARCH_X86_64_MMU_ENTRY_HPP_
+#define DOOM_OS_ARCH_X86_64_MMU_ENTRY_HPP_
 
 // =================================================================================================
 // Kernel files
 // =================================================================================================
 
-#include "kernel/core/memory/vmm/mmu/features.hpp"
-#include "kernel/core/memory/vmm/mmu/pagetable.hpp"
+#include "arch/x86_64/mmu/features.hpp"
+#include "arch/x86_64/mmu/pagetable.hpp"
 
-namespace kernel::core::memory::vmm::mmu {
+namespace kernel::arch::x86_64::mmu {
 
 // =================================================================================================
 // x86_64 page-table entries
@@ -88,6 +88,6 @@ inline constexpr u64 ENTRY_INHERITED_FLAGS = ENTRY_PRESENT | PAGE_FLAGS_MASK;
            (size == page_size::SIZE_4K ? 0 : ENTRY_LARGE);
 }
 
-}  // namespace kernel::core::memory::vmm::mmu
+}  // namespace kernel::arch::x86_64::mmu
 
-#endif  // DOOM_OS_KERNEL_CORE_MEMORY_VMM_MMU_ENTRY_HPP_
+#endif  // DOOM_OS_ARCH_X86_64_MMU_ENTRY_HPP_
