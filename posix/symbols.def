@@ -1,0 +1,185 @@
+// =================================================================================================
+// Known POSIX / Linux ABI symbols
+//
+// This file is intentionally not guarded. It is an X-macro list included by code that wants to
+// generate declarations, weak fallbacks, diagnostics, or build checks from the same ABI surface.
+//
+// Macro contract:
+//   POSIX_STUB(return_type, name, return_value, errno_value, parameters...)
+//
+// errno_value == 0 means the fallback returns a stable value without touching errno.
+// =================================================================================================
+
+// -------------------------------------------------------------------------------------------------
+// Process, users, sessions, and scheduling
+// -------------------------------------------------------------------------------------------------
+
+POSIX_STUB(pid_t, fork, -1, ENOSYS, void)
+POSIX_STUB(int, execvp, -1, ENOSYS, const char *file, char *const argv[])
+POSIX_STUB(pid_t, waitpid, -1, ENOSYS, pid_t pid, int *status, int options)
+POSIX_STUB(int, waitid, -1, ENOSYS, idtype_t idtype, id_t id, siginfo_t *info, int options)
+POSIX_STUB(int, pause, -1, ENOSYS, void)
+POSIX_STUB(pid_t, getppid, -1, ENOSYS, void)
+POSIX_STUB(uid_t, getuid, static_cast<uid_t>(-1), ENOSYS, void)
+POSIX_STUB(int, setuid, -1, ENOSYS, uid_t uid)
+POSIX_STUB(int, setgid, -1, ENOSYS, gid_t gid)
+POSIX_STUB(int, setgroups, -1, ENOSYS, size_t count, const gid_t *groups)
+POSIX_STUB(int, setpgid, -1, ENOSYS, pid_t pid, pid_t pgid)
+POSIX_STUB(pid_t, setsid, -1, ENOSYS, void)
+POSIX_STUB(int, sched_yield, -1, ENOSYS, void)
+POSIX_STUB(int, sched_getaffinity, -1, ENOSYS, pid_t pid, size_t cpusetsize, void *mask)
+POSIX_STUB(int, poll, -1, ENOSYS, pollfd *fds, nfds_t count, int timeout)
+
+POSIX_STUB(int, isatty, 0, 0, int fd)
+POSIX_STUB(pid_t, getpid, 1, 0, void)
+POSIX_STUB(int, kill, -1, EINVAL, pid_t pid, int signal)
+
+// -------------------------------------------------------------------------------------------------
+// Threads and synchronization
+// -------------------------------------------------------------------------------------------------
+
+POSIX_STUB(int, pthread_attr_destroy, 0, 0, pthread_attr_t *attr)
+POSIX_STUB(int, pthread_attr_getguardsize, 0, 0, const pthread_attr_t *attr, size_t *guardsize)
+POSIX_STUB(int, pthread_attr_getstack, 0, 0, const pthread_attr_t *attr, void **stackaddr,
+            size_t *stacksize)
+POSIX_STUB(int, pthread_attr_init, 0, 0, pthread_attr_t *attr)
+POSIX_STUB(int, pthread_attr_setstacksize, 0, 0, pthread_attr_t *attr, size_t stacksize)
+POSIX_STUB(int, pthread_create, -1, ENOSYS, pthread_t *thread, const pthread_attr_t *attr,
+                  void *(*start)(void *), void *arg)
+POSIX_STUB(int, pthread_detach, -1, ENOSYS, pthread_t thread)
+POSIX_STUB(int, pthread_getattr_np, -1, ENOSYS, pthread_t thread, pthread_attr_t *attr)
+POSIX_STUB(int, pthread_join, -1, ENOSYS, pthread_t thread, void **result)
+POSIX_STUB(int, pthread_key_create, -1, ENOSYS, pthread_key_t *key,
+                  void (*destructor)(void *))
+POSIX_STUB(int, pthread_key_delete, -1, ENOSYS, pthread_key_t key)
+POSIX_STUB(pthread_t, pthread_self, static_cast<pthread_t>(-1), ENOSYS, void)
+POSIX_STUB(int, pthread_setname_np, -1, ENOSYS, pthread_t thread, const char *name)
+POSIX_STUB(int, pthread_setspecific, -1, ENOSYS, pthread_key_t key, const void *value)
+
+// -------------------------------------------------------------------------------------------------
+// Descriptors, files, directories, and filesystems
+// -------------------------------------------------------------------------------------------------
+
+POSIX_STUB(int, open, -1, ENOSYS, const char *path, int flags, ...)
+POSIX_STUB(int, openat, -1, ENOSYS, int dirfd, const char *path, int flags, ...)
+POSIX_STUB(ssize_t, read, -1, EBADF, int fd, void *buffer, size_t count)
+POSIX_STUB(ssize_t, write, -1, EBADF, int fd, const void *buffer, size_t count)
+POSIX_STUB(ssize_t, readv, -1, EBADF, int fd, const iovec *vectors, int count)
+POSIX_STUB(ssize_t, writev, -1, EBADF, int fd, const iovec *vectors, int count)
+POSIX_STUB(int, close, -1, EBADF, int fd)
+POSIX_STUB(off_t, lseek, -1, EBADF, int fd, off_t offset, int whence)
+POSIX_STUB(int, fstat, -1, EBADF, int fd, stat *out)
+POSIX_STUB(int, fcntl, -1, ENOSYS, int fd, int command, ...)
+POSIX_STUB(int, ftruncate, -1, ENOSYS, int fd, off_t length)
+POSIX_STUB(ssize_t, pread, -1, ENOSYS, int fd, void *buffer, size_t count, off_t offset)
+POSIX_STUB(ssize_t, pwrite, -1, ENOSYS, int fd, const void *buffer, size_t count,
+                  off_t offset)
+POSIX_STUB(ssize_t, preadv, -1, ENOSYS, int fd, const iovec *vectors, int count,
+                  off_t offset)
+POSIX_STUB(ssize_t, pwritev, -1, ENOSYS, int fd, const iovec *vectors, int count,
+                  off_t offset)
+POSIX_STUB(int, dup, -1, ENOSYS, int fd)
+POSIX_STUB(int, dup2, -1, ENOSYS, int oldfd, int newfd)
+POSIX_STUB(int, pipe2, -1, ENOSYS, int pipefd[2], int flags)
+POSIX_STUB(int, ioctl, -1, ENOSYS, int fd, unsigned long request, ...)
+POSIX_STUB(int, flock, -1, ENOSYS, int fd, int operation)
+POSIX_STUB(int, fsync, -1, ENOSYS, int fd)
+POSIX_STUB(int, fdatasync, -1, ENOSYS, int fd)
+POSIX_STUB(ssize_t, sendfile, -1, ENOSYS, int out_fd, int in_fd, off_t *offset,
+                  size_t count)
+POSIX_STUB(ssize_t, splice, -1, ENOSYS, int fd_in, off_t *off_in, int fd_out,
+                  off_t *off_out, size_t length, unsigned int flags)
+POSIX_STUB(ssize_t, readlink, -1, ENOSYS, const char *path, char *buffer, size_t size)
+POSIX_STUB(int, rename, -1, ENOSYS, const char *old_path, const char *new_path)
+POSIX_STUB(int, unlink, -1, ENOSYS, const char *path)
+POSIX_STUB(int, unlinkat, -1, ENOSYS, int dirfd, const char *path, int flags)
+POSIX_STUB(int, linkat, -1, ENOSYS, int olddirfd, const char *old_path, int newdirfd,
+                  const char *new_path, int flags)
+POSIX_STUB(int, symlink, -1, ENOSYS, const char *target, const char *link_path)
+POSIX_STUB(int, mkdir, -1, ENOSYS, const char *path, mode_t mode)
+POSIX_STUB(int, rmdir, -1, ENOSYS, const char *path)
+POSIX_STUB(int, mkfifo, -1, ENOSYS, const char *path, mode_t mode)
+POSIX_STUB(int, chdir, -1, ENOSYS, const char *path)
+POSIX_STUB(int, chmod, -1, ENOSYS, const char *path, mode_t mode)
+POSIX_STUB(int, fchmod, -1, ENOSYS, int fd, mode_t mode)
+POSIX_STUB(int, chown, -1, ENOSYS, const char *path, uid_t owner, gid_t group)
+POSIX_STUB(int, fchown, -1, ENOSYS, int fd, uid_t owner, gid_t group)
+POSIX_STUB(int, lchown, -1, ENOSYS, const char *path, uid_t owner, gid_t group)
+POSIX_STUB(int, chroot, -1, ENOSYS, const char *path)
+POSIX_STUB(char *, getcwd, nullptr, ENOSYS, char *buffer, size_t size)
+POSIX_STUB(int, utimensat, -1, ENOSYS, int dirfd, const char *path,
+                  const timespec times[2], int flags)
+POSIX_STUB(int, futimens, -1, ENOSYS, int fd, const timespec times[2])
+
+POSIX_STUB(DIR *, opendir, nullptr, ENOSYS, const char *path)
+POSIX_STUB(DIR *, fdopendir, nullptr, ENOSYS, int fd)
+POSIX_STUB(int, closedir, -1, ENOSYS, DIR *dir)
+POSIX_STUB(dirent *, readdir, nullptr, ENOSYS, DIR *dir)
+POSIX_STUB(int, dirfd, -1, ENOSYS, DIR *dir)
+
+// -------------------------------------------------------------------------------------------------
+// Memory
+// -------------------------------------------------------------------------------------------------
+
+POSIX_STUB(void *, sbrk, reinterpret_cast<void *>(-1), ENOMEM, ptrdiff_t increment)
+POSIX_STUB(void *, mmap, reinterpret_cast<void *>(-1), ENOSYS, void *address, size_t length,
+                  int protection, int flags, int fd, off_t offset)
+POSIX_STUB(int, munmap, -1, ENOSYS, void *address, size_t length)
+POSIX_STUB(int, mprotect, -1, ENOSYS, void *address, size_t length, int protection)
+POSIX_STUB(void *, mremap, reinterpret_cast<void *>(-1), ENOMEM, void *old_address,
+                  size_t old_size, size_t new_size, int flags, ...)
+
+// -------------------------------------------------------------------------------------------------
+// Time
+// -------------------------------------------------------------------------------------------------
+
+POSIX_STUB(int, clock_gettime, -1, ENOSYS, clockid_t clock_id, timespec *out)
+POSIX_STUB(int, gettimeofday, -1, ENOSYS, timeval *out, void *timezone)
+POSIX_STUB(int, nanosleep, -1, ENOSYS, const timespec *requested, timespec *remaining)
+
+// -------------------------------------------------------------------------------------------------
+// Entropy
+// -------------------------------------------------------------------------------------------------
+
+POSIX_STUB(ssize_t, getrandom, -1, ENOSYS, void *buffer, size_t length, unsigned int flags)
+POSIX_STUB(int, getentropy, -1, EIO, void *buffer, size_t length)
+
+// -------------------------------------------------------------------------------------------------
+// Sockets and resolver
+// -------------------------------------------------------------------------------------------------
+
+POSIX_STUB(int, socket, -1, ENOSYS, int domain, int type, int protocol)
+POSIX_STUB(int, socketpair, -1, ENOSYS, int domain, int type, int protocol, int sockets[2])
+POSIX_STUB(int, bind, -1, ENOSYS, int fd, const sockaddr *address, socklen_t length)
+POSIX_STUB(int, listen, -1, ENOSYS, int fd, int backlog)
+POSIX_STUB(int, connect, -1, ENOSYS, int fd, const sockaddr *address, socklen_t length)
+POSIX_STUB(int, accept4, -1, ENOSYS, int fd, sockaddr *address, socklen_t *length,
+                  int flags)
+POSIX_STUB(ssize_t, send, -1, ENOSYS, int fd, const void *buffer, size_t length, int flags)
+POSIX_STUB(ssize_t, sendto, -1, ENOSYS, int fd, const void *buffer, size_t length,
+                  int flags, const sockaddr *address, socklen_t address_length)
+POSIX_STUB(ssize_t, sendmsg, -1, ENOSYS, int fd, const msghdr *message, int flags)
+POSIX_STUB(ssize_t, recv, -1, ENOSYS, int fd, void *buffer, size_t length, int flags)
+POSIX_STUB(ssize_t, recvfrom, -1, ENOSYS, int fd, void *buffer, size_t length, int flags,
+                  sockaddr *address, socklen_t *address_length)
+POSIX_STUB(ssize_t, recvmsg, -1, ENOSYS, int fd, msghdr *message, int flags)
+POSIX_STUB(int, shutdown, -1, ENOSYS, int fd, int how)
+POSIX_STUB(int, getsockname, -1, ENOSYS, int fd, sockaddr *address, socklen_t *length)
+POSIX_STUB(int, getpeername, -1, ENOSYS, int fd, sockaddr *address, socklen_t *length)
+POSIX_STUB(int, getsockopt, -1, ENOSYS, int fd, int level, int option, void *value,
+                  socklen_t *length)
+POSIX_STUB(int, setsockopt, -1, ENOSYS, int fd, int level, int option,
+                  const void *value, socklen_t length)
+POSIX_STUB(int, getaddrinfo, -1, ENOSYS, const char *node, const char *service,
+                  const addrinfo *hints, addrinfo **result)
+POSIX_STUB(void, freeaddrinfo, static_cast<void>(0), 0, addrinfo *result)
+POSIX_STUB(const char *, gai_strerror, "address resolution is not implemented", 0, int error_code)
+POSIX_STUB(int, gethostname, -1, ENOSYS, char *name, size_t length)
+
+// -------------------------------------------------------------------------------------------------
+// Dynamic linking
+// -------------------------------------------------------------------------------------------------
+
+POSIX_STUB(int, dl_iterate_phdr, -1, ENOSYS,
+                  int (*callback)(dl_phdr_info *info, size_t size, void *data), void *data)
+POSIX_STUB(void *, dlsym, nullptr, ENOSYS, void *handle, const char *symbol)
