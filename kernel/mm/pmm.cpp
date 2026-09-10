@@ -2,14 +2,14 @@
 // Kernel files
 // =================================================================================================
 
-#include "kernel/core/memory/pmm/pmm.hpp"
+#include "kernel/mm/pmm.hpp"
 
 #include "kernel/core/bitmap.hpp"
 #include "kernel/core/bits.hpp"
 #include "kernel/debug/kpanic.hpp"
 #include "kernel/sync/spinlock.hpp"
 
-namespace kernel::core::memory::pmm {
+namespace kernel::mm::pmm {
 
 namespace {
 
@@ -542,9 +542,9 @@ void free_page(page_size size, paddr_t base)
 // Component
 // =================================================================================================
 
-kernel::core::init_result component::init_allocator()
+kernel::init::init_result component::init_allocator()
 {
-    using kernel::core::init_error;
+    using kernel::init::init_error;
 
     const auto &boot = kernel::boot::boot_info::current();
 
@@ -573,4 +573,4 @@ kernel::core::init_result component::init_allocator()
     return kernel::core::Ok();
 }
 
-}  // namespace kernel::core::memory::pmm
+}  // namespace kernel::mm::pmm

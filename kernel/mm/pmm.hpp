@@ -1,5 +1,5 @@
-#ifndef DOOM_OS_KERNEL_CORE_MEMORY_PMM_HPP_
-#define DOOM_OS_KERNEL_CORE_MEMORY_PMM_HPP_
+#ifndef DOOM_OS_KERNEL_MM_PMM_HPP_
+#define DOOM_OS_KERNEL_MM_PMM_HPP_
 
 // =================================================================================================
 // Config files
@@ -12,32 +12,32 @@
 // =================================================================================================
 
 #include "kernel/boot/boot_info.hpp"
-#include "kernel/core/component.hpp"
-#include "kernel/core/memory/page.hpp"
+#include "kernel/init/component.hpp"
+#include "kernel/mm/page.hpp"
 #include "kernel/core/types.hpp"
 
-namespace kernel::core::memory::pmm {
+namespace kernel::mm::pmm {
 
 using kernel::core::paddr_t;
 using kernel::core::u64;
 using kernel::core::usize;
-using kernel::core::memory::bytes_in;
-using kernel::core::memory::frames_in;
-using kernel::core::memory::FRAME_SHIFT;
-using kernel::core::memory::FRAME_SIZE;
-using kernel::core::memory::FRAMES_PER_1G;
-using kernel::core::memory::FRAMES_PER_2M;
-using kernel::core::memory::is_page_size;
-using kernel::core::memory::is_sw_allocatable;
-using kernel::core::memory::page;
-using kernel::core::memory::page_1g;
-using kernel::core::memory::page_2m;
-using kernel::core::memory::page_4k;
-using kernel::core::memory::page_size;
-using kernel::core::memory::page_size_of;
-using kernel::core::memory::PAGE_SIZE_1G;
-using kernel::core::memory::PAGE_SIZE_2M;
-using kernel::core::memory::PAGE_SIZE_4K;
+using kernel::mm::bytes_in;
+using kernel::mm::frames_in;
+using kernel::mm::FRAME_SHIFT;
+using kernel::mm::FRAME_SIZE;
+using kernel::mm::FRAMES_PER_1G;
+using kernel::mm::FRAMES_PER_2M;
+using kernel::mm::is_page_size;
+using kernel::mm::is_sw_allocatable;
+using kernel::mm::page;
+using kernel::mm::page_1g;
+using kernel::mm::page_2m;
+using kernel::mm::page_4k;
+using kernel::mm::page_size;
+using kernel::mm::page_size_of;
+using kernel::mm::PAGE_SIZE_1G;
+using kernel::mm::PAGE_SIZE_2M;
+using kernel::mm::PAGE_SIZE_4K;
 
 // =================================================================================================
 // Constants
@@ -108,19 +108,19 @@ using span_1g = span<PAGE_SIZE_1G>;
 // Component
 // =================================================================================================
 
-struct component : kernel::core::component<component, kernel::core::no_resource,
+struct component : kernel::init::component<component, kernel::init::no_resource,
                                            kernel::boot::boot_info::component> {
     static constexpr auto *name = "PMM";
 
-    static kernel::core::init_result init_allocator();
+    static kernel::init::init_result init_allocator();
 
     template <typename View>
-    static kernel::core::init_result init(View)
+    static kernel::init::init_result init(View)
     {
         return init_allocator();
     }
 };
 
-}  // namespace kernel::core::memory::pmm
+}  // namespace kernel::mm::pmm
 
-#endif  // DOOM_OS_KERNEL_CORE_MEMORY_PMM_HPP_
+#endif  // DOOM_OS_KERNEL_MM_PMM_HPP_
