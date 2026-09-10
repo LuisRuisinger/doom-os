@@ -1,15 +1,15 @@
-#ifndef DOOM_OS_KERNEL_CORE_INIT_HPP_
-#define DOOM_OS_KERNEL_CORE_INIT_HPP_
+#ifndef DOOM_OS_KERNEL_INIT_INIT_HPP_
+#define DOOM_OS_KERNEL_INIT_INIT_HPP_
 
 // =================================================================================================
 // Kernel files
 // =================================================================================================
 
-#include "kernel/core/component.hpp"
-#include "kernel/core/init_graph.hpp"
+#include "kernel/init/component.hpp"
+#include "kernel/init/init_graph.hpp"
 #include "kernel/debug/kprint.hpp"
 
-namespace kernel::core {
+namespace kernel::init {
 // =================================================================================================
 // Default logger
 // =================================================================================================
@@ -47,10 +47,22 @@ bool run_init_graph(Backing &backing, Logger &logger)
     return detail::init_graph<Roots>::run_logged(backing, logger);
 }
 
+template <typename Roots, typename SatisfiedRoots, typename Backing, typename Logger>
+bool run_init_graph_after(Backing &backing, Logger &logger)
+{
+    return detail::init_graph_after<Roots, SatisfiedRoots>::run_logged(backing, logger);
+}
+
 template <typename Roots, typename Backing = no_context>
 bool run_init_graph_silent(Backing &backing = no_backing)
 {
     return detail::init_graph<Roots>::run_silent(backing);
+}
+
+template <typename Roots, typename SatisfiedRoots, typename Backing = no_context>
+bool run_init_graph_after_silent(Backing &backing = no_backing)
+{
+    return detail::init_graph_after<Roots, SatisfiedRoots>::run_silent(backing);
 }
 
 template <typename Roots, typename Backing = no_context>
@@ -63,6 +75,6 @@ void run_init_graph_or_halt(Backing &backing = no_backing)
     arch::x86_64::cpu::halt();
 }
 
-}  // namespace kernel::core
+}  // namespace kernel::init
 
-#endif  // DOOM_OS_KERNEL_CORE_INIT_HPP_
+#endif  // DOOM_OS_KERNEL_INIT_INIT_HPP_

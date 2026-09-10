@@ -1,5 +1,5 @@
-#ifndef DOOM_OS_KERNEL_CORE_INIT_GRAPH_HPP_
-#define DOOM_OS_KERNEL_CORE_INIT_GRAPH_HPP_
+#ifndef DOOM_OS_KERNEL_INIT_INIT_GRAPH_HPP_
+#define DOOM_OS_KERNEL_INIT_INIT_GRAPH_HPP_
 
 // =================================================================================================
 // Cpp stdlib files
@@ -11,9 +11,9 @@
 // Kernel files
 // =================================================================================================
 
-#include "kernel/core/component.hpp"
+#include "kernel/init/component.hpp"
 
-namespace kernel::core::detail {
+namespace kernel::init::detail {
 
 // =================================================================================================
 // Type list helpers
@@ -60,6 +60,28 @@ struct list_concat_unique<A, type_list<Head, Tail...>> {
     using with_head = typename list_append_unique<A, Head>::type;
 
     using type = typename list_concat_unique<with_head, type_list<Tail...>>::type;
+};
+
+template <typename List, typename Excluded, typename Accum>
+struct list_filter_out_accum;
+
+template <typename Excluded, typename Accum>
+struct list_filter_out_accum<type_list<>, Excluded, Accum> {
+    using type = Accum;
+};
+
+template <typename Head, typename... Tail, typename Excluded, typename Accum>
+struct list_filter_out_accum<type_list<Head, Tail...>, Excluded, Accum> {
+    using with_head =
+        std::conditional_t<list_contains<Head, Excluded>::value, Accum,
+                           typename list_append<Accum, Head>::type>;
+
+    using type = typename list_filter_out_accum<type_list<Tail...>, Excluded, with_head>::type;
+};
+
+template <typename List, typename Excluded>
+struct list_filter_out {
+    using type = typename list_filter_out_accum<List, Excluded, type_list<>>::type;
 };
 
 // =================================================================================================
@@ -170,6 +192,26 @@ struct init_graph {
     }
 };
 
-}  // namespace kernel::core::detail
+template <typename Roots, typename SatisfiedRoots>
+struct init_graph_after {
+    using sorted_components = typename topo_list<Roots, type_list<>>::type;
+    using satisfied_components = typename topo_list<SatisfiedRoots, type_list<>>::type;
+    using runnable_components =
+        typename list_filter_out<sorted_components, satisfied_components>::type;
 
-#endif  // DOOM_OS_KERNEL_CORE_INIT_GRAPH_HPP_
+    template <typename Backing>
+    static bool run_silent(Backing &backing)
+    {
+        return init_list_runner<runnable_components>::run_silent(backing);
+    }
+
+    template <typename Backing, typename Logger>
+    static bool run_logged(Backing &backing, Logger &logger)
+    {
+        return init_list_runner<runnable_components>::run_logged(backing, logger);
+    }
+};
+
+}  // namespace kernel::init::detail
+
+#endif  // DOOM_OS_KERNEL_INIT_INIT_GRAPH_HPP_

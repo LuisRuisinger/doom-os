@@ -1,5 +1,5 @@
-#ifndef DOOM_OS_KERNEL_CORE_COMPONENT_HPP_
-#define DOOM_OS_KERNEL_CORE_COMPONENT_HPP_
+#ifndef DOOM_OS_KERNEL_INIT_COMPONENT_HPP_
+#define DOOM_OS_KERNEL_INIT_COMPONENT_HPP_
 
 // =================================================================================================
 // Cpp stdlib files
@@ -14,7 +14,9 @@
 #include "kernel/core/result.hpp"
 #include "kernel/core/types.hpp"
 
-namespace kernel::core {
+namespace kernel::init {
+using kernel::core::Result;
+using kernel::core::u8;
 // =================================================================================================
 // Type list
 // =================================================================================================
@@ -138,6 +140,6 @@ protected:
     }
 };
 
-}  // namespace kernel::core
+}  // namespace kernel::init
 
-#endif  // DOOM_OS_KERNEL_CORE_COMPONENT_HPP_
+#endif  // DOOM_OS_KERNEL_INIT_COMPONENT_HPP_
