@@ -97,11 +97,6 @@ void enable_write_protect()
     return static_cast<vaddr_t>(reinterpret_cast<uptr>(symbol));
 }
 
-[[nodiscard]] paddr_t kernel_virtual_to_physical(vaddr_t virtual_address)
-{
-    return static_cast<paddr_t>(virtual_address - KERNEL_BASE);
-}
-
 [[nodiscard]] bool map_range_no_flush(vaddr_t virtual_address, paddr_t physical_address, u64 length,
                                       page_size size, page_flags flags)
 {
@@ -247,8 +242,16 @@ void link_bootstrap_tables()
     if (end <= start)
         return true;
 
-    return map_range_no_flush(start, kernel_virtual_to_physical(start), end - start,
-                              page_size::SIZE_4K, flags);
+    // Runs after the CR3 switch, so the walk is available and answers what the linker
+    // arithmetic used to: this window maps physical 0 at KERNEL_BASE. Unlike that subtraction
+    // the walk can come back empty, and re-mapping the kernel image onto physical 0 is not a
+    // failure worth surviving.
+    const mapping resolved = g_kernel_space.translate(start);
+
+    if (!resolved.present)
+        return false;
+
+    return map_range_no_flush(start, resolved.physical(), end - start, page_size::SIZE_4K, flags);
 }
 
 [[nodiscard]] bool protect_kernel_image()
@@ -372,7 +375,7 @@ bool unmap(vaddr_t virtual_address, page_size size)
     return true;
 }
 
-mapping translate(vaddr_t virtual_address)
+mapping vrt_to_phy(vaddr_t virtual_address)
 {
     kernel::sync::spinlock_guard guard(g_kernel_space_lock);
 

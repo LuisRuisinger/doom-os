@@ -57,7 +57,7 @@ u8 *claim_frame()
     // the failed lookup hands it straight back rather than leaking it for the life of the kernel.
     return pmm::alloc_page(pmm::page_size::SIZE_2M)
         .map([](paddr_t frame) -> u8 * {
-            void *window = vmm::physical_window(frame);
+            void *window = vmm::phy_to_vrt(frame);
 
             if (window == nullptr) {
                 pmm::free_page(pmm::page_size::SIZE_2M, frame);

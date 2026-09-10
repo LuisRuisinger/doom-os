@@ -90,28 +90,15 @@ enum class vmm_error : u8 {
 }
 
 // =================================================================================================
-// Physical Direct-Map Window
+// Address translation
+//
+// The two directions the kernel needs. phy_to_vrt is arithmetic over whichever window is live;
+// vrt_to_phy is a page-table walk, because a virtual address has no window to subtract.
 // =================================================================================================
 
-[[nodiscard]] inline void *physical_window(paddr_t physical_address)
+[[nodiscard]] inline void *phy_to_vrt(paddr_t physical_address)
 {
-    return kernel::arch::x86_64::mmu::physical_window(physical_address);
-}
-
-[[nodiscard]] inline void *physical_window(paddr_t physical_address, usize size)
-{
-    namespace arch_mmu = kernel::arch::x86_64::mmu;
-
-    if (size == 0)
-        return nullptr;
-
-    const auto limit = arch_mmu::direct_map_ready() ? arch_mmu::DIRECT_MAP_SIZE
-                                                    : arch_mmu::EARLY_MAP_SIZE;
-
-    if (physical_address > limit || size > limit - physical_address)
-        return nullptr;
-
-    return physical_window(physical_address);
+    return kernel::arch::x86_64::mmu::phy_to_vrt(physical_address);
 }
 
 // =================================================================================================
@@ -128,7 +115,7 @@ enum class vmm_error : u8 {
 
 [[nodiscard]] Result<void, vmm_error> unmap(vaddr_t virtual_address, page_size size);
 
-[[nodiscard]] Result<mapping, vmm_error> translate(vaddr_t virtual_address);
+[[nodiscard]] Result<mapping, vmm_error> vrt_to_phy(vaddr_t virtual_address);
 
 // =================================================================================================
 // Dedicated MMIO Allocator

@@ -47,7 +47,7 @@ void init(paddr_t rsdp_address)
         return;
 
     const auto *rsdp = static_cast<const wire::rsdp_descriptor *>(
-        kernel::mm::vmm::physical_window(g_rsdp_phys)
+        kernel::mm::vmm::phy_to_vrt(g_rsdp_phys)
     );
 
     if (!rsdp)
@@ -85,7 +85,7 @@ sdt_view find_table(const char signature[4])
         return {};
 
     const auto *root_header = static_cast<const wire::sdt_header *>(
-        kernel::mm::vmm::physical_window(g_sdt_root_phys)
+        kernel::mm::vmm::phy_to_vrt(g_sdt_root_phys)
     );
 
     if (!root_header || !validate_checksum(root_header, root_header->length))
@@ -108,7 +108,7 @@ sdt_view find_table(const char signature[4])
                 continue;
 
             const auto *header = static_cast<const wire::sdt_header *>(
-                kernel::mm::vmm::physical_window(table_phys)
+                kernel::mm::vmm::phy_to_vrt(table_phys)
             );
 
             if (header && signature_match(header->signature, signature)) {
@@ -126,7 +126,7 @@ sdt_view find_table(const char signature[4])
                 continue;
 
             const auto *header = static_cast<const wire::sdt_header *>(
-                kernel::mm::vmm::physical_window(table_phys)
+                kernel::mm::vmm::phy_to_vrt(table_phys)
             );
 
             if (header && signature_match(header->signature, signature)) {

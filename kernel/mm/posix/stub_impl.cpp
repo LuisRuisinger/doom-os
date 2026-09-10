@@ -52,7 +52,7 @@ bool ensure_break()
 
     g_break_base =
         pmm::alloc_page(kernel::mm::page_size::SIZE_2M)
-            .map([](paddr_t page) { return static_cast<u8 *>(mmu::physical_window(page)); })
+            .map([](paddr_t page) { return static_cast<u8 *>(mmu::phy_to_vrt(page)); })
             .unwrap_or(static_cast<u8 *>(nullptr));
 
     return g_break_base != nullptr;
@@ -177,7 +177,7 @@ extern "C" int mprotect(void *address, size_t length, int protection)
     const u64 last = aligned_up(reinterpret_cast<u64>(address) + length, PAGE_SIZE);
 
     for (u64 page = first; page < last; page += PAGE_SIZE) {
-        const mmu::mapping resolved = mmu::translate(page);
+        const mmu::mapping resolved = mmu::vrt_to_phy(page);
 
         if (!resolved.present) {
             errno = ENOMEM;

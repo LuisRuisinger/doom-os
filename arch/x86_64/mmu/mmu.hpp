@@ -31,7 +31,7 @@ using kernel::core::vaddr_t;
 [[nodiscard]] bool map_range(vaddr_t virtual_address, paddr_t physical_address, u64 length,
                              page_size size, page_flags flags);
 [[nodiscard]] bool unmap(vaddr_t virtual_address, page_size size);
-[[nodiscard]] mapping translate(vaddr_t virtual_address);
+[[nodiscard]] mapping vrt_to_phy(vaddr_t virtual_address);
 
 // =================================================================================================
 // Component

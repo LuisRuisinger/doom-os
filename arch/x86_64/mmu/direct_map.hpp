@@ -45,7 +45,7 @@ inline void mark_direct_map_ready()
 // objects inside the kernel image - so they are reachable that way while being built. Only
 // walking may rely on the early phase; allocation still waits for the direct map, because a frame
 // from the PMM is not guaranteed to fall inside the early window.
-[[nodiscard]] inline void *physical_window(paddr_t physical_address)
+[[nodiscard]] inline void *phy_to_vrt(paddr_t physical_address)
 {
     if (direct_map_ready())
         return physical_address < DIRECT_MAP_SIZE

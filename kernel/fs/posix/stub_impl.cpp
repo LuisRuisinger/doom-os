@@ -171,7 +171,7 @@ extern "C" int open(const char *path, int flags, ...)
             continue;
         }
 
-        void *window = kernel::arch::x86_64::mmu::physical_window(module.range.base);
+        void *window = kernel::arch::x86_64::mmu::phy_to_vrt(module.range.base);
 
         if (window == nullptr) {
             errno = ENOMEM;

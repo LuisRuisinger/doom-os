@@ -57,9 +57,9 @@ Result<void, vmm_error> unmap(vaddr_t virtual_address, page_size size)
     return kernel::core::Ok();
 }
 
-Result<mapping, vmm_error> translate(vaddr_t virtual_address)
+Result<mapping, vmm_error> vrt_to_phy(vaddr_t virtual_address)
 {
-    const mapping result = kernel::arch::x86_64::mmu::translate(virtual_address);
+    const mapping result = kernel::arch::x86_64::mmu::vrt_to_phy(virtual_address);
 
     if (!result.present)
         return kernel::core::Err(vmm_error::NOT_MAPPED);

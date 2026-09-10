@@ -44,7 +44,7 @@ struct default_paging_environment {
 
     [[nodiscard]] static u64 *map_table(paddr_t phys)
     {
-        return static_cast<u64 *>(physical_window(phys));
+        return static_cast<u64 *>(phy_to_vrt(phys));
     }
 
     [[nodiscard]] static bool is_reclaimable(paddr_t phys);
