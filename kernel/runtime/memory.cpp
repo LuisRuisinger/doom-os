@@ -4,6 +4,8 @@
 
 #include "kernel/runtime/memory.hpp"
 
+#include "kernel/core/types.hpp"
+
 namespace {
 
 using kernel::core::i32;
