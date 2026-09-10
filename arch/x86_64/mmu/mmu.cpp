@@ -12,6 +12,7 @@
 #include "kernel/boot/boot_info.hpp"
 #include "kernel/core/bits.hpp"
 #include "arch/x86_64/mmu/entry.hpp"
+#include "arch/x86_64/mmu/environment.hpp"
 #include "arch/x86_64/mmu/features.hpp"
 #include "arch/x86_64/mmu/mmu.hpp"
 #include "arch/x86_64/mmu/tlb.hpp"
