@@ -12,6 +12,7 @@
 // =================================================================================================
 
 #include "kernel/boot/boot_info.hpp"
+#include "kernel/core/result.hpp"
 #include "kernel/init/component.hpp"
 #include "kernel/mm/page.hpp"
 #include "kernel/core/types.hpp"
@@ -19,7 +20,9 @@
 namespace kernel::mm::pmm {
 
 using kernel::core::paddr_t;
+using kernel::core::Result;
 using kernel::core::u64;
+using kernel::core::u8;
 using kernel::core::usize;
 using kernel::mm::bytes_in;
 using kernel::mm::frames_in;
@@ -68,10 +71,19 @@ static_assert(MAX_PHYSICAL_MEMORY % PAGE_SIZE_1G == 0,
 // bug in the caller rather than a condition to report, and panics.
 // =================================================================================================
 
-[[nodiscard]] bool alloc_pages(page_size size, usize count, paddr_t *out);
+// Why the allocator turned a request down. OUT_OF_MEMORY covers both a request larger than the
+// free count and a large-block request that found no whole block, because to a caller they are
+// the same answer: this size is not available now.
+enum class pmm_error : u8 {
+    NOT_INITIALIZED,
+    OUT_OF_MEMORY,
+    INVALID_ARGUMENT,
+};
+
+[[nodiscard]] Result<void, pmm_error> alloc_pages(page_size size, usize count, paddr_t *out);
 void free_pages(page_size size, usize count, const paddr_t *pages);
 
-[[nodiscard]] paddr_t alloc_page(page_size size = page_size::SIZE_4K);
+[[nodiscard]] Result<paddr_t, pmm_error> alloc_page(page_size size = page_size::SIZE_4K);
 void free_page(page_size size, paddr_t base);
 
 // =================================================================================================
@@ -89,7 +101,7 @@ struct span {
     static constexpr u64       BYTES = Bytes;
     static constexpr usize     FRAMES = frames_in(SIZE);
 
-    [[nodiscard]] static paddr_t alloc()
+    [[nodiscard]] static Result<paddr_t, pmm_error> alloc()
     {
         return alloc_page(SIZE);
     }

@@ -53,19 +53,20 @@ void *morecore_failure()
 
 u8 *claim_frame()
 {
-    const paddr_t frame = pmm::alloc_page(pmm::page_size::SIZE_2M);
+    // The frame is only ours once it has a window: without one there is no way to reach it, so
+    // the failed lookup hands it straight back rather than leaking it for the life of the kernel.
+    return pmm::alloc_page(pmm::page_size::SIZE_2M)
+        .map([](paddr_t frame) -> u8 * {
+            void *window = vmm::physical_window(frame);
 
-    if (frame == pmm::INVALID_PHYSICAL_ADDRESS)
-        return nullptr;
+            if (window == nullptr) {
+                pmm::free_page(pmm::page_size::SIZE_2M, frame);
+                return nullptr;
+            }
 
-    void *window = vmm::physical_window(frame);
-
-    if (window == nullptr) {
-        pmm::free_page(pmm::page_size::SIZE_2M, frame);
-        return nullptr;
-    }
-
-    return static_cast<u8 *>(window);
+            return static_cast<u8 *>(window);
+        })
+        .unwrap_or(static_cast<u8 *>(nullptr));
 }
 
 }  // namespace

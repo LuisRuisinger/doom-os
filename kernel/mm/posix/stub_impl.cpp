@@ -50,13 +50,10 @@ bool ensure_break()
         return true;
     }
 
-    const paddr_t page = pmm::alloc_page(kernel::mm::page_size::SIZE_2M);
-
-    if (page == pmm::INVALID_PHYSICAL_ADDRESS) {
-        return false;
-    }
-
-    g_break_base = static_cast<u8 *>(mmu::physical_window(page));
+    g_break_base =
+        pmm::alloc_page(kernel::mm::page_size::SIZE_2M)
+            .map([](paddr_t page) { return static_cast<u8 *>(mmu::physical_window(page)); })
+            .unwrap_or(static_cast<u8 *>(nullptr));
 
     return g_break_base != nullptr;
 }

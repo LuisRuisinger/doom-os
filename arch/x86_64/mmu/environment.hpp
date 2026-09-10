@@ -23,15 +23,18 @@ struct default_paging_environment {
         if (!direct_map_ready())
             return INVALID_ADDRESS;
 
-        const paddr_t phys = kernel::mm::pmm::span_4k::alloc();
-        if (phys == INVALID_ADDRESS)
-            return INVALID_ADDRESS;
+        // The radix tree in arch/common is shared with architectures whose allocator this is
+        // not, so its environment contract is a sentinel rather than a Result. This adapter is
+        // the one place that knows both spellings, so the conversion belongs here.
+        return kernel::mm::pmm::span_4k::alloc()
+            .map([](paddr_t phys) {
+                u64 *table = map_table(phys);
+                for (usize i = 0; i < 512; ++i)
+                    table[i] = 0;
 
-        u64 *table = map_table(phys);
-        for (usize i = 0; i < 512; ++i)
-            table[i] = 0;
-
-        return phys;
+                return phys;
+            })
+            .unwrap_or(INVALID_ADDRESS);
     }
 
     static void free_table(paddr_t phys)

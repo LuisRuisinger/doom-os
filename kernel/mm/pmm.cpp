@@ -472,18 +472,21 @@ void build_lists()
 // PMM API
 // =================================================================================================
 
-bool alloc_pages(page_size size, usize count, paddr_t *out)
+Result<void, pmm_error> alloc_pages(page_size size, usize count, paddr_t *out)
 {
     if (count == 0)
-        return true;
+        return kernel::core::Ok();
 
     if (out == nullptr)
-        return false;
+        return kernel::core::Err(pmm_error::INVALID_ARGUMENT);
 
     kernel::sync::spinlock_guard guard(g_allocator.lock);
 
-    if (!g_allocator.initialized || count * frames_in(size) > g_allocator.free_frames)
-        return false;
+    if (!g_allocator.initialized)
+        return kernel::core::Err(pmm_error::NOT_INITIALIZED);
+
+    if (count * frames_in(size) > g_allocator.free_frames)
+        return kernel::core::Err(pmm_error::OUT_OF_MEMORY);
 
     if (size == page_size::SIZE_4K) {
         // Frames are counted, so the check above is exact and nothing below comes up short.
@@ -492,7 +495,7 @@ bool alloc_pages(page_size size, usize count, paddr_t *out)
         if (taken != count)
             KPANIC("pmm: {} frames were free but only {} could be taken", count, taken);
 
-        return true;
+        return kernel::core::Ok();
     }
 
     // Whole blocks are not counted - finding out how many exist costs the same as taking them -
@@ -506,10 +509,10 @@ bool alloc_pages(page_size size, usize count, paddr_t *out)
         for (usize i = 0; i < taken; ++i)
             release_locked(size, out[i]);
 
-        return false;
+        return kernel::core::Err(pmm_error::OUT_OF_MEMORY);
     }
 
-    return true;
+    return kernel::core::Ok();
 }
 
 void free_pages(page_size size, usize count, const paddr_t *pages)
@@ -526,11 +529,11 @@ void free_pages(page_size size, usize count, const paddr_t *pages)
         release_locked(size, pages[i]);
 }
 
-paddr_t alloc_page(page_size size)
+Result<paddr_t, pmm_error> alloc_page(page_size size)
 {
     paddr_t page = INVALID_PHYSICAL_ADDRESS;
 
-    return alloc_pages(size, 1, &page) ? page : INVALID_PHYSICAL_ADDRESS;
+    return alloc_pages(size, 1, &page).map([&] { return page; });
 }
 
 void free_page(page_size size, paddr_t base)
