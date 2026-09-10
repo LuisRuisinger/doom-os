@@ -5,8 +5,8 @@
 // Kernel files
 // =================================================================================================
 
-#include "kernel/arch/x86_64/cpu/stacks.hpp"
-#include "kernel/core/component.hpp"
+#include "arch/x86_64/cpu/stacks.hpp"
+#include "kernel/init/component.hpp"
 #include "kernel/core/types.hpp"
 
 namespace kernel::arch::x86_64::tss {
@@ -99,11 +99,11 @@ public:
 // =================================================================================================
 
 struct core_component
-    : kernel::core::component<core_component, state, kernel::arch::x86_64::cpu::stacks_component> {
+    : kernel::init::component<core_component, state, kernel::arch::x86_64::cpu::stacks_component> {
     static constexpr auto *name = "TSS";
 
     template <typename View>
-    static kernel::core::init_result init(View view)
+    static kernel::init::init_result init(View view)
     {
         const kernel::arch::x86_64::cpu::stack_set &stacks =
             dep<kernel::arch::x86_64::cpu::stacks_component>(view);

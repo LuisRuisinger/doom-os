@@ -1,4 +1,4 @@
-/* kernel/arch/x86_64/gdt_load.S */
+/* arch/x86_64/gdt_load.S */
 
 .intel_syntax noprefix
 

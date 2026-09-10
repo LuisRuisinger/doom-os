@@ -5,8 +5,8 @@
 // Kernel files
 // =================================================================================================
 
-#include "kernel/arch/x86_64/gdt/gdt.hpp"
-#include "kernel/core/component.hpp"
+#include "arch/x86_64/gdt/gdt.hpp"
+#include "kernel/init/component.hpp"
 #include "kernel/core/types.hpp"
 
 namespace kernel::arch::x86_64::exceptions {
@@ -98,12 +98,12 @@ public:
 // =================================================================================================
 
 struct core_component
-    : kernel::core::component<core_component, table, kernel::arch::x86_64::gdt::core_component,
+    : kernel::init::component<core_component, table, kernel::arch::x86_64::gdt::core_component,
                               kernel::arch::x86_64::exceptions::core_component> {
     static constexpr auto *name = "IDT";
 
     template <typename View>
-    static kernel::core::init_result init(View view)
+    static kernel::init::init_result init(View view)
     {
         table &self = own(view);
 

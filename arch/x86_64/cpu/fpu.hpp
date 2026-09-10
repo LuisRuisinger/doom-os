@@ -5,7 +5,7 @@
 // Kernel files
 // =================================================================================================
 
-#include "kernel/core/component.hpp"
+#include "kernel/init/component.hpp"
 
 namespace kernel::arch::x86_64::cpu {
 
@@ -27,11 +27,11 @@ namespace kernel::arch::x86_64::cpu {
 
 void enable_sse();
 
-struct fpu_component : kernel::core::component<fpu_component, kernel::core::no_resource> {
+struct fpu_component : kernel::init::component<fpu_component, kernel::init::no_resource> {
     static constexpr auto *name = "FPU";
 
     template <typename View>
-    static kernel::core::init_result init(View)
+    static kernel::init::init_result init(View)
     {
         enable_sse();
 

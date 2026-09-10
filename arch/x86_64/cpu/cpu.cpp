@@ -2,7 +2,7 @@
 // Kernel files
 // =================================================================================================
 
-#include "kernel/arch/x86_64/cpu/cpu.hpp"
+#include "arch/x86_64/cpu/cpu.hpp"
 
 #include "kernel/sync/atomic.hpp"
 

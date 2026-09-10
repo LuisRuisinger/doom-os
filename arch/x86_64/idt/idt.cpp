@@ -2,7 +2,7 @@
 // Kernel files
 // =================================================================================================
 
-#include "kernel/arch/x86_64/idt/idt.hpp"
+#include "arch/x86_64/idt/idt.hpp"
 
 namespace kernel::arch::x86_64::idt {
 using kernel::core::u16;

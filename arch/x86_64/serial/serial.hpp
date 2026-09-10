@@ -5,7 +5,7 @@
 // Kernel files
 // =================================================================================================
 
-#include "kernel/core/component.hpp"
+#include "kernel/init/component.hpp"
 
 namespace kernel::arch::x86_64::serial {
 // =================================================================================================
@@ -28,11 +28,11 @@ void attach_console();
 // Boot component
 // =================================================================================================
 
-struct component : kernel::core::component<component, kernel::core::no_resource> {
+struct component : kernel::init::component<component, kernel::init::no_resource> {
     static constexpr const char *name = "SERIAL";
 
     template <typename View>
-    static kernel::core::init_result init(View)
+    static kernel::init::init_result init(View)
     {
         kernel::arch::x86_64::serial::init();
         kernel::arch::x86_64::serial::attach_console();

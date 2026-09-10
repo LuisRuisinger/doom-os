@@ -5,10 +5,11 @@
 // Kernel files
 // =================================================================================================
 
-#include "kernel/arch/x86_64/cpu/cpu.hpp"
-#include "kernel/arch/x86_64/cpu/fpu.hpp"
-#include "kernel/arch/x86_64/exceptions/exceptions.hpp"
-#include "kernel/core/component.hpp"
+#include "arch/x86_64/cpu/cpu.hpp"
+#include "arch/x86_64/cpu/fpu.hpp"
+#include "arch/x86_64/exceptions/exceptions.hpp"
+#include "arch/x86_64/lapic/lapic.hpp"
+#include "kernel/init/component.hpp"
 
 // =================================================================================================
 // Resource bindings
@@ -18,7 +19,7 @@
 // where it sits. Nothing else may reach local_state's members.
 // =================================================================================================
 
-namespace kernel::core {
+namespace kernel::init {
 
 #define DOOM_OS_BIND_CORE_RESOURCE(component_type, resource_type, member)             \
     template <>                                                                       \
@@ -46,7 +47,7 @@ DOOM_OS_BIND_CORE_RESOURCE(kernel::arch::x86_64::idt::core_component,
 
 #undef DOOM_OS_BIND_CORE_RESOURCE
 
-}  // namespace kernel::core
+}  // namespace kernel::init
 
 // =================================================================================================
 // Core roots
@@ -59,10 +60,19 @@ DOOM_OS_BIND_CORE_RESOURCE(kernel::arch::x86_64::idt::core_component,
 // an ordering that does not exist.
 // =================================================================================================
 
+// LAPIC is a late core component because its MMIO page is discovered from ACPI and mapped by
+// the boot graph. It still declares its IDT dependency, and the late runner filters the early
+// closure instead of rerunning it.
+// =================================================================================================
+
 namespace kernel::arch::x86_64::core_wiring {
 
-using core_roots = kernel::core::type_list<kernel::arch::x86_64::idt::core_component,
-                                           kernel::arch::x86_64::cpu::fpu_component>;
+using early_core_roots = kernel::init::type_list<kernel::arch::x86_64::idt::core_component,
+                                                 kernel::arch::x86_64::cpu::fpu_component>;
+
+using late_core_roots = kernel::init::type_list<kernel::arch::x86_64::lapic::core_component>;
+
+using core_roots = early_core_roots;
 
 }  // namespace kernel::arch::x86_64::core_wiring
 

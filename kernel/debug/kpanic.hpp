@@ -1,7 +1,7 @@
 #ifndef DOOM_OS_KERNEL_DEBUG_KPANIC_HPP_
 #define DOOM_OS_KERNEL_DEBUG_KPANIC_HPP_
 
-#include "kernel/arch/x86_64/cpu/registers.hpp"
+#include "arch/x86_64/cpu/registers.hpp"
 #include "kernel/core/types.hpp"
 #include "kernel/debug/kprint.hpp"
 

@@ -2,7 +2,7 @@
 // Kernel files
 // =================================================================================================
 
-#include "kernel/arch/x86_64/cpu/stacks.hpp"
+#include "arch/x86_64/cpu/stacks.hpp"
 
 namespace kernel::arch::x86_64::cpu {
 

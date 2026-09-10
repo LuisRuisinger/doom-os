@@ -2,9 +2,9 @@
 // Kernel files
 // =================================================================================================
 
-#include "kernel/arch/x86_64/cpu/fpu.hpp"
+#include "arch/x86_64/cpu/fpu.hpp"
 
-#include "kernel/arch/x86_64/cpu/registers.hpp"
+#include "arch/x86_64/cpu/registers.hpp"
 
 namespace kernel::arch::x86_64::cpu {
 
@@ -26,8 +26,8 @@ void enable_sse()
     // division by zero in application code reports as itself.
     write_cr4(read_cr4() | CR4_OS_FXSR | CR4_OS_XMM_EXCEPT);
 
-    // The x87 state after reset is not the state a C runtime expects; newlib's long double paths
-    // read the control word before writing it.
+    // The x87 state after reset is not the state a C runtime expects; long double paths in a C
+    // library read the control word before writing it.
     asm volatile("fninit" ::: "memory");
 }
 

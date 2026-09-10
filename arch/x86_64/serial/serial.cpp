@@ -1,6 +1,6 @@
-#include "kernel/arch/x86_64/serial/serial.hpp"
+#include "arch/x86_64/serial/serial.hpp"
 
-#include "kernel/arch/x86_64/serial/io.hpp"
+#include "arch/x86_64/serial/io.hpp"
 #include "kernel/core/bits.hpp"
 #include "kernel/core/types.hpp"
 #include "kernel/debug/console.hpp"
