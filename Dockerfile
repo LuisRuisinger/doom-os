@@ -1,14 +1,6 @@
-# =================================================================================================
-# Toolchain builder
-#
-# Everything here is thrown away except /opt/cross. Building and cleaning up inside a single
-# layer keeps the ~5 GB of sources and build trees out of the image that actually ships.
-# =================================================================================================
-
 FROM ubuntu:24.04 AS toolchain
 
 ARG DEBIAN_FRONTEND=noninteractive
-
 ARG TARGET=x86_64-elf
 ARG PREFIX=/opt/cross
 ARG BINUTILS_VERSION=2.46.1
@@ -35,17 +27,10 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 
 WORKDIR /tmp/cross
 
-# --enable-initfini-array is not optional here. GCC decides between .init_array and the legacy
-# .ctors by probing the target libc and binutils at configure time, and a --without-headers cross
-# build has no libc to probe, so it silently falls back to .ctors. The linker script collects
-# .init_array, so without this flag every global constructor in the image lands in a section
-# nothing walks and never runs. config/linker.ld.in asserts .ctors is empty to catch a toolchain
-# built without it.
-#
-# libstdc++ is built freestanding (--disable-hosted-libstdcxx), which installs only the subset
-# C++20 requires of a freestanding implementation: <type_traits>, <concepts>, <bit>, <limits>,
-# <new>, <exception>, <cstddef>, <cstdint> and friends. All header-only template machinery, so
-# the kernel keeps linking with -nostdlib.
+# --enable-initfini-array: a --without-headers build has no libc to probe, so GCC would silently
+# fall back to .ctors, which the linker script does not collect and no global constructor runs.
+# --disable-hosted-libstdcxx: only the freestanding, header-only subset of libstdc++ is installed.
+# No libc is built: libos implements the Linux ABI and the integrator picks the libc.
 RUN wget -q "https://ftp.gnu.org/gnu/binutils/binutils-${BINUTILS_VERSION}.tar.xz" \
     && wget -q "https://ftp.gnu.org/gnu/gcc/gcc-${GCC_VERSION}/gcc-${GCC_VERSION}.tar.xz" \
     && tar -xf "binutils-${BINUTILS_VERSION}.tar.xz" \
@@ -88,59 +73,33 @@ RUN wget -q "https://ftp.gnu.org/gnu/binutils/binutils-${BINUTILS_VERSION}.tar.x
     && cd / \
     && rm -rf /tmp/cross
 
-# =================================================================================================
-# No C library
-#
-# There is deliberately none. Which libc an image carries is the integrator's decision, the same
-# way the application and its drivers are: libos implements the x86_64 Linux ABI that a libc sits
-# on, and the objects handed to doom_os_application() arrive with whatever they were built
-# against. Building one here would only decide it for them.
-#
-# libstdc++ above is installed for its headers, not its archives. The freestanding subset is
-# header-only template machinery the kernel uses; nothing links -lstdc++ or -lsupc++.
-# =================================================================================================
-
-# =================================================================================================
-# Development image
-# =================================================================================================
-
 FROM ubuntu:24.04
 
 ARG DEBIAN_FRONTEND=noninteractive
-
 ARG TARGET=x86_64-elf
 ARG PREFIX=/opt/cross
 ARG CLANG_FORMAT_VERSION=20
+ARG NEOVIM_VERSION=0.11.6
 ARG RUST_TOOLCHAIN=stable
-ARG DOOM_OS_RUST_TARGET=x86_64-unknown-linux-musl
+ARG RUST_TARGET=x86_64-unknown-linux-musl
 
-ENV TARGET=${TARGET}
-ENV PREFIX=${PREFIX}
 ENV CARGO_HOME=/opt/cargo
 ENV RUSTUP_HOME=/opt/rustup
 ENV PATH="${CARGO_HOME}/bin:${PREFIX}/bin:${PATH}"
 
-# The -dev packages are what the cross compiler links against at run time (libgmp, libmpc,
-# libmpfr, libisl, libzstd).
-#
-# cmake and ninja build the kernel; git is load-bearing rather than a convenience, because
-# CMake fetches the Result dependency at configure time. grub, xorriso and mtools turn a
-# kernel.elf into a bootable ISO, and qemu runs it. make is not used by the build, but CMake
-# defaults to the Makefiles generator when no preset is given and the failure is confusing
-# without it.
+# libgmp10..libzstd1 are the cross compiler's shared libraries. ripgrep and fd serve the neovim pickers.
 RUN apt-get update && apt-get install -y --no-install-recommends \
-    libgmp3-dev \
-    libmpc-dev \
-    libmpfr-dev \
-    libisl-dev \
-    libzstd-dev \
+    libgmp10 \
+    libmpc3 \
+    libmpfr6 \
+    libisl23 \
+    libzstd1 \
     make \
     cmake \
     ninja-build \
     git \
     gdb \
     wget \
-    gnupg \
     sudo \
     ca-certificates \
     grub-common \
@@ -149,61 +108,49 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     mtools \
     qemu-system-x86 \
     qemu-system-gui \
-  && rm -rf /var/lib/apt/lists/*
+    ripgrep \
+    fd-find \
+  && rm -rf /var/lib/apt/lists/* \
+  && ln -s /usr/bin/fdfind /usr/local/bin/fd
 
-# .clang-format uses AlignFunctionDeclarations, which only exists from clang-format 20 - older
-# releases reject the whole file with "unknown key" and format nothing. Ubuntu 24.04 ships 18,
-# so take it from apt.llvm.org and pin the version, otherwise the container and the IDE format
-# the same file differently.
-RUN wget -qO- https://apt.llvm.org/llvm-snapshot.gpg.key \
-      | gpg --dearmor -o /usr/share/keyrings/llvm.gpg \
-    && echo "deb [signed-by=/usr/share/keyrings/llvm.gpg]" \
-       "http://apt.llvm.org/noble/ llvm-toolchain-noble-${CLANG_FORMAT_VERSION} main" \
+# .clang-format uses AlignFunctionDeclarations, which needs clang-format >= 20; Ubuntu 24.04 ships 18.
+RUN wget -qO /usr/share/keyrings/llvm.asc https://apt.llvm.org/llvm-snapshot.gpg.key \
+    && echo "deb [signed-by=/usr/share/keyrings/llvm.asc] http://apt.llvm.org/noble/ llvm-toolchain-noble-${CLANG_FORMAT_VERSION} main" \
        > /etc/apt/sources.list.d/llvm.list \
     && apt-get update \
     && apt-get install -y --no-install-recommends "clang-format-${CLANG_FORMAT_VERSION}" \
     && ln -sf "/usr/bin/clang-format-${CLANG_FORMAT_VERSION}" /usr/bin/clang-format \
     && rm -rf /var/lib/apt/lists/*
 
+# Must match the host: plugins, parsers and the bytecode cache are bind-mounted from there.
+RUN wget -qO- "https://github.com/neovim/neovim/releases/download/v${NEOVIM_VERSION}/nvim-linux-x86_64.tar.gz" \
+    | tar -xz -C /usr/local --strip-components=1
+
 RUN wget -qO- https://sh.rustup.rs \
       | sh -s -- -y --no-modify-path \
         --profile minimal \
         --default-toolchain "${RUST_TOOLCHAIN}" \
-        --target "${DOOM_OS_RUST_TARGET}" \
-    && rustup --version \
-    && rustc --version \
-    && cargo --version \
+        --target "${RUST_TARGET}" \
+        --component rust-analyzer,rust-src \
     && chown -R ubuntu:ubuntu "${RUSTUP_HOME}" "${CARGO_HOME}"
 
-COPY --from=toolchain /opt/cross /opt/cross
+COPY --from=toolchain ${PREFIX} ${PREFIX}
 
-RUN x86_64-elf-gcc --version \
-    && test -f "$(x86_64-elf-gcc -print-libgcc-file-name)" \
-    && x86_64-elf-g++ --version \
+RUN "${TARGET}-g++" --version \
+    && test -f "$("${TARGET}-gcc" -print-libgcc-file-name)" \
     && test -d "${PREFIX}/${TARGET}/include/c++" \
-    && rustup target list --installed | grep -x "${DOOM_OS_RUST_TARGET}" \
-    && test -f "$(rustc --print target-libdir --target "${DOOM_OS_RUST_TARGET}")/self-contained/libunwind.a" \
-    && test -f "$(rustc --print target-libdir --target "${DOOM_OS_RUST_TARGET}")/self-contained/libc.a" \
+    && test -f "$(rustc --print target-libdir --target "${RUST_TARGET}")/self-contained/libc.a" \
+    && rust-analyzer --version \
     && grub-mkrescue --version \
     && qemu-system-x86_64 --version \
     && clang-format --version \
-    && cmake --version \
-    && ninja --version
+    && nvim --version
 
-# =================================================================================================
-# Unprivileged user
-#
-# Running as root meant every file the container touched in the bind-mounted workspace came back
-# owned by root - build output, and any source file created inside the container. The stock
-# ubuntu user is uid/gid 1000, which is the first user on a typical Linux host, so ownership
-# lines up without remapping. sudo is there for the occasional ad-hoc install.
-# =================================================================================================
-
+# uid 1000 matches the first host user, so bind-mounted files keep their owner.
 RUN echo "ubuntu ALL=(ALL) NOPASSWD:ALL" > /etc/sudoers.d/ubuntu \
     && chmod 0440 /etc/sudoers.d/ubuntu \
-    && mkdir -p /workspace \
-    && chown ubuntu:ubuntu /workspace
+    && mkdir -p /workspace /home/ubuntu/.config /home/ubuntu/.local/share /home/ubuntu/.local/state /home/ubuntu/.cache \
+    && chown -R ubuntu:ubuntu /workspace /home/ubuntu
 
 USER ubuntu
-
 WORKDIR /workspace

@@ -1,7 +1,5 @@
 {
   "name": "DoomOS",
-
-  // repo root image; also published by CI
   "build": {
     "context": "..",
     "dockerfile": "../Dockerfile"
@@ -12,20 +10,26 @@
   "runArgs": [
     "--init",
 
-    // things gdb needs to attach to
+    // gdb
     "--cap-add=SYS_PTRACE",
     "--security-opt=seccomp=unconfined",
 
-    // display forwarding for container
+    // qemu window
     "--env=DISPLAY=${localEnv:DISPLAY}",
     "--volume=/tmp/.X11-unix:/tmp/.X11-unix:rw"
   ],
 
+  // A bind mount with a missing source fails, so the neovim directories are created on the
+  // host first; without a config there they stay empty and neovim starts bare.
+  "initializeCommand": "mkdir -p ~/.config/nvim ~/.local/share/nvim ~/.local/state/nvim ~/.cache/nvim",
   "mounts": [
-    "source=${localEnv:HOME}/.bashrc,target=/home/ubuntu/.bashrc,type=bind,readonly"
-  ],
-  // There is no libc to report. The image ships binutils, GCC and libstdc++'s freestanding
-  // headers, and nothing else a build needs - which libc an application links is the
-  // integrator's decision, so an image that supplied one would be making it for them.
-  "postCreateCommand": "x86_64-elf-gcc --version && x86_64-elf-g++ --version && cmake --version && ninja --version && clang-format --version && grub-mkrescue --version && qemu-system-x86_64 --version"
+    "source=${localEnv:HOME}/.bashrc,target=/home/ubuntu/.bashrc,type=bind,readonly",
+
+    // neovim config, plugins, mason packages and parsers come from the host; nothing is fetched
+    // in the container and installs made here land on the host
+    "source=${localEnv:HOME}/.config/nvim,target=/home/ubuntu/.config/nvim,type=bind",
+    "source=${localEnv:HOME}/.local/share/nvim,target=/home/ubuntu/.local/share/nvim,type=bind",
+    "source=${localEnv:HOME}/.local/state/nvim,target=/home/ubuntu/.local/state/nvim,type=bind",
+    "source=${localEnv:HOME}/.cache/nvim,target=/home/ubuntu/.cache/nvim,type=bind"
+  ]
 }
