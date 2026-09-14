@@ -5,8 +5,8 @@
 #include "arch/x86_64/lapic/lapic.hpp"
 
 #include "arch/x86_64/core_init.hpp"
-#include "kernel/core/cast.hpp"
 #include "kernel/acpi/madt.hpp"
+#include "kernel/core/cast.hpp"
 #include "kernel/mm/page.hpp"
 #include "kernel/mm/vmm.hpp"
 
@@ -112,10 +112,8 @@ kernel::init::init_result init_core()
 u32 read(reg r)
 {
     barrier();
-    const auto *address = reinterpret_cast<const volatile u32 *>(
-        m_lapic_base_vaddr + static_cast<u32>(r)
-    );
-    const u32 value = *address;
+    const auto *address = (m_lapic_base_vaddr + r as(u32)) as(const volatile u32 *);
+    const u32   value = *address;
     barrier();
     return value;
 }
@@ -123,9 +121,7 @@ u32 read(reg r)
 void write(reg r, u32 value)
 {
     barrier();
-    auto *address = reinterpret_cast<volatile u32 *>(
-        m_lapic_base_vaddr + static_cast<u32>(r)
-    );
+    auto *address = (m_lapic_base_vaddr + r as(u32)) as(volatile u32 *);
     *address = value;
     barrier();
 }

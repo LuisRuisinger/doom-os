@@ -5,9 +5,10 @@
 // Kernel files
 // =================================================================================================
 
-#include "kernel/init/component.hpp"
 #include "kernel/boot/boot_info.hpp"
+#include "kernel/core/cast.hpp"
 #include "kernel/core/types.hpp"
+#include "kernel/init/component.hpp"
 #include "kernel/mm/vmm.hpp"
 
 namespace kernel::acpi {
@@ -70,7 +71,7 @@ struct sdt_view {
     {
         if (!header)
             return nullptr;
-        return reinterpret_cast<const u8 *>(header) + sizeof(wire::sdt_header);
+        return header as(const u8 *) + sizeof(wire::sdt_header);
     }
 
     [[nodiscard]] usize body_size() const
@@ -86,9 +87,9 @@ void init(paddr_t rsdp_address);
 [[nodiscard]] bool validate_checksum(const void *pointer, usize length);
 [[nodiscard]] sdt_view find_table(const char signature[4]);
 
-struct component : kernel::init::component<component, kernel::init::no_resource,
-                                           kernel::boot::boot_info::component,
-                                           kernel::mm::vmm::component> {
+struct component
+    : kernel::init::component<component, kernel::init::no_resource,
+                              kernel::boot::boot_info::component, kernel::mm::vmm::component> {
     static constexpr auto *name = "ACPI";
 
     static kernel::init::init_result init_acpi();

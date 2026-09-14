@@ -4,6 +4,8 @@
 
 #include "kernel/boot/multiboot2_adapter.hpp"
 
+#include "kernel/core/cast.hpp"
+
 namespace kernel::boot::multiboot2 {
 
 namespace {
@@ -19,7 +21,7 @@ using kernel::core::usize;
 template <typename T>
 [[nodiscard]] const T *as_tag(const tag_header &tag, const u8 *buffer_end)
 {
-    const auto *begin = reinterpret_cast<const u8 *>(&tag);
+    const auto *begin = (&tag) as(const u8 *);
 
     if (tag.size < sizeof(T))
         return nullptr;
@@ -27,11 +29,11 @@ template <typename T>
     if (begin > buffer_end)
         return nullptr;
 
-    const auto remaining = static_cast<usize>(buffer_end - begin);
+    const auto remaining = (buffer_end - begin) as(usize);
     if (tag.size > remaining)
         return nullptr;
 
-    return reinterpret_cast<const T *>(&tag);
+    return (&tag) as(const T *);
 }
 
 // =================================================================================================
@@ -40,7 +42,7 @@ template <typename T>
 
 [[nodiscard]] kernel::boot::memory_kind translate_memory_type(kernel::core::u32 type)
 {
-    switch (static_cast<memory_type>(type)) {
+    switch (type as(memory_type)) {
         case memory_type::AVAILABLE:
             return kernel::boot::memory_kind::USABLE;
         case memory_type::ACPI_RECLAIMABLE:
@@ -120,7 +122,7 @@ void translate_acpi(const tag_header &tag, kernel::core::u8 revision, kernel::bo
 
     out.acpi = kernel::boot::acpi_info{
         .present = true,
-        .rsdp = static_cast<kernel::core::paddr_t>(reinterpret_cast<uptr>(rsdp)),
+        .rsdp = rsdp as(kernel::core::paddr_t),
         .revision = revision,
     };
 }
@@ -130,7 +132,7 @@ void translate_acpi(const tag_header &tag, kernel::core::u8 revision, kernel::bo
 {
     using enum tag_type;
 
-    switch (static_cast<tag_type>(tag.type)) {
+    switch (tag.type as(tag_type)) {
         case COMMAND_LINE: {
             const auto *value = as_tag<string_tag>(tag, buffer_end);
 
@@ -205,14 +207,14 @@ kernel::init::init_result adapter::parse(const kernel::boot::handoff &source,
     if (source.address == 0)
         return kernel::core::Err(init_error::INVALID_BOOT_DATA);
 
-    const auto *header = reinterpret_cast<const fixed_header *>(static_cast<uptr>(source.address));
+    const auto *header = source.address as(const fixed_header *);
 
     if (header->total_size < sizeof(*header))
         return kernel::core::Err(init_error::INVALID_BOOT_DATA);
 
-    const auto *begin = reinterpret_cast<const u8 *>(header);
+    const auto *begin = header as(const u8 *);
 
-    if (header->total_size > static_cast<usize>(~uptr{0}) - reinterpret_cast<uptr>(begin))
+    if (header->total_size > (~uptr{0}) as(usize) - begin as(uptr))
         return kernel::core::Err(init_error::INVALID_BOOT_DATA);
 
     // The buffer we are about to read from is physical memory the bootloader owns. Record it
@@ -225,19 +227,19 @@ kernel::init::init_result adapter::parse(const kernel::boot::handoff &source,
     const auto *end = begin + header->total_size;
     const auto *tag = first_tag(*header);
 
-    while (reinterpret_cast<const u8 *>(tag) < end) {
-        const auto *tag_begin = reinterpret_cast<const u8 *>(tag);
+    while (tag as(const u8 *) < end) {
+        const auto *tag_begin = tag as(const u8 *);
 
-        if (static_cast<usize>(end - tag_begin) < sizeof(*tag))
+        if ((end - tag_begin) as(usize) < sizeof(*tag))
             return kernel::core::Err(init_error::INVALID_BOOT_DATA);
 
         if (tag->size < sizeof(*tag))
             return kernel::core::Err(init_error::INVALID_BOOT_DATA);
 
-        if (tag->size > static_cast<usize>(end - tag_begin))
+        if (tag->size > (end - tag_begin) as(usize))
             return kernel::core::Err(init_error::INVALID_BOOT_DATA);
 
-        if (static_cast<tag_type>(tag->type) == tag_type::END) {
+        if (tag->type as(tag_type) == tag_type::END) {
             if (tag->size != sizeof(tag_header))
                 return kernel::core::Err(init_error::INVALID_BOOT_DATA);
 
@@ -249,7 +251,7 @@ kernel::init::init_result adapter::parse(const kernel::boot::handoff &source,
 
         const auto *next = next_tag(*tag);
 
-        if (reinterpret_cast<const u8 *>(next) <= tag_begin)
+        if (next as(const u8 *) <= tag_begin)
             return kernel::core::Err(init_error::INVALID_BOOT_DATA);
 
         tag = next;

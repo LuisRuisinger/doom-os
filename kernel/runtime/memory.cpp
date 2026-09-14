@@ -4,6 +4,7 @@
 
 #include "kernel/runtime/memory.hpp"
 
+#include "kernel/core/cast.hpp"
 #include "kernel/core/types.hpp"
 
 namespace {
@@ -23,8 +24,8 @@ using kernel::core::usize;
 
 extern "C" void *memset(void *dest, i32 value, usize count) noexcept
 {
-    auto *d = static_cast<u8 *>(dest);
-    auto  v = static_cast<u8>(value);
+    auto *d = dest as(u8 *);
+    auto v = value as(u8);
 
     for (usize i = 0; i < count; ++i)
         d[i] = v;
@@ -34,8 +35,8 @@ extern "C" void *memset(void *dest, i32 value, usize count) noexcept
 
 extern "C" void *memcpy(void *dest, const void *src, usize count) noexcept
 {
-    auto       *d = static_cast<u8 *>(dest);
-    const auto *s = static_cast<const u8 *>(src);
+    auto       *d = dest as(u8 *);
+    const auto *s = src as(const u8 *);
 
     for (usize i = 0; i < count; ++i)
         d[i] = s[i];
@@ -45,14 +46,14 @@ extern "C" void *memcpy(void *dest, const void *src, usize count) noexcept
 
 extern "C" void *memmove(void *dest, const void *src, usize count) noexcept
 {
-    auto       *d = static_cast<u8 *>(dest);
-    const auto *s = static_cast<const u8 *>(src);
+    auto       *d = dest as(u8 *);
+    const auto *s = src as(const u8 *);
 
     if (d == s || count == 0)
         return dest;
 
-    const auto d_addr = reinterpret_cast<usize>(d);
-    const auto s_addr = reinterpret_cast<usize>(s);
+    const auto d_addr = d as(usize);
+    const auto s_addr = s as(usize);
 
     if (d_addr < s_addr) {
         for (usize i = 0; i < count; ++i)
@@ -67,12 +68,12 @@ extern "C" void *memmove(void *dest, const void *src, usize count) noexcept
 
 extern "C" i32 memcmp(const void *lhs, const void *rhs, usize count) noexcept
 {
-    const auto *a = static_cast<const u8 *>(lhs);
-    const auto *b = static_cast<const u8 *>(rhs);
+    const auto *a = lhs as(const u8 *);
+    const auto *b = rhs as(const u8 *);
 
     for (usize i = 0; i < count; ++i) {
         if (a[i] != b[i])
-            return static_cast<i32>(a[i]) - static_cast<i32>(b[i]);
+            return a[i] as(i32) - b[i] as(i32);
     }
 
     return 0;

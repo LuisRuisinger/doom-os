@@ -46,12 +46,12 @@ void *morecore(ptrdiff_t increment)
         return m_break;
 
     if (increment < 0 || increment as(usize) > FRAME_BYTES)
-        return (~uptr{0})as(void *);
+        return (~uptr{0}) as(void *);
 
     u8 *frame = claim_frame();
 
     if (frame == nullptr)
-        return (~uptr{0})as(void *);
+        return (~uptr{0}) as(void *);
 
     m_break = frame + FRAME_BYTES;
 
@@ -73,12 +73,12 @@ void *morecore(ptrdiff_t increment)
 #define MORECORE_CANNOT_TRIM 1
 #define HAVE_MMAP            0
 #define HAVE_MREMAP          0
-#define DEFAULT_GRANULARITY  ((size_t)2U * 1024U * 1024U)
+#define DEFAULT_GRANULARITY  (2U * 1024U * 1024U)
 #define USE_LOCKS            0
 #define NO_MALLOC_STATS      1
 #define MALLOC_FAILURE_ACTION
 #define ABORT              corrupted()
-#define malloc_getpagesize ((size_t)4096U)
+#define malloc_getpagesize 4096U
 #define EINVAL             22
 #define ENOMEM             12
 #define LACKS_ERRNO_H      1

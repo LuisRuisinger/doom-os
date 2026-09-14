@@ -4,6 +4,7 @@
 
 #include "kernel/debug/kprint.hpp"
 
+#include "kernel/core/cast.hpp"
 #include "kernel/debug/console.hpp"
 
 namespace kernel::debug {
@@ -12,7 +13,6 @@ using kernel::core::i32;
 using kernel::core::i64;
 using kernel::core::u64;
 using kernel::core::u8;
-using kernel::core::uptr;
 using kernel::core::usize;
 
 namespace {
@@ -68,7 +68,7 @@ void emit_decimal_u64(u64 value)
     }
 
     while (value != 0) {
-        buffer[index++] = static_cast<char>('0' + (value % 10));
+        buffer[index++] = ('0' + (value % 10)) as(char);
         value /= 10;
     }
 
@@ -83,13 +83,13 @@ void emit_decimal_i64(i64 value)
         emit_char('-');
 
         // Negating the most negative value overflows, so step in from it first.
-        const u64 magnitude = static_cast<u64>(-(value + 1)) + 1;
+        const u64 magnitude = (-(value + 1)) as(u64) + 1;
 
         emit_decimal_u64(magnitude);
         return;
     }
 
-    emit_decimal_u64(static_cast<u64>(value));
+    emit_decimal_u64(value as(u64));
 }
 
 void emit_hex_u64(u64 value)
@@ -100,14 +100,14 @@ void emit_hex_u64(u64 value)
     usize index = 2;
 
     for (i32 shift = 60; shift >= 0; shift -= 4)
-        buffer[index++] = DIGITS[static_cast<u8>((value >> shift) & 0xFULL)];
+        buffer[index++] = DIGITS[((value >> shift) & 0xFULL) as(u8)];
 
     console_write(buffer, index);
 }
 
 void emit_pointer(const volatile void *value)
 {
-    emit_hex_u64(static_cast<u64>(reinterpret_cast<uptr>(value)));
+    emit_hex_u64(value as(u64));
 }
 
 }  // namespace detail

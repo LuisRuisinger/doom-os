@@ -5,6 +5,7 @@
 #include "kernel/acpi/acpi.hpp"
 
 #include "kernel/boot/boot_info.hpp"
+#include "kernel/core/cast.hpp"
 #include "kernel/mm/vmm.hpp"
 
 namespace kernel::acpi {
@@ -28,10 +29,10 @@ bool validate_checksum(const void *pointer, usize length)
     if (!pointer || length == 0)
         return false;
 
-    const auto *bytes = static_cast<const u8 *>(pointer);
-    u8 sum = 0;
+    const auto *bytes = pointer as(const u8 *);
+    u8          sum = 0;
     for (usize i = 0; i < length; ++i) {
-        sum = static_cast<u8>(sum + bytes[i]);
+        sum = (sum + bytes[i]) as(u8);
     }
     return sum == 0;
 }
@@ -46,9 +47,7 @@ void init(paddr_t rsdp_address)
     if (m_rsdp_phys == 0)
         return;
 
-    const auto *rsdp = static_cast<const wire::rsdp_descriptor *>(
-        kernel::mm::vmm::phy_to_vrt(m_rsdp_phys)
-    );
+    const auto *rsdp = kernel::mm::vmm::phy_to_vrt(m_rsdp_phys) as(const wire::rsdp_descriptor *);
 
     if (!rsdp)
         return;
@@ -64,10 +63,10 @@ void init(paddr_t rsdp_address)
     if (rsdp->revision >= 2 && rsdp->xsdt_address != 0) {
         if (!validate_checksum(rsdp, rsdp->length))
             return;
-        m_sdt_root_phys = static_cast<paddr_t>(rsdp->xsdt_address);
+        m_sdt_root_phys = rsdp->xsdt_address as(paddr_t);
         m_is_xsdt = true;
     } else {
-        m_sdt_root_phys = static_cast<paddr_t>(rsdp->rsdt_address);
+        m_sdt_root_phys = rsdp->rsdt_address as(paddr_t);
         m_is_xsdt = false;
     }
 
@@ -84,9 +83,8 @@ sdt_view find_table(const char signature[4])
     if (!m_initialized)
         return {};
 
-    const auto *root_header = static_cast<const wire::sdt_header *>(
-        kernel::mm::vmm::phy_to_vrt(m_sdt_root_phys)
-    );
+    const auto *root_header =
+        kernel::mm::vmm::phy_to_vrt(m_sdt_root_phys) as(const wire::sdt_header *);
 
     if (!root_header || !validate_checksum(root_header, root_header->length))
         return {};
@@ -96,20 +94,19 @@ sdt_view find_table(const char signature[4])
         return {};
 
     const usize entries_bytes = root_header->length - header_size;
-    const auto *entries_base = reinterpret_cast<const u8 *>(root_header) + header_size;
+    const auto *entries_base = root_header as(const u8 *) + header_size;
 
     if (m_is_xsdt) {
         const usize entry_count = entries_bytes / sizeof(u64);
-        const auto *ptrs = reinterpret_cast<const u64 *>(entries_base);
+        const auto *ptrs = entries_base as(const u64 *);
 
         for (usize i = 0; i < entry_count; ++i) {
-            const auto table_phys = static_cast<paddr_t>(ptrs[i]);
+            const auto table_phys = ptrs[i] as(paddr_t);
             if (table_phys == 0)
                 continue;
 
-            const auto *header = static_cast<const wire::sdt_header *>(
-                kernel::mm::vmm::phy_to_vrt(table_phys)
-            );
+            const auto *header =
+                kernel::mm::vmm::phy_to_vrt(table_phys) as(const wire::sdt_header *);
 
             if (header && signature_match(header->signature, signature)) {
                 if (validate_checksum(header, header->length))
@@ -118,16 +115,15 @@ sdt_view find_table(const char signature[4])
         }
     } else {
         const usize entry_count = entries_bytes / sizeof(u32);
-        const auto *ptrs = reinterpret_cast<const u32 *>(entries_base);
+        const auto *ptrs = entries_base as(const u32 *);
 
         for (usize i = 0; i < entry_count; ++i) {
-            const auto table_phys = static_cast<paddr_t>(ptrs[i]);
+            const auto table_phys = ptrs[i] as(paddr_t);
             if (table_phys == 0)
                 continue;
 
-            const auto *header = static_cast<const wire::sdt_header *>(
-                kernel::mm::vmm::phy_to_vrt(table_phys)
-            );
+            const auto *header =
+                kernel::mm::vmm::phy_to_vrt(table_phys) as(const wire::sdt_header *);
 
             if (header && signature_match(header->signature, signature)) {
                 if (validate_checksum(header, header->length))

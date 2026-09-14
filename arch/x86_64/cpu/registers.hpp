@@ -5,6 +5,7 @@
 // Kernel files
 // =================================================================================================
 
+#include "kernel/core/cast.hpp"
 #include "kernel/core/types.hpp"
 
 // =================================================================================================
@@ -157,8 +158,8 @@ struct cpuid_result {
 
 inline void write_msr(u32 msr, u64 value)
 {
-    const u32 low = static_cast<u32>(value);
-    const u32 high = static_cast<u32>(value >> 32);
+    const u32 low = value as(u32);
+    const u32             high = (value >> 32) as(u32);
 
     asm volatile("wrmsr" : : "c"(msr), "a"(low), "d"(high) : "memory");
 }

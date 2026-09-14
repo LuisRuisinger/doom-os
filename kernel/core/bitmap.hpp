@@ -6,6 +6,7 @@
 #include <type_traits>
 
 #include "kernel/core/bits.hpp"
+#include "kernel/core/cast.hpp"
 #include "kernel/core/types.hpp"
 
 namespace kernel::core::utils {
@@ -42,7 +43,7 @@ private:
 
     [[nodiscard]] static constexpr __attribute__((always_inline)) u32 offset_of(usize index)
     {
-        return static_cast<u32>(index % BITS_PER_STORAGE_TYPE_INSTANCE);
+        return (index % BITS_PER_STORAGE_TYPE_INSTANCE) as(u32);
     }
 
     [[nodiscard]] static constexpr __attribute__((always_inline)) StorageType bit_of(usize index)

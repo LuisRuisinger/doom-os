@@ -8,9 +8,10 @@
 // Kernel files
 // =================================================================================================
 
-#include "kernel/mm/vmm.hpp"
 #include "kernel/boot/boot_info.hpp"
+#include "kernel/core/cast.hpp"
 #include "kernel/debug/emit.hpp"
+#include "kernel/mm/vmm.hpp"
 
 namespace {
 
@@ -66,8 +67,8 @@ bool same_string(const char *lhs, const char *rhs)
 
 void copy_bytes(void *destination, const void *source, u64 length)
 {
-    auto       *out = static_cast<u8 *>(destination);
-    const auto *in = static_cast<const u8 *>(source);
+    auto       *out = destination as(u8 *);
+    const auto *in = source as(const u8 *);
 
     for (u64 i = 0; i < length; ++i) {
         out[i] = in[i];
@@ -113,9 +114,9 @@ extern "C" ssize_t write(int fd, const void *buffer, size_t count)
         return -1;
     }
 
-    kernel::debug::detail::emit_bytes(static_cast<const char *>(buffer), count);
+    kernel::debug::detail::emit_bytes(buffer as(const char *), count);
 
-    return static_cast<ssize_t>(count);
+    return count as(ssize_t);
 }
 
 extern "C" ssize_t writev(int fd, const iovec *vectors, int count)
@@ -135,7 +136,7 @@ extern "C" ssize_t writev(int fd, const iovec *vectors, int count)
 
         total += written;
 
-        if (static_cast<size_t>(written) != vectors[i].iov_len) {
+        if (written as(size_t) != vectors[i].iov_len) {
             break;
         }
     }
@@ -183,7 +184,7 @@ extern "C" int open(const char *path, int flags, ...)
                 continue;
             }
 
-            m_descriptors[fd] = {true, static_cast<const u8 *>(window), module.range.length, 0};
+            m_descriptors[fd] = {true, window as(const u8 *), module.range.length, 0};
             return fd;
         }
 
@@ -215,7 +216,7 @@ extern "C" ssize_t read(int fd, void *buffer, size_t count)
     copy_bytes(buffer, entry->base + entry->offset, length);
     entry->offset += length;
 
-    return static_cast<ssize_t>(length);
+    return length as(ssize_t);
 }
 
 extern "C" ssize_t readv(int fd, const iovec *vectors, int count)
@@ -235,7 +236,7 @@ extern "C" ssize_t readv(int fd, const iovec *vectors, int count)
 
         total += bytes_read;
 
-        if (static_cast<size_t>(bytes_read) != vectors[i].iov_len) {
+        if (bytes_read as(size_t) != vectors[i].iov_len) {
             break;
         }
     }
@@ -255,20 +256,20 @@ extern "C" off_t lseek(int fd, off_t offset, int whence)
     off_t target = offset;
 
     if (whence == SEEK_CUR) {
-        target += static_cast<off_t>(entry->offset);
+        target += entry->offset as(off_t);
     } else if (whence == SEEK_END) {
-        target += static_cast<off_t>(entry->size);
+        target += entry->size as(off_t);
     } else if (whence != SEEK_SET) {
         errno = EINVAL;
         return -1;
     }
 
-    if (target < 0 || static_cast<u64>(target) > entry->size) {
+    if (target < 0 || target as(u64) > entry->size) {
         errno = EINVAL;
         return -1;
     }
 
-    entry->offset = static_cast<u64>(target);
+    entry->offset = target as(u64);
 
     return target;
 }
@@ -311,7 +312,7 @@ extern "C" int fstat(int fd, stat *out)
     }
 
     out->mode = S_IFREG;
-    out->size = static_cast<off_t>(entry->size);
+    out->size = entry->size as(off_t);
 
     return 0;
 }

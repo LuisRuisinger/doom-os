@@ -2,6 +2,7 @@
 
 #include "arch/x86_64/serial/io.hpp"
 #include "kernel/core/bits.hpp"
+#include "kernel/core/cast.hpp"
 #include "kernel/core/types.hpp"
 #include "kernel/debug/console.hpp"
 
@@ -35,7 +36,7 @@ static constexpr u16 LINE_STATUS = COM1 + 5;
 
 static constexpr u32 UART_BASE_CLOCK_HZ = 115200;
 static constexpr u32 BAUD_RATE = 38400;
-static constexpr u16 BAUD_DIVISOR = static_cast<u16>(UART_BASE_CLOCK_HZ / BAUD_RATE);
+static constexpr u16 BAUD_DIVISOR = (UART_BASE_CLOCK_HZ / BAUD_RATE) as(u16);
 
 static constexpr u8 LINE_CONTROL_DLAB = bit<u8>(7);
 static constexpr u8 LINE_CONTROL_8N1 = 0x03;
@@ -52,8 +53,8 @@ void init()
     outb(INTERRUPT_ENABLE, 0x00);
     outb(LINE_CONTROL, LINE_CONTROL_DLAB);
 
-    outb(DATA_PORT, static_cast<u8>(BAUD_DIVISOR & 0xFF));
-    outb(INTERRUPT_ENABLE, static_cast<u8>((BAUD_DIVISOR >> 8) & 0xFF));
+    outb(DATA_PORT, (BAUD_DIVISOR & 0xFF) as(u8));
+    outb(INTERRUPT_ENABLE, ((BAUD_DIVISOR >> 8) & 0xFF) as(u8));
 
     outb(LINE_CONTROL, LINE_CONTROL_8N1);
     outb(FIFO_CONTROL, FIFO_ENABLE_CLEAR_14);
@@ -70,7 +71,7 @@ void write_char(char c)
     while (!can_write())
         asm volatile("pause");
 
-    outb(DATA_PORT, static_cast<u8>(c));
+    outb(DATA_PORT, c as(u8));
 }
 
 void write(const char *s)

@@ -5,6 +5,7 @@
 // Kernel files
 // =================================================================================================
 
+#include "kernel/core/cast.hpp"
 #include "kernel/core/types.hpp"
 
 namespace kernel::boot::multiboot2 {
@@ -129,24 +130,22 @@ constexpr usize align_tag_size(usize size)
 
 inline const tag_header *first_tag(const fixed_header &header)
 {
-    return reinterpret_cast<const tag_header *>(reinterpret_cast<const u8 *>(&header) +
-                                                sizeof(fixed_header));
+    return ((&header) as(const u8 *) + sizeof(fixed_header)) as(const tag_header *);
 }
 
 inline const tag_header *next_tag(const tag_header &tag)
 {
-    return reinterpret_cast<const tag_header *>(reinterpret_cast<const u8 *>(&tag) +
-                                                align_tag_size(tag.size));
+    return ((&tag) as(const u8 *) + align_tag_size(tag.size)) as(const tag_header *);
 }
 
 inline const char *string_payload(const string_tag &tag)
 {
-    return reinterpret_cast<const char *>(&tag) + sizeof(string_tag);
+    return (&tag) as(const char *) + sizeof(string_tag);
 }
 
 inline const char *module_command_line(const module_tag &tag)
 {
-    return reinterpret_cast<const char *>(&tag) + sizeof(module_tag);
+    return (&tag) as(const char *) + sizeof(module_tag);
 }
 
 inline usize memory_map_entry_count(const memory_map_tag &tag)
@@ -159,14 +158,13 @@ inline usize memory_map_entry_count(const memory_map_tag &tag)
 
 inline const memory_map_entry *memory_map_entry_at(const memory_map_tag &tag, usize index)
 {
-    return reinterpret_cast<const memory_map_entry *>(
-        reinterpret_cast<const u8 *>(&tag) + sizeof(memory_map_tag) + index * tag.entry_size);
+    return ((&tag) as(const u8 *) + sizeof(memory_map_tag) + index * tag.entry_size)
+        as(const memory_map_entry *);
 }
 
 inline const acpi_rsdp_v1 *acpi_rsdp(const tag_header &tag)
 {
-    return reinterpret_cast<const acpi_rsdp_v1 *>(reinterpret_cast<const u8 *>(&tag) +
-                                                  sizeof(tag_header));
+    return ((&tag) as(const u8 *) + sizeof(tag_header)) as(const acpi_rsdp_v1 *);
 }
 
 }  // namespace kernel::boot::multiboot2

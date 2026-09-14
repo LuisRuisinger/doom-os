@@ -8,6 +8,7 @@
 // Kernel files
 // =================================================================================================
 
+#include "kernel/core/cast.hpp"
 #include "kernel/mm/pmm.hpp"
 #include "kernel/mm/vmm.hpp"
 
@@ -49,17 +50,16 @@ bool ensure_break()
         return true;
     }
 
-    m_break_base =
-        pmm::alloc(kernel::mm::page_size::SIZE_2M)
-            .map([](paddr_t page) { return static_cast<u8 *>(vmm::phy_to_vrt(page)); })
-            .unwrap_or(nullptr);
+    m_break_base = pmm::alloc(kernel::mm::page_size::SIZE_2M)
+                       .map([](paddr_t page) { return vmm::phy_to_vrt(page) as(u8 *); })
+                       .unwrap_or(nullptr);
 
     return m_break_base != nullptr;
 }
 
 void zero_bytes(void *buffer, u64 length)
 {
-    auto *out = static_cast<u8 *>(buffer);
+    auto *out = buffer as(u8 *);
 
     for (u64 i = 0; i < length; ++i) {
         out[i] = 0;
@@ -76,16 +76,16 @@ extern "C" void *sbrk(ptrdiff_t increment)
 {
     if (!ensure_break()) {
         errno = ENOMEM;
-        return reinterpret_cast<void *>(-1);
+        return (-1) as(void *);
     }
 
-    if (increment < 0 || m_break_used + static_cast<u64>(increment) > BREAK_SIZE) {
+    if (increment < 0 || m_break_used + increment as(u64) > BREAK_SIZE) {
         errno = ENOMEM;
-        return reinterpret_cast<void *>(-1);
+        return (-1) as(void *);
     }
 
-    u8 *previous = m_break_base + m_break_used;
-    m_break_used += static_cast<u64>(increment);
+    u8                       *previous = m_break_base + m_break_used;
+    m_break_used += increment as(u64);
 
     return previous;
 }
@@ -99,26 +99,26 @@ extern "C" void *mmap(void *address, size_t length, int protection, int flags, i
         (flags & MAP_PRIVATE) == 0 || (flags & MAP_ANONYMOUS) == 0 ||
         (flags & ~SUPPORTED_FLAGS) != 0 || (protection & ~SUPPORTED_PROTECTION) != 0) {
         errno = EINVAL;
-        return reinterpret_cast<void *>(-1);
+        return (-1) as(void *);
     }
 
     void *current = sbrk(0);
 
-    if (current == reinterpret_cast<void *>(-1)) {
+    if (current == (-1) as(void *)) {
         return current;
     }
 
-    const u64 current_address = reinterpret_cast<usize>(current);
+    const u64 current_address = current as(usize);
     const u64 padding = aligned_up(current_address, PAGE_SIZE) - current_address;
 
-    if (padding != 0 && sbrk(static_cast<ptrdiff_t>(padding)) == reinterpret_cast<void *>(-1)) {
-        return reinterpret_cast<void *>(-1);
+    if (padding != 0 && sbrk(padding as(ptrdiff_t)) == (-1) as(void *)) {
+        return (-1) as(void *);
     }
 
     const u64 allocation = aligned_up(length, PAGE_SIZE);
-    void     *memory = sbrk(static_cast<ptrdiff_t>(allocation));
+    void     *memory = sbrk(allocation as(ptrdiff_t));
 
-    if (memory != reinterpret_cast<void *>(-1)) {
+    if (memory != (-1) as(void *)) {
         zero_bytes(memory, allocation);
     }
 
@@ -173,8 +173,8 @@ extern "C" int mprotect(void *address, size_t length, int protection)
         return -1;
     }
 
-    const u64 first = reinterpret_cast<u64>(address) & ~(PAGE_SIZE - 1);
-    const u64 last = aligned_up(reinterpret_cast<u64>(address) + length, PAGE_SIZE);
+    const u64 first = address as(u64) & ~(PAGE_SIZE - 1);
+    const u64                 last = aligned_up(address as(u64) + length, PAGE_SIZE);
 
     for (u64 page = first; page < last; page += PAGE_SIZE) {
         const auto resolved = kernel::mm::vmm::vrt_to_phy(page);
@@ -215,5 +215,5 @@ extern "C" void *mremap(void *old_address, size_t old_size, size_t new_size, int
     static_cast<void>(flags);
 
     errno = ENOMEM;
-    return reinterpret_cast<void *>(-1);
+    return (-1) as(void *);
 }

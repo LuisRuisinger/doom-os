@@ -5,6 +5,7 @@
 #include "kernel/debug/kpanic.hpp"
 
 #include "arch/x86_64/cpu/cpu.hpp"
+#include "kernel/core/cast.hpp"
 #include "kernel/core/reflect.hpp"
 #include "kernel/debug/kprint.hpp"
 
@@ -46,7 +47,7 @@ static void dump_panic_registers(const panic_register_frame &r)
 
     KPRINTLN("{} at {}:{} in {}", detail::PANIC_PREFIX, file, line, function);
     if (frame)
-        dump_panic_registers(*static_cast<const panic_register_frame *>(frame));
+        dump_panic_registers(*(frame as(const panic_register_frame *)));
 
     KPRINTLN("{} halt", detail::PANIC_PREFIX);
     arch::x86_64::cpu::halt();

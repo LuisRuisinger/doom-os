@@ -1,6 +1,7 @@
 #ifndef DOOM_OS_KERNEL_CORE_BITS_HPP_
 #define DOOM_OS_KERNEL_CORE_BITS_HPP_
 
+#include "kernel/core/cast.hpp"
 #include "kernel/core/types.hpp"
 
 namespace kernel::core::utils {
@@ -12,19 +13,19 @@ namespace kernel::core::utils {
 template <typename T>
 constexpr __attribute__((always_inline)) u32 bit_width()
 {
-    return static_cast<u32>(sizeof(T) * __CHAR_BIT__);
+    return (sizeof(T) * __CHAR_BIT__) as(u32);
 }
 
 template <typename T>
 constexpr __attribute__((always_inline)) T all_bits()
 {
-    return static_cast<T>(~T{0});
+    return (~T{0}) as(T);
 }
 
 template <typename T = u32>
 constexpr __attribute__((always_inline)) T bit(u32 index)
 {
-    return index >= bit_width<T>() ? T{0} : static_cast<T>(T{1} << index);
+    return index >= bit_width<T>() ? T{0} : (T{1} << index) as(T);
 }
 
 template <typename T>
@@ -36,19 +37,19 @@ constexpr __attribute__((always_inline)) bool test_bit(T value, u32 index)
 template <typename T>
 constexpr __attribute__((always_inline)) T set_bit(T value, u32 index)
 {
-    return index >= bit_width<T>() ? value : static_cast<T>(value | bit<T>(index));
+    return index >= bit_width<T>() ? value : (value | bit<T>(index)) as(T);
 }
 
 template <typename T>
 constexpr __attribute__((always_inline)) T clear_bit(T value, u32 index)
 {
-    return index >= bit_width<T>() ? value : static_cast<T>(value & static_cast<T>(~bit<T>(index)));
+    return index >= bit_width<T>() ? value : (value & ~bit<T>(index)) as(T);
 }
 
 template <typename T = u32>
 constexpr __attribute__((always_inline)) T mask(u32 bit_count)
 {
-    return bit_count >= bit_width<T>() ? all_bits<T>() : static_cast<T>(bit<T>(bit_count) - T{1});
+    return bit_count >= bit_width<T>() ? all_bits<T>() : (bit<T>(bit_count) - T{1}) as(T);
 }
 
 // =================================================================================================
@@ -58,25 +59,25 @@ constexpr __attribute__((always_inline)) T mask(u32 bit_count)
 template <typename T = usize>
 constexpr __attribute__((always_inline)) bool is_power_of_two(T value)
 {
-    return value != T{0} && (value & static_cast<T>(value - T{1})) == T{0};
+    return value != T{0} && (value & (value - T{1}) as(T)) == T{0};
 }
 
 template <typename T = usize>
 constexpr __attribute__((always_inline)) T align_down(T value, T alignment)
 {
-    return static_cast<T>(value & static_cast<T>(~static_cast<T>(alignment - T{1})));
+    return (value & ~(alignment - T{1})) as(T);
 }
 
 template <typename T = usize>
 constexpr __attribute__((always_inline)) T align_up(T value, T alignment)
 {
-    return align_down<T>(static_cast<T>(value + alignment - T{1}), alignment);
+    return align_down<T>((value + alignment - T{1}) as(T), alignment);
 }
 
 template <typename T = usize>
 constexpr __attribute__((always_inline)) bool is_aligned(T value, T alignment)
 {
-    return (value & static_cast<T>(alignment - T{1})) == T{0};
+    return (value & (alignment - T{1}) as(T)) == T{0};
 }
 
 // =================================================================================================

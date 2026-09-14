@@ -4,6 +4,8 @@
 
 #include "arch/x86_64/gdt/gdt.hpp"
 
+#include "kernel/core/cast.hpp"
+
 namespace kernel::arch::x86_64::gdt {
 using kernel::core::u16;
 using kernel::core::u32;
@@ -46,34 +48,34 @@ static constexpr u16 TSS_ENTRY_INDEX = TSS_SELECTOR >> 3;
 static constexpr descriptor make_descriptor(u32 base, u32 limit, u8 access, u8 flags)
 {
     return descriptor{
-        .limit_low = static_cast<u16>(limit & 0xFFFF),
-        .base_low = static_cast<u16>(base & 0xFFFF),
-        .base_mid = static_cast<u8>((base >> 16) & 0xFF),
+        .limit_low = (limit & 0xFFFF) as(u16),
+        .base_low = (base & 0xFFFF) as(u16),
+        .base_mid = ((base >> 16) & 0xFF) as(u8),
         .access = access,
-        .limit_high_flags = static_cast<u8>(((limit >> 16) & 0x0F) | (flags & 0xF0)),
-        .base_high = static_cast<u8>((base >> 24) & 0xFF),
+        .limit_high_flags = (((limit >> 16) & 0x0F) | (flags & 0xF0)) as(u8),
+        .base_high = ((base >> 24) & 0xFF) as(u8),
     };
 }
 
 static constexpr descriptor make_tss_descriptor_low(u64 base, u32 limit)
 {
     return descriptor{
-        .limit_low = static_cast<u16>(limit & 0xFFFF),
-        .base_low = static_cast<u16>(base & 0xFFFF),
-        .base_mid = static_cast<u8>((base >> 16) & 0xFF),
+        .limit_low = (limit & 0xFFFF) as(u16),
+        .base_low = (base & 0xFFFF) as(u16),
+        .base_mid = ((base >> 16) & 0xFF) as(u8),
         .access = ACCESS_PRESENT | ACCESS_RING_0 | ACCESS_TSS_AVAILABLE_64,
-        .limit_high_flags = static_cast<u8>((limit >> 16) & 0x0F),
-        .base_high = static_cast<u8>((base >> 24) & 0xFF),
+        .limit_high_flags = ((limit >> 16) & 0x0F) as(u8),
+        .base_high = ((base >> 24) & 0xFF) as(u8),
     };
 }
 
 static constexpr descriptor make_tss_descriptor_high(u64 base)
 {
-    const u32 base_high = static_cast<u32>(base >> 32);
+    const u32 base_high = (base >> 32) as(u32);
 
     return descriptor{
-        .limit_low = static_cast<u16>(base_high & 0xFFFF),
-        .base_low = static_cast<u16>((base_high >> 16) & 0xFFFF),
+        .limit_low = (base_high & 0xFFFF) as(u16),
+        .base_low = ((base_high >> 16) & 0xFFFF) as(u16),
         .base_mid = 0,
         .access = 0,
         .limit_high_flags = 0,
@@ -123,7 +125,7 @@ void table::init(const kernel::arch::x86_64::tss::state &task_state_segment)
 
     ptr_m = pointer{
         sizeof(entries_m) - 1,
-        reinterpret_cast<kernel::core::u64>(&entries_m[0]),
+        (&entries_m[0]) as(kernel::core::u64),
     };
 }
 

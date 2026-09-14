@@ -4,6 +4,8 @@
 
 #include "arch/x86_64/cpu/stacks.hpp"
 
+#include "kernel/core/cast.hpp"
+
 namespace kernel::arch::x86_64::cpu {
 
 // =================================================================================================
@@ -12,7 +14,7 @@ namespace kernel::arch::x86_64::cpu {
 
 static stack describe_stack(u8 *storage, usize storage_size)
 {
-    const auto bottom = reinterpret_cast<u64>(storage);
+    const auto bottom = storage as(u64);
 
     return stack{
         .bottom = bottom,

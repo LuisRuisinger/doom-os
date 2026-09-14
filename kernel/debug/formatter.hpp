@@ -12,6 +12,7 @@
 // Kernel files
 // =================================================================================================
 
+#include "kernel/core/cast.hpp"
 #include "kernel/core/reflect.hpp"
 #include "kernel/debug/emit.hpp"
 
@@ -153,10 +154,10 @@ struct formatter<T> {
     {
         if constexpr (Spec.presentation_value == presentation::DEFAULT ||
                       Spec.presentation_value == presentation::DECIMAL) {
-            emit_unsigned_decimal<Spec>(static_cast<u64>(value));
+            emit_unsigned_decimal<Spec>(value as(u64));
         } else if constexpr (Spec.presentation_value == presentation::HEX_LOWER ||
                              Spec.presentation_value == presentation::HEX_UPPER) {
-            emit_hex_integer<Spec>(static_cast<u64>(value));
+            emit_hex_integer<Spec>(value as(u64));
         } else {
             static_assert(unsupported_format_spec_v<Spec>,
                           "unsupported format specifier for unsigned integer");
@@ -171,10 +172,10 @@ struct formatter<T> {
     {
         if constexpr (Spec.presentation_value == presentation::DEFAULT ||
                       Spec.presentation_value == presentation::DECIMAL) {
-            emit_signed_decimal<Spec>(static_cast<i64>(value));
+            emit_signed_decimal<Spec>(value as(i64));
         } else if constexpr (Spec.presentation_value == presentation::HEX_LOWER ||
                              Spec.presentation_value == presentation::HEX_UPPER) {
-            emit_hex_integer<Spec>(static_cast<u64>(static_cast<i64>(value)));
+            emit_hex_integer<Spec>((value as(i64)) as(u64));
         } else {
             static_assert(unsupported_format_spec_v<Spec>,
                           "unsupported format specifier for signed integer");
@@ -187,7 +188,7 @@ struct formatter<T> {
     template <format_spec Spec>
     static void emit(T value)
     {
-        emit_fixed_float<Spec>(static_cast<long double>(value));
+        emit_fixed_float<Spec>(value as(long double));
     }
 };
 
@@ -199,7 +200,7 @@ struct formatter<T> {
         if constexpr (Spec.presentation_value == presentation::POINTER ||
                       Spec.presentation_value == presentation::HEX_LOWER ||
                       Spec.presentation_value == presentation::HEX_UPPER) {
-            emit_pointer_value<Spec>(static_cast<const volatile void *>(value));
+            emit_pointer_value<Spec>(value as(const volatile void *));
         } else {
             emit_string_value<Spec>(value);
         }
@@ -220,7 +221,7 @@ struct formatter<T> {
     template <format_spec Spec>
     static void emit(T value)
     {
-        emit_pointer_value<Spec>(static_cast<const volatile void *>(value));
+        emit_pointer_value<Spec>(value as(const volatile void *));
     }
 };
 
@@ -285,14 +286,14 @@ struct formatter<T> {
         if constexpr (Spec.presentation_value == presentation::DECIMAL ||
                       Spec.presentation_value == presentation::HEX_LOWER ||
                       Spec.presentation_value == presentation::HEX_UPPER) {
-            formatter<underlying>::template emit<Spec>(static_cast<underlying>(value));
+            formatter<underlying>::template emit<Spec>(value as(underlying));
         } else {
             const reflect::str_view name = reflect::enum_name(value);
 
             // No enumerator names this value: a cast, a mask, or a field that was corrupted.
             // Printing the number beats printing nothing, and this is a panic path.
             if (name.empty()) {
-                formatter<underlying>::template emit<Spec>(static_cast<underlying>(value));
+                formatter<underlying>::template emit<Spec>(value as(underlying));
                 return;
             }
 

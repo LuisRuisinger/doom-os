@@ -11,6 +11,7 @@
 // Kernel files
 // =================================================================================================
 
+#include "kernel/core/cast.hpp"
 #include "kernel/core/types.hpp"
 
 namespace kernel::sync {
@@ -42,7 +43,7 @@ namespace detail {
 
 constexpr int to_builtin_order(memory_order order)
 {
-    return static_cast<int>(order);
+    return order as(int);
 }
 
 constexpr int to_load_order(memory_order order)
@@ -222,7 +223,7 @@ constexpr inline_atomic_storage_t<T> encode_atomic_value(T value)
     using storage_type = inline_atomic_storage_t<T>;
 
     if constexpr (supports_direct_storage_cast_v<T>) {
-        return static_cast<storage_type>(value);
+        return value as(storage_type);
     } else {
         value = canonicalize_atomic_value(value);
 
@@ -237,7 +238,7 @@ template <typename T>
 constexpr T decode_atomic_value(inline_atomic_storage_t<T> storage)
 {
     if constexpr (supports_direct_storage_cast_v<T>) {
-        return static_cast<T>(storage);
+        return storage as(T);
     } else {
         atomic_object_storage<T> object{};
         __builtin_memcpy(&object.value, &storage, sizeof(T));
@@ -254,7 +255,7 @@ constexpr T add_atomic_values(T lhs, T rhs)
     const storage_type lhs_storage = encode_atomic_value(lhs);
     const storage_type rhs_storage = encode_atomic_value(rhs);
 
-    return decode_atomic_value<T>(static_cast<storage_type>(lhs_storage + rhs_storage));
+    return decode_atomic_value<T>((lhs_storage + rhs_storage) as(storage_type));
 }
 
 template <typename T>
@@ -265,7 +266,7 @@ constexpr T sub_atomic_values(T lhs, T rhs)
     const storage_type lhs_storage = encode_atomic_value(lhs);
     const storage_type rhs_storage = encode_atomic_value(rhs);
 
-    return decode_atomic_value<T>(static_cast<storage_type>(lhs_storage - rhs_storage));
+    return decode_atomic_value<T>((lhs_storage - rhs_storage) as(storage_type));
 }
 
 }  // namespace detail
@@ -494,22 +495,25 @@ public:
     template <typename U = T, std::enable_if_t<detail::supports_arithmetic_ops_v<U>, i32> = 0>
     T operator&=(T value)
     {
-        return detail::decode_atomic_value<T>(static_cast<storage_type>(
-            detail::encode_atomic_value(fetch_and(value)) & detail::encode_atomic_value(value)));
+        return detail::decode_atomic_value<T>(
+            (detail::encode_atomic_value(fetch_and(value)) & detail::encode_atomic_value(value))
+                as(storage_type));
     }
 
     template <typename U = T, std::enable_if_t<detail::supports_arithmetic_ops_v<U>, i32> = 0>
     T operator|=(T value)
     {
-        return detail::decode_atomic_value<T>(static_cast<storage_type>(
-            detail::encode_atomic_value(fetch_or(value)) | detail::encode_atomic_value(value)));
+        return detail::decode_atomic_value<T>(
+            (detail::encode_atomic_value(fetch_or(value)) | detail::encode_atomic_value(value))
+                as(storage_type));
     }
 
     template <typename U = T, std::enable_if_t<detail::supports_arithmetic_ops_v<U>, i32> = 0>
     T operator^=(T value)
     {
-        return detail::decode_atomic_value<T>(static_cast<storage_type>(
-            detail::encode_atomic_value(fetch_xor(value)) ^ detail::encode_atomic_value(value)));
+        return detail::decode_atomic_value<T>(
+            (detail::encode_atomic_value(fetch_xor(value)) ^ detail::encode_atomic_value(value))
+                as(storage_type));
     }
 };
 

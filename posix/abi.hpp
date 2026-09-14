@@ -41,7 +41,7 @@ using socklen_t = unsigned int;
 using pthread_t = unsigned long;
 using pthread_key_t = unsigned int;
 
-inline constexpr size_t SSIZE_MAX_VALUE = (static_cast<size_t>(1) << (sizeof(ssize_t) * 8 - 1)) - 1;
+inline constexpr size_t SSIZE_MAX_VALUE = (size_t{1} << (sizeof(ssize_t) * 8 - 1)) - 1;
 
 // =================================================================================================
 // errno

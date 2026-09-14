@@ -2,6 +2,7 @@
 // POSIX ABI files
 // =================================================================================================
 
+#include "kernel/core/cast.hpp"
 #include "posix/abi.hpp"
 
 // =================================================================================================
@@ -74,7 +75,7 @@ extern "C" ssize_t getrandom(void *buffer, size_t length, unsigned int flags)
         return -1;
     }
 
-    u8   *out = static_cast<u8 *>(buffer);
+    u8   *out = buffer as(u8 *);
     usize done = 0;
 
     while (done < length) {
@@ -88,13 +89,13 @@ extern "C" ssize_t getrandom(void *buffer, size_t length, unsigned int flags)
         const usize chunk = (length - done) < sizeof word ? (length - done) : sizeof word;
 
         for (usize i = 0; i < chunk; ++i) {
-            out[done + i] = static_cast<u8>(word >> (i * 8));
+            out[done + i] = (word >> (i * 8)) as(u8);
         }
 
         done += chunk;
     }
 
-    return static_cast<ssize_t>(done);
+    return done as(ssize_t);
 }
 
 // BSD's spelling of the same thing, and the one a few runtimes reach for first. All or nothing by

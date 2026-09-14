@@ -8,6 +8,7 @@
 #include "arch/x86_64/cpu/registers.hpp"
 #include "arch/x86_64/idt/idt.hpp"
 #include "arch/x86_64/tss/tss.hpp"
+#include "kernel/core/cast.hpp"
 #include "kernel/debug/kpanic.hpp"
 #include "kernel/debug/kprint.hpp"
 
@@ -140,7 +141,7 @@ static void validate_exception_frame(const exception_frame &frame)
     if (frame.vector >= CPU_EXCEPTION_COUNT)
         panic_unhandled_exception(frame);
 
-    const auto vector = static_cast<u8>(frame.vector);
+    const auto vector = frame.vector as(u8);
     if (!exception_has_error_code(vector) && frame.error_code != 0)
         KPANIC("[exception] malformed frame vector={} unexpected error={:#018X}", vector,
                frame.error_code);
@@ -328,9 +329,8 @@ struct fatal_exception_type {
         KPANIC_WITH_FRAME(fatal_dump,
                           "[exception] fatal {}: {} vector={} error={:#018X} "
                           "stack=[{:#018X}, {:#018X}) size={}",
-                          exception_name(static_cast<u8>(frame.vector)), Derived::fatal_reason,
-                          frame.vector, frame.error_code, fatal_stack.bottom, fatal_stack.top,
-                          fatal_stack.size);
+                          exception_name(frame.vector as(u8)), Derived::fatal_reason, frame.vector,
+                          frame.error_code, fatal_stack.bottom, fatal_stack.top, fatal_stack.size);
     }
 };
 
@@ -369,15 +369,15 @@ template <u8 Vector>
 struct exception_descriptor_for_vector;
 
 #define DOOM_OS_DECLARE_EXCEPTION_DESCRIPTOR(vector_id, exception_type) \
-    template <>                                                        \
-    struct exception_descriptor_for_vector<vector_id>                  \
+    template <>                                                         \
+    struct exception_descriptor_for_vector<vector_id>                   \
         : exception_descriptor<vector_id, exception_type> {};
 
 DOOM_OS_CPU_EXCEPTION_VECTORS(DOOM_OS_DECLARE_EXCEPTION_DESCRIPTOR)
 
 #undef DOOM_OS_DECLARE_EXCEPTION_DESCRIPTOR
 
-#define DOOM_OS_DEFINE_WEAK_EXCEPTION_HANDLER(vector_id, exception_type)         \
+#define DOOM_OS_DEFINE_WEAK_EXCEPTION_HANDLER(vector_id, exception_type)        \
     extern "C" void DOOM_OS_EXCEPTION_HANDLER_SYMBOL(vector_id)(                \
         cpu::local_state & cpu, exception_frame & frame) __attribute__((weak)); \
                                                                                 \
@@ -421,17 +421,17 @@ static constexpr exception_handler_table EXCEPTION_HANDLERS{
 template <usize Vector>
 static constexpr u8 ist_for_vector()
 {
-    using descriptor = exception_descriptor_for_vector<static_cast<u8>(Vector)>;
+    using descriptor = exception_descriptor_for_vector<Vector as(u8)>;
 
-    return static_cast<u8>(descriptor::interrupt_stack);
+    return descriptor::interrupt_stack as(u8);
 }
 
 template <usize Vector>
 static void describe_exception_gate(kernel::arch::x86_64::idt::gate_table &gates)
 {
-    constexpr auto vector = static_cast<u8>(Vector);
-    constexpr auto ist = ist_for_vector<Vector>();
-    const auto     entry_point = x86_64_exception_stub_table[Vector];
+    constexpr auto vector = Vector as(u8);
+    constexpr auto                 ist = ist_for_vector<Vector>();
+    const auto                     entry_point = x86_64_exception_stub_table[Vector];
     using descriptor = exception_descriptor_for_vector<vector>;
 
     if constexpr (descriptor::gate == exception_gate::TRAP) {
@@ -470,8 +470,8 @@ extern "C" void x86_64_exception_dispatch(kernel::arch::x86_64::trap::frame *fra
 
     exceptions::validate_exception_frame(*frame);
 
-    const auto vector = static_cast<kernel::core::u8>(frame->vector);
-    const auto handler = exceptions::EXCEPTION_HANDLERS[vector];
+    const auto vector = frame->vector as(kernel::core::u8);
+    const auto                        handler = exceptions::EXCEPTION_HANDLERS[vector];
     if (handler == nullptr)
         KPANIC("[exception] missing handler vector={}", vector);
 

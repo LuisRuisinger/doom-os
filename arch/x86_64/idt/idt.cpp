@@ -4,6 +4,8 @@
 
 #include "arch/x86_64/idt/idt.hpp"
 
+#include "kernel/core/cast.hpp"
+
 namespace kernel::arch::x86_64::idt {
 using kernel::core::u16;
 using kernel::core::u32;
@@ -52,15 +54,15 @@ static entry make_entry(const gate_spec &spec, u16 code_selector)
         return entry{};
     }
 
-    const auto address = reinterpret_cast<u64>(spec.entry_point);
+    const auto address = spec.entry_point as(u64);
 
     return entry{
-        .offset_low = static_cast<u16>(address & 0xFFFF),
+        .offset_low = (address & 0xFFFF) as(u16),
         .selector = code_selector,
-        .ist = static_cast<u8>(spec.ist & 0x07),
+        .ist = (spec.ist & 0x07) as(u8),
         .type_attributes = spec.type_attributes,
-        .offset_mid = static_cast<u16>((address >> 16) & 0xFFFF),
-        .offset_high = static_cast<u32>((address >> 32) & 0xFFFFFFFF),
+        .offset_mid = ((address >> 16) & 0xFFFF) as(u16),
+        .offset_high = ((address >> 32) & 0xFFFFFFFF) as(u32),
         .reserved = 0,
     };
 }
@@ -72,8 +74,8 @@ void table::init(const gate_table &gates, u16 code_selector)
     }
 
     ptr_m = pointer{
-        .limit = static_cast<u16>(sizeof(entries_m) - 1),
-        .base = reinterpret_cast<u64>(&entries_m[0]),
+        .limit = (sizeof(entries_m) - 1) as(u16),
+        .base = (&entries_m[0]) as(u64),
     };
 }
 

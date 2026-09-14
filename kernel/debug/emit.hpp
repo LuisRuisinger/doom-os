@@ -5,6 +5,7 @@
 // Kernel files
 // =================================================================================================
 
+#include "kernel/core/cast.hpp"
 #include "kernel/debug/format_spec.hpp"
 
 namespace kernel::debug {
@@ -70,7 +71,7 @@ inline usize format_u64_decimal(u64 value, char *buffer)
     usize length = 0;
 
     do {
-        reverse[length] = static_cast<char>('0' + value % 10);
+        reverse[length] = ('0' + value % 10) as(char);
         value /= 10;
         ++length;
     } while (value != 0);
@@ -105,10 +106,10 @@ inline usize format_u64_hex(u64 value, char *buffer, bool uppercase)
 inline u64 signed_magnitude_i64(i64 value)
 {
     if (value >= 0) {
-        return static_cast<u64>(value);
+        return value as(u64);
     }
 
-    return static_cast<u64>(-(value + 1)) + 1ULL;
+    return (-(value + 1)) as(u64) + 1ULL;
 }
 
 template <format_spec Spec>
@@ -235,7 +236,7 @@ inline void emit_pointer_value(const volatile void *value)
 {
     static_assert(!Spec.has_precision, "precision is not supported for pointer formats");
 
-    const u64 address = reinterpret_cast<u64>(value);
+    const u64 address = value as(u64);
 
     if constexpr (Spec.presentation_value == presentation::HEX_LOWER ||
                   Spec.presentation_value == presentation::HEX_UPPER) {
@@ -325,8 +326,8 @@ inline void emit_fixed_float(long double value)
 
     value += rounding;
 
-    const u64   integer_part = static_cast<u64>(value);
-    long double fractional_part = value - static_cast<long double>(integer_part);
+    const u64 integer_part = value as(u64);
+    long double                    fractional_part = value - integer_part as(long double);
 
     char        integer_buffer[20];
     const usize integer_length = format_u64_decimal(integer_part, integer_buffer);
@@ -345,11 +346,11 @@ inline void emit_fixed_float(long double value)
     for (usize index = 0; index < precision; ++index) {
         fractional_part *= 10.0L;
 
-        const u8 digit = static_cast<u8>(fractional_part);
-        body[body_length] = static_cast<char>('0' + digit);
+        const u8 digit = fractional_part as(u8);
+        body[body_length] = ('0' + digit) as(char);
         ++body_length;
 
-        fractional_part -= static_cast<long double>(digit);
+        fractional_part -= digit as(long double);
     }
 
     char  prefix_buffer[1];
@@ -401,10 +402,10 @@ inline void emit_char_value(char value)
                   Spec.presentation_value == presentation::CHARACTER) {
         emit_padded<Spec>("", 0, &value, 1, false);
     } else if constexpr (Spec.presentation_value == presentation::DECIMAL) {
-        emit_unsigned_decimal<Spec>(static_cast<u64>(static_cast<unsigned char>(value)));
+        emit_unsigned_decimal<Spec>((value as(unsigned char)) as(u64));
     } else if constexpr (Spec.presentation_value == presentation::HEX_LOWER ||
                          Spec.presentation_value == presentation::HEX_UPPER) {
-        emit_hex_integer<Spec>(static_cast<u64>(static_cast<unsigned char>(value)));
+        emit_hex_integer<Spec>((value as(unsigned char)) as(u64));
     } else {
         static_assert(unsupported_format_spec_v<Spec>, "unsupported format specifier for char");
     }

@@ -11,6 +11,7 @@
 // Kernel files
 // =================================================================================================
 
+#include "kernel/core/cast.hpp"
 #include "kernel/core/types.hpp"
 
 namespace kernel::debug {
@@ -148,7 +149,7 @@ consteval bool is_format_digit(char value)
 
 consteval usize format_digit_value(char value)
 {
-    return static_cast<usize>(value - '0');
+    return (value - '0') as(usize);
 }
 
 consteval bool is_format_align(char value)

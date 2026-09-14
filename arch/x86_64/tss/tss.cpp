@@ -4,6 +4,8 @@
 
 #include "arch/x86_64/tss/tss.hpp"
 
+#include "kernel/core/cast.hpp"
+
 namespace kernel::arch::x86_64::tss {
 
 // =================================================================================================
@@ -41,7 +43,7 @@ bool state::set_privilege_stack(u8 privilege_level, u64 stack_top)
 
 bool state::set_interrupt_stack(interrupt_stack stack, u64 stack_top)
 {
-    const u8 stack_index = static_cast<u8>(stack);
+    const u8 stack_index = stack as(u8);
 
     if (stack_index == NO_INTERRUPT_STACK || stack_index > INTERRUPT_STACK_COUNT) {
         return false;
@@ -75,7 +77,7 @@ const segment &state::layout() const
 
 u64 state::base() const
 {
-    return reinterpret_cast<u64>(&layout_m);
+    return (&layout_m) as(u64);
 }
 
 }  // namespace kernel::arch::x86_64::tss
