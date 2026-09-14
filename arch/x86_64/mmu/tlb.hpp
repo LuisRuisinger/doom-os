@@ -1,10 +1,6 @@
 #ifndef DOOM_OS_ARCH_X86_64_MMU_TLB_HPP_
 #define DOOM_OS_ARCH_X86_64_MMU_TLB_HPP_
 
-// =================================================================================================
-// Kernel files
-// =================================================================================================
-
 #include "kernel/core/types.hpp"
 
 namespace kernel::arch::x86_64::mmu::tlb {

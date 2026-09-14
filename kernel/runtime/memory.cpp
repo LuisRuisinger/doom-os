@@ -1,6 +1,3 @@
-// =================================================================================================
-// Kernel files
-// =================================================================================================
 
 #include "kernel/runtime/memory.hpp"
 
@@ -14,13 +11,6 @@ using kernel::core::u8;
 using kernel::core::usize;
 
 }  // namespace
-
-// =================================================================================================
-// Freestanding libc memory functions
-//
-// GCC emits calls to these regardless of -ffreestanding - a struct copy or a zero-initialised
-// array is enough - so they have to exist as global C symbols with exactly these names.
-// =================================================================================================
 
 extern "C" void *memset(void *dest, i32 value, usize count) noexcept
 {

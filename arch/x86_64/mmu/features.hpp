@@ -3,11 +3,6 @@
 
 namespace kernel::arch::x86_64::mmu {
 
-// =================================================================================================
-// Paging feature state
-// =================================================================================================
-
-// Detects what the CPU offers, enables what it can, and publishes the result. Idempotent.
 void enable_paging_features();
 
 [[nodiscard]] bool nx_enabled();

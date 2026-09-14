@@ -1,10 +1,6 @@
 #ifndef DOOM_OS_KERNEL_ARCH_X86_64_CPU_STACKS_HPP_
 #define DOOM_OS_KERNEL_ARCH_X86_64_CPU_STACKS_HPP_
 
-// =================================================================================================
-// Kernel files
-// =================================================================================================
-
 #include "kernel/core/types.hpp"
 #include "kernel/init/component.hpp"
 
@@ -14,29 +10,14 @@ using kernel::core::u64;
 using kernel::core::u8;
 using kernel::core::usize;
 
-// =================================================================================================
-// Constants
-// =================================================================================================
-
 static constexpr usize CORE_STACK_SIZE = 16 * 1024;
 static constexpr usize STACK_BYTE_ALIGNMENT = 16;
-
-// =================================================================================================
-// CPU-local stack descriptor
-// =================================================================================================
 
 struct stack {
     u64   bottom;
     u64   top;
     usize size;
 };
-
-// =================================================================================================
-// CPU-local stacks
-//
-// The storage the TSS points RSP0 and its IST entries at. Owned by stacks_component; every
-// other component sees it const, which is what makes handing the stack tops to the TSS safe.
-// =================================================================================================
 
 class stack_set {
     stack kernel_m{};
@@ -69,10 +50,6 @@ public:
         return machine_check_m;
     }
 };
-
-// =================================================================================================
-// Core component
-// =================================================================================================
 
 struct stacks_component : kernel::init::component<stacks_component, stack_set> {
     static constexpr auto *name = "STACKS";

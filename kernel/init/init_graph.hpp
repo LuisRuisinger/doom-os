@@ -1,23 +1,11 @@
 #ifndef DOOM_OS_KERNEL_INIT_INIT_GRAPH_HPP_
 #define DOOM_OS_KERNEL_INIT_INIT_GRAPH_HPP_
 
-// =================================================================================================
-// Cpp stdlib files
-// =================================================================================================
-
 #include <type_traits>
-
-// =================================================================================================
-// Kernel files
-// =================================================================================================
 
 #include "kernel/init/component.hpp"
 
 namespace kernel::init::detail {
-
-// =================================================================================================
-// Type list helpers
-// =================================================================================================
 
 template <typename T, typename List>
 struct list_contains;
@@ -83,10 +71,6 @@ struct list_filter_out {
     using type = typename list_filter_out_accum<List, Excluded, type_list<>>::type;
 };
 
-// =================================================================================================
-// Topological sort
-// =================================================================================================
-
 template <typename Component, typename Visiting>
 struct topo_component;
 
@@ -114,21 +98,12 @@ struct topo_component {
 
     using visiting_with_self = typename list_append<Visiting, Component>::type;
 
-    // Stop descending once a cycle is found, so the failure is one static_assert rather
-    // than a template instantiation depth error burying it.
     using deps_sorted =
         typename topo_list<std::conditional_t<is_cyclic, type_list<>, typename Component::deps>,
                            visiting_with_self>::type;
 
     using type = typename list_append_unique<deps_sorted, Component>::type;
 };
-
-// =================================================================================================
-// Sorted list runner
-//
-// Each component is handed a fresh view of the backing store. The view itself grants
-// nothing; what the component may reach through it is decided by its own dependency list.
-// =================================================================================================
 
 template <typename Component, typename Backing>
 bool run_component_silent(Backing &backing)
@@ -169,10 +144,6 @@ struct init_list_runner<type_list<Components...>> {
         return (run_component_logged<Components>(backing, logger) && ...);
     }
 };
-
-// =================================================================================================
-// Init graph
-// =================================================================================================
 
 template <typename Roots>
 struct init_graph {

@@ -1,6 +1,3 @@
-// =================================================================================================
-// Kernel files
-// =================================================================================================
 
 #include "kernel/boot/boot_info.hpp"
 
@@ -14,10 +11,6 @@ kernel::boot::handoff m_handoff{};
 kernel::boot::info    m_info{};
 
 }  // namespace
-
-// =================================================================================================
-// Handoff
-// =================================================================================================
 
 void set_handoff(kernel::boot::handoff source)
 {
@@ -38,10 +31,6 @@ const kernel::boot::handoff &current_handoff()
     return m_handoff;
 }
 
-// =================================================================================================
-// Boot description
-// =================================================================================================
-
 const kernel::boot::info &current()
 {
     return m_info;
@@ -51,13 +40,6 @@ bool available()
 {
     return m_info.valid;
 }
-
-// =================================================================================================
-// Component
-//
-// Parses straight into the stored description: an info is around ten kilobytes, which is too
-// much to stage on the kernel stack.
-// =================================================================================================
 
 kernel::init::init_result component::parse()
 {
@@ -70,10 +52,6 @@ kernel::init::init_result component::parse()
         return outcome;
     }
 
-    // Checked once here rather than at each push, so the adapters stay a straight
-    // translation. A machine with more regions than the tables hold is a machine we cannot
-    // describe, and a partial description is indistinguishable from a complete one once
-    // valid is set.
     if (m_info.truncated()) {
         m_info.reset();
         return kernel::core::Err(kernel::init::init_error::CAPACITY_EXCEEDED);

@@ -1,16 +1,9 @@
 #ifndef DOOM_OS_KERNEL_ARCH_X86_64_SERIAL_HPP_
 #define DOOM_OS_KERNEL_ARCH_X86_64_SERIAL_HPP_
 
-// =================================================================================================
-// Kernel files
-// =================================================================================================
-
 #include "kernel/init/component.hpp"
 
 namespace kernel::arch::x86_64::serial {
-// =================================================================================================
-// Public API
-// =================================================================================================
 
 void init();
 
@@ -20,13 +13,7 @@ void write_char(char c);
 
 void write(const char *s);
 
-// Install this port as the debug console sink. Separate from init() so configuring the port
-// and deciding where kernel output goes stay distinct decisions.
 void attach_console();
-
-// =================================================================================================
-// Boot component
-// =================================================================================================
 
 struct component : kernel::init::component<component, kernel::init::no_resource> {
     static constexpr const char *name = "SERIAL";
@@ -40,6 +27,7 @@ struct component : kernel::init::component<component, kernel::init::no_resource>
         return kernel::core::Ok();
     }
 };
+
 }  // namespace kernel::arch::x86_64::serial
 
 #endif  // DOOM_OS_KERNEL_ARCH_X86_64_SERIAL_HPP_

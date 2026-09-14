@@ -1,6 +1,3 @@
-// =================================================================================================
-// Kernel files
-// =================================================================================================
 
 #include "kernel/debug/kprint.hpp"
 
@@ -8,7 +5,9 @@
 #include "kernel/debug/console.hpp"
 
 namespace kernel::debug {
+
 namespace detail {
+
 using kernel::core::i32;
 using kernel::core::i64;
 using kernel::core::u64;
@@ -20,13 +19,6 @@ namespace {
 constexpr const char *NULL_TEXT = "<null>";
 
 }  // namespace
-
-// =================================================================================================
-// Transport
-//
-// The only two functions that touch the sink. Everything below builds on them, so no formatting
-// code has an opinion about where the bytes go.
-// =================================================================================================
 
 void emit_char(char value)
 {
@@ -42,10 +34,6 @@ void emit_bytes(const char *value, usize length)
 
     console_write(value, length);
 }
-
-// =================================================================================================
-// Formatting
-// =================================================================================================
 
 void emit_c_string(const char *value)
 {
@@ -111,4 +99,5 @@ void emit_pointer(const volatile void *value)
 }
 
 }  // namespace detail
+
 }  // namespace kernel::debug

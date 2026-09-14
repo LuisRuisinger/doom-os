@@ -1,15 +1,7 @@
 #ifndef DOOM_OS_KERNEL_BOOT_PROTOCOL_HPP_
 #define DOOM_OS_KERNEL_BOOT_PROTOCOL_HPP_
 
-// =================================================================================================
-// Cpp stdlib files
-// =================================================================================================
-
 #include <concepts>
-
-// =================================================================================================
-// Kernel files
-// =================================================================================================
 
 #include "kernel/core/types.hpp"
 #include "kernel/debug/formatter.hpp"
@@ -23,10 +15,6 @@ using kernel::core::u64;
 using kernel::core::u8;
 using kernel::core::usize;
 
-// =================================================================================================
-// Fixed tables
-// =================================================================================================
-
 template <typename Entry, usize Capacity>
 struct fixed_table {
     static constexpr usize CAPACITY = Capacity;
@@ -35,9 +23,6 @@ struct fixed_table {
     usize count{};
     bool  truncated{};
 
-    // Nodiscard so that dropping an entry is always a deliberate act. A caller that pushes a
-    // whole run and checks `truncated` once at the end discards each result explicitly; a
-    // caller that forgets to check either way gets a compile error.
     [[nodiscard]] bool push(const Entry &entry)
     {
         if (count >= Capacity) {
@@ -76,13 +61,6 @@ struct fixed_table {
         truncated = false;
     }
 };
-
-// =================================================================================================
-// Owned string
-//
-// The boot description outlives the buffer the bootloader handed us, so strings are copied
-// rather than pointed at. Always NUL-terminated; over-long input is truncated and flagged.
-// =================================================================================================
 
 inline constexpr usize MAX_BOOT_STRING = 256;
 
@@ -133,22 +111,10 @@ public:
     }
 };
 
-// =================================================================================================
-// Capacities
-// =================================================================================================
-
 inline constexpr usize MAX_BOOT_MEMORY_REGIONS = 128;
 inline constexpr usize MAX_BOOT_MODULES = 32;
 inline constexpr usize MAX_BOOT_RESERVED_RANGES = 8;
 inline constexpr usize MAX_BOOT_MODULE_COMMAND_LINE = 128;
-
-// =================================================================================================
-// Neutral boot description
-//
-// Nothing below names a boot protocol. An adapter translates whatever the bootloader handed
-// us into these types, so a second protocol is a new adapter rather than a change to every
-// consumer.
-// =================================================================================================
 
 enum class memory_kind : u32 {
     USABLE,
@@ -198,23 +164,16 @@ struct info {
     fixed_table<memory_region, MAX_BOOT_MEMORY_REGIONS> memory_map;
     fixed_table<module_info, MAX_BOOT_MODULES>          modules;
 
-    // Physical ranges the boot protocol occupies with its own structures. Consumers reserve
-    // these without needing to know what put them there.
     fixed_table<address_range, MAX_BOOT_RESERVED_RANGES> reserved;
 
     framebuffer_info framebuffer;
     acpi_info        acpi;
 
-    // True if any table dropped an entry. A description that lost regions is not a
-    // description of this machine, and silently allocating around the ones that survived
-    // is worse than refusing to boot.
     [[nodiscard]] bool truncated() const
     {
         return memory_map.truncated || modules.truncated || reserved.truncated;
     }
 
-    // Reset in place. An info is around ten kilobytes, so assigning a fresh one would put
-    // that much on a sixteen-kilobyte kernel stack as a temporary.
     void reset()
     {
         valid = false;
@@ -231,24 +190,10 @@ struct info {
     }
 };
 
-// =================================================================================================
-// Handoff
-//
-// What the entry point was given. Deliberately shapeless: a magic number and a physical
-// address covers multiboot2, and a pointer-sized handoff covers the protocols likely to
-// follow it.
-// =================================================================================================
-
 struct handoff {
     u64     magic;
     paddr_t address;
 };
-
-// =================================================================================================
-// Boot protocol
-//
-// The strategy the boot_info component runs. Selected once, in the boot wiring header.
-// =================================================================================================
 
 template <typename T>
 concept boot_protocol = requires(const handoff &source, info &out) {
@@ -257,15 +202,6 @@ concept boot_protocol = requires(const handoff &source, info &out) {
 };
 
 }  // namespace kernel::boot
-
-// =================================================================================================
-// Formatting
-//
-// bounded_string keeps its storage private, so reflect cannot walk it and the aggregate formatter
-// will not accept it. Without this leaf, printing anything that contains one - module_info, and
-// so the module table - fails deep inside the field walker rather than here. The string is always
-// NUL-terminated, so the ordinary string emitter is all it needs.
-// =================================================================================================
 
 namespace kernel::debug::detail {
 

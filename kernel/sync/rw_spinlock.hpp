@@ -1,10 +1,6 @@
 #ifndef DOOM_OS_KERNEL_SYNC_RW_SPINLOCK_HPP_
 #define DOOM_OS_KERNEL_SYNC_RW_SPINLOCK_HPP_
 
-// =================================================================================================
-// Kernel files
-// =================================================================================================
-
 #include "arch/x86_64/cpu/cpu.hpp"
 #include "kernel/core/types.hpp"
 #include "kernel/sync/atomic.hpp"
@@ -12,10 +8,6 @@
 namespace kernel::sync {
 
 using kernel::core::u32;
-
-// =================================================================================================
-// Constants
-// =================================================================================================
 
 static constexpr u32 RW_SPINLOCK_WRITER_ACTIVE = 1u << 31;
 static constexpr u32 RW_SPINLOCK_WRITER_PENDING = 1u << 30;
@@ -26,10 +18,6 @@ static constexpr u32 RW_SPINLOCK_READ_BLOCKED =
     RW_SPINLOCK_WRITER_ACTIVE | RW_SPINLOCK_WRITER_PENDING;
 
 static constexpr u32 RW_SPINLOCK_READER_ONE = 1;
-
-// =================================================================================================
-// Reader-writer spinlock
-// =================================================================================================
 
 class rw_spinlock {
     atomic<u32> state_m{0};
@@ -165,10 +153,6 @@ public:
     }
 };
 
-// =================================================================================================
-// Read guard
-// =================================================================================================
-
 class read_spinlock_guard {
     rw_spinlock &lock_m;
 
@@ -191,10 +175,6 @@ public:
     read_spinlock_guard &operator=(read_spinlock_guard &&) = delete;
 };
 
-// =================================================================================================
-// Write guard
-// =================================================================================================
-
 class write_spinlock_guard {
     rw_spinlock &lock_m;
 
@@ -216,10 +196,6 @@ public:
     write_spinlock_guard(write_spinlock_guard &&) = delete;
     write_spinlock_guard &operator=(write_spinlock_guard &&) = delete;
 };
-
-// =================================================================================================
-// Try read guard
-// =================================================================================================
 
 class try_read_spinlock_guard {
     rw_spinlock &lock_m;
@@ -254,10 +230,6 @@ public:
         return locked_m;
     }
 };
-
-// =================================================================================================
-// Try write guard
-// =================================================================================================
 
 class try_write_spinlock_guard {
     rw_spinlock &lock_m;

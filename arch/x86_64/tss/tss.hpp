@@ -1,10 +1,6 @@
 #ifndef DOOM_OS_KERNEL_ARCH_X86_64_TSS_HPP_
 #define DOOM_OS_KERNEL_ARCH_X86_64_TSS_HPP_
 
-// =================================================================================================
-// Kernel files
-// =================================================================================================
-
 #include "arch/x86_64/cpu/stacks.hpp"
 #include "kernel/core/types.hpp"
 #include "kernel/init/component.hpp"
@@ -15,10 +11,6 @@ using kernel::core::u16;
 using kernel::core::u32;
 using kernel::core::u64;
 using kernel::core::u8;
-
-// =================================================================================================
-// Constants
-// =================================================================================================
 
 static constexpr u8 PRIVILEGE_STACK_COUNT = 3;
 static constexpr u8 INTERRUPT_STACK_COUNT = 7;
@@ -34,10 +26,6 @@ enum class interrupt_stack : u8 {
     IST6 = 6,
     IST7 = 7,
 };
-
-// =================================================================================================
-// 64-bit task state segment layout
-// =================================================================================================
 
 struct [[gnu::packed]] segment {
     u32 reserved0;
@@ -56,16 +44,11 @@ static_assert(__builtin_offsetof(segment, io_map_base) == 102);
 
 static constexpr u16 IO_MAP_DISABLED_BASE = sizeof(segment);
 
-// =================================================================================================
-// Initialization
-// =================================================================================================
-
 struct stack_config {
     u64 rsp0{};
     u64 rsp1{};
     u64 rsp2{};
 
-    // interrupt stack table
     u64 ist1{};
     u64 ist2{};
     u64 ist3{};
@@ -93,10 +76,6 @@ public:
         return sizeof(segment) - 1;
     }
 };
-
-// =================================================================================================
-// Core component
-// =================================================================================================
 
 struct core_component
     : kernel::init::component<core_component, state, kernel::arch::x86_64::cpu::stacks_component> {

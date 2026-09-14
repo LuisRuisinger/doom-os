@@ -1,15 +1,7 @@
 #ifndef DOOM_OS_KERNEL_SYNC_ATOMIC_HPP_
 #define DOOM_OS_KERNEL_SYNC_ATOMIC_HPP_
 
-// =================================================================================================
-// Cpp stdlib files
-// =================================================================================================
-
 #include <type_traits>
-
-// =================================================================================================
-// Kernel files
-// =================================================================================================
 
 #include "kernel/core/cast.hpp"
 #include "kernel/core/types.hpp"
@@ -22,10 +14,6 @@ using kernel::core::u32;
 using kernel::core::u64;
 using kernel::core::u8;
 
-// =================================================================================================
-// Memory order
-// =================================================================================================
-
 enum class memory_order : u8 {
     RELAXED = __ATOMIC_RELAXED,
     CONSUME = __ATOMIC_CONSUME,
@@ -34,10 +22,6 @@ enum class memory_order : u8 {
     ACQ_REL = __ATOMIC_ACQ_REL,
     SEQ_CST = __ATOMIC_SEQ_CST,
 };
-
-// =================================================================================================
-// Impl detail
-// =================================================================================================
 
 namespace detail {
 
@@ -118,13 +102,6 @@ constexpr int to_failure_order(memory_order order)
     return __ATOMIC_SEQ_CST;
 }
 
-// =================================================================================================
-// Inline atomic storage
-//
-// The public atomic<T> supports object sizes from 1 to 8 bytes for now.
-// Non-power-of-two object sizes are stored in the next larger native atomic storage word.
-// =================================================================================================
-
 template <u64 Size>
 struct inline_atomic_storage {
     static_assert(Size >= 1 && Size <= 8,
@@ -145,10 +122,6 @@ struct has_inline_atomic_storage : std::integral_constant<bool, sizeof(T) >= 1 &
 template <typename T>
 inline constexpr bool has_inline_atomic_storage_v = has_inline_atomic_storage<T>::value;
 
-// =================================================================================================
-// Atomic object support
-// =================================================================================================
-
 template <typename T>
 struct supports_atomic_object_ops
     : std::integral_constant<bool, !std::is_lvalue_reference_v<T> &&
@@ -161,10 +134,6 @@ struct supports_atomic_object_ops
 template <typename T>
 inline constexpr bool supports_atomic_object_ops_v = supports_atomic_object_ops<T>::value;
 
-// =================================================================================================
-// Atomic arithmetic support
-// =================================================================================================
-
 template <typename T>
 struct supports_arithmetic_ops
     : std::integral_constant<bool, std::is_integral_v<T> &&
@@ -172,10 +141,6 @@ struct supports_arithmetic_ops
 
 template <typename T>
 inline constexpr bool supports_arithmetic_ops_v = supports_arithmetic_ops<T>::value;
-
-// =================================================================================================
-// Padding canonicalization
-// =================================================================================================
 
 template <typename T>
 constexpr T canonicalize_atomic_value(T value)
@@ -194,10 +159,6 @@ constexpr T canonicalize_atomic_value(T value)
 
     return value;
 }
-
-// =================================================================================================
-// Atomic value encoding
-// =================================================================================================
 
 // std::is_integral_v already covers bool.
 template <typename T>
@@ -271,10 +232,6 @@ constexpr T sub_atomic_values(T lhs, T rhs)
 
 }  // namespace detail
 
-// =================================================================================================
-// Barriers
-// =================================================================================================
-
 inline void compiler_barrier()
 {
     asm volatile("" ::: "memory");
@@ -289,10 +246,6 @@ inline void signal_fence(memory_order order = memory_order::SEQ_CST)
 {
     __atomic_signal_fence(detail::to_builtin_order(order));
 }
-
-// =================================================================================================
-// Atomic object
-// =================================================================================================
 
 template <typename T>
 class atomic {

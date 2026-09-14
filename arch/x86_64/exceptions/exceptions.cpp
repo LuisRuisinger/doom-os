@@ -1,8 +1,7 @@
-// =================================================================================================
-// Kernel files
-// =================================================================================================
 
 #include "arch/x86_64/exceptions/exceptions.hpp"
+
+#include <utility>
 
 #include "arch/x86_64/cpu/cpu.hpp"
 #include "arch/x86_64/cpu/registers.hpp"
@@ -12,24 +11,10 @@
 #include "kernel/debug/kpanic.hpp"
 #include "kernel/debug/kprint.hpp"
 
-// =================================================================================================
-// Cpp stdlib files
-// =================================================================================================
-
-#include <utility>
-
 namespace kernel::arch::x86_64::exceptions {
-
-// =================================================================================================
-// Assembly stubs
-// =================================================================================================
 
 extern "C" const kernel::arch::x86_64::idt::handler
     x86_64_exception_stub_table[CPU_EXCEPTION_COUNT];
-
-// =================================================================================================
-// Exception metadata
-// =================================================================================================
 
 static constexpr const char *EXCEPTION_NAMES[CPU_EXCEPTION_COUNT] = {
     "#DE divide error",
@@ -55,7 +40,6 @@ static constexpr const char *EXCEPTION_NAMES[CPU_EXCEPTION_COUNT] = {
     "#VE virtualization exception",
     "#CP control protection exception",
 
-    // reserved
     "reserved",
     "reserved",
     "reserved",
@@ -63,7 +47,6 @@ static constexpr const char *EXCEPTION_NAMES[CPU_EXCEPTION_COUNT] = {
     "reserved",
     "reserved",
 
-    //
     "#HV hypervisor injection exception",
     "#VC VMM communication exception",
     "#SX security exception",
@@ -74,10 +57,6 @@ const char *exception_name(u8 vector)
 {
     return vector < CPU_EXCEPTION_COUNT ? EXCEPTION_NAMES[vector] : "unknown exception";
 }
-
-// =================================================================================================
-// Vector lists
-// =================================================================================================
 
 #define DOOM_OS_CPU_EXCEPTION_VECTORS(X) \
     X(0, fault_exception_type)           \
@@ -112,10 +91,6 @@ const char *exception_name(u8 vector)
     X(29, fault_exception_type)          \
     X(30, fault_exception_type)          \
     X(31, reserved_exception_type)
-
-// =================================================================================================
-// Validation
-// =================================================================================================
 
 static constexpr bool exception_has_error_code(u8 vector)
 {
@@ -171,21 +146,6 @@ static const cpu::stack &stack_for_exception_type(cpu::local_state &cpu)
     }
 }
 
-// =================================================================================================
-// Default handlers
-// =================================================================================================
-
-// =================================================================================================
-// Fault register dump
-//
-// KPANIC captures registers where it is written, which on a fault is the handler rather than
-// the context that faulted. Capture the ambient state first - the segment and control
-// registers survive the trap, and CR2 has to be read here because it carries the #PF address
-// - then override every field the exception frame actually recorded.
-// =================================================================================================
-
-// The general-purpose registers come from the exception frame, which recorded them as they were
-// when the fault hit. Everything else is still live in the CPU and is read back here.
 static void capture_ambient_registers(kernel::debug::panic_register_frame &out)
 {
 #define DOOM_OS_CAPTURE(name__, asm_name__) out.name__ = kernel::arch::x86_64::cpu::read_##name__();
@@ -226,18 +186,6 @@ static kernel::debug::panic_register_frame panic_frame_from(const exception_fram
 
     return __panic_frame;
 }
-
-// =================================================================================================
-// Page fault cause
-//
-// The #PF error code is a bitfield the manual describes one bit at a time, so a raw hex dump of
-// it is the least useful thing to print at the moment a fault is killing the kernel. Decoding it
-// into named fields costs nothing at runtime, and the field names are the output: the formatter
-// walks this struct rather than a hand-written list that could disagree with it.
-//
-// Bit 0 is the odd one out - it reports a protection violation when set and a not-present page
-// when clear - so it is named for what a set bit means, like the rest.
-// =================================================================================================
 
 static constexpr u64 PAGE_FAULT_VECTOR = 14;
 
@@ -391,10 +339,6 @@ DOOM_OS_CPU_EXCEPTION_VECTORS(DOOM_OS_DEFINE_WEAK_EXCEPTION_HANDLER)
 
 #undef DOOM_OS_DEFINE_WEAK_EXCEPTION_HANDLER
 
-// =================================================================================================
-// Handler table
-// =================================================================================================
-
 struct exception_handler_table {
     exception_handler entries[CPU_EXCEPTION_COUNT]{};
 
@@ -413,10 +357,6 @@ static constexpr exception_handler_table EXCEPTION_HANDLERS{
     {DOOM_OS_CPU_EXCEPTION_VECTORS(DOOM_OS_EXCEPTION_HANDLER_ENTRY)}};
 
 #undef DOOM_OS_EXCEPTION_HANDLER_ENTRY
-
-// =================================================================================================
-// IDT installation
-// =================================================================================================
 
 template <usize Vector>
 static constexpr u8 ist_for_vector()

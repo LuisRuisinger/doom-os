@@ -1,6 +1,3 @@
-// =================================================================================================
-// Kernel files
-// =================================================================================================
 
 #include "kernel/boot/multiboot2_adapter.hpp"
 
@@ -13,10 +10,6 @@ namespace {
 using kernel::core::u8;
 using kernel::core::uptr;
 using kernel::core::usize;
-
-// =================================================================================================
-// Bounds-checked tag access
-// =================================================================================================
 
 template <typename T>
 [[nodiscard]] const T *as_tag(const tag_header &tag, const u8 *buffer_end)
@@ -35,10 +28,6 @@ template <typename T>
 
     return (&tag) as(const T *);
 }
-
-// =================================================================================================
-// Translation
-// =================================================================================================
 
 [[nodiscard]] kernel::boot::memory_kind translate_memory_type(kernel::core::u32 type)
 {
@@ -69,9 +58,6 @@ template <typename T>
     for (usize i = 0; i < count; ++i) {
         const auto *entry = memory_map_entry_at(tag, i);
 
-        // Overflow is not handled per entry: the table records that it dropped one, and
-        // boot_info rejects the whole description afterwards. Stopping here instead would
-        // leave a map that looks complete.
         static_cast<void>(out.memory_map.push(kernel::boot::memory_region{
             .base = entry->base_addr,
             .length = entry->length,
@@ -192,10 +178,6 @@ void translate_acpi(const tag_header &tag, kernel::core::u8 revision, kernel::bo
 
 }  // namespace
 
-// =================================================================================================
-// Multiboot2 adapter
-// =================================================================================================
-
 kernel::init::init_result adapter::parse(const kernel::boot::handoff &source,
                                          kernel::boot::info          &out)
 {
@@ -217,8 +199,6 @@ kernel::init::init_result adapter::parse(const kernel::boot::handoff &source,
     if (header->total_size > (~uptr{0}) as(usize) - begin as(uptr))
         return kernel::core::Err(init_error::INVALID_BOOT_DATA);
 
-    // The buffer we are about to read from is physical memory the bootloader owns. Record it
-    // so it is never handed out, even though nothing points into it once parsing is done.
     static_cast<void>(out.reserved.push(kernel::boot::address_range{
         .base = source.address,
         .length = header->total_size,

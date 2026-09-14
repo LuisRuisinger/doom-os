@@ -1,26 +1,17 @@
 #ifndef DOOM_OS_KERNEL_DEBUG_EMIT_HPP_
 #define DOOM_OS_KERNEL_DEBUG_EMIT_HPP_
 
-// =================================================================================================
-// Kernel files
-// =================================================================================================
-
 #include "kernel/core/cast.hpp"
 #include "kernel/debug/format_spec.hpp"
 
 namespace kernel::debug {
+
 namespace detail {
+
 using kernel::core::i64;
 using kernel::core::u64;
 using kernel::core::u8;
 using kernel::core::usize;
-
-// Rendering: takes a value and a parsed spec, produces bytes. Knows nothing about which
-// C++ type it came from - that mapping lives in formatter.hpp.
-
-// =================================================================================================
-// Transport and formatting
-// =================================================================================================
 
 void emit_char(char value);
 void emit_bytes(const char *value, usize length);
@@ -29,10 +20,6 @@ void emit_decimal_u64(u64 value);
 void emit_decimal_i64(i64 value);
 void emit_hex_u64(u64 value);
 void emit_pointer(const volatile void *value);
-
-// =================================================================================================
-// Raw formatting helpers
-// =================================================================================================
 
 inline constexpr char HEX_DIGITS_LOWER[] = "0123456789abcdef";
 inline constexpr char HEX_DIGITS_UPPER[] = "0123456789ABCDEF";
@@ -156,10 +143,6 @@ inline void emit_padded(const char *prefix, usize prefix_length, const char *bod
     emit_bytes(body, body_length);
 }
 
-// =================================================================================================
-// Numeric emission
-// =================================================================================================
-
 template <format_spec Spec>
 inline void emit_unsigned_decimal(u64 value)
 {
@@ -261,10 +244,6 @@ inline void emit_pointer_value(const volatile void *value)
         static_assert(unsupported_format_spec_v<Spec>, "unsupported format specifier for pointer");
     }
 }
-
-// =================================================================================================
-// Float emission
-// =================================================================================================
 
 template <format_spec Spec>
 inline void emit_float_special(const char *body, usize body_length, bool negative)
@@ -370,10 +349,6 @@ inline void emit_fixed_float(long double value)
     emit_padded<Spec>(prefix_buffer, prefix_length, body, body_length, true);
 }
 
-// =================================================================================================
-// String emission
-// =================================================================================================
-
 template <format_spec Spec>
 inline void emit_string_value(const char *value)
 {
@@ -412,6 +387,7 @@ inline void emit_char_value(char value)
 }
 
 }  // namespace detail
+
 }  // namespace kernel::debug
 
 #endif  // DOOM_OS_KERNEL_DEBUG_EMIT_HPP_

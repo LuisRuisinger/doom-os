@@ -1,21 +1,9 @@
-// =================================================================================================
-// POSIX ABI files
-// =================================================================================================
 
-#include "posix/abi.hpp"
-
-// =================================================================================================
-// Kernel files
-// =================================================================================================
+#include <type_traits>
 
 #include "kernel/debug/kpanic.hpp"
 #include "kernel/debug/kprint.hpp"
-
-// =================================================================================================
-// Cpp stdlib files
-// =================================================================================================
-
-#include <type_traits>
+#include "posix/abi.hpp"
 
 namespace {
 
@@ -44,13 +32,6 @@ Return finish_stub(MakeValue make_value)
 
 }  // namespace
 
-// =================================================================================================
-// Weak fallbacks
-//
-// Strong symbols from selected POSIX facets override these. In a stricter build, this translation
-// unit can be omitted and missing POSIX calls become ordinary link errors instead of ENOSYS.
-// =================================================================================================
-
 #define DOOM_OS_WEAK __attribute__((weak))
 
 #define POSIX_STUB(return_type__, name__, value__, errno__, ...)     \
@@ -67,14 +48,6 @@ Return finish_stub(MakeValue make_value)
 #include "posix/symbols.def"
 
 #undef POSIX_STUB
-
-// =================================================================================================
-// libc / runtime weak fallbacks
-//
-// These are not POSIX services in the same sense as read(2) or socket(2), but common C and Rust
-// runtimes reach for them when linked as ordinary static libraries. Keep them beside the POSIX
-// fallbacks so the rest of the tree can reserve subsystem directories for real implementations.
-// =================================================================================================
 
 extern "C" [[noreturn]] void _exit(int status);
 

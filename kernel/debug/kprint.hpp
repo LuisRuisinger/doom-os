@@ -1,28 +1,13 @@
 #ifndef DOOM_OS_KERNEL_DEBUG_KPRINT_HPP_
 #define DOOM_OS_KERNEL_DEBUG_KPRINT_HPP_
 
-// =================================================================================================
-// Kernel files
-// =================================================================================================
-
 #include "kernel/debug/formatter.hpp"
 
-// =================================================================================================
-// kprint
-//
-// Compile-time checked formatting. The format string is parsed at compile time (format_spec.hpp),
-// each argument is routed to an emitter by type (formatter.hpp), and the emitters render bytes
-// through the console sink (emit.hpp). A bad format string or a wrong argument count is a
-// compile error, not a runtime surprise.
-// =================================================================================================
-
 namespace kernel::debug {
-namespace detail {
-using kernel::core::usize;
 
-// =================================================================================================
-// Argument selection
-// =================================================================================================
+namespace detail {
+
+using kernel::core::usize;
 
 template <usize target_index>
 inline constexpr bool invalid_argument_index_v = false;
@@ -42,10 +27,6 @@ inline void emit_nth_arg(const T &value, const Rest &...rest)
         emit_nth_arg<target_index - 1, Spec>(rest...);
     }
 }
-
-// =================================================================================================
-// Compile-time format engine
-// =================================================================================================
 
 template <fixed_string fmt, usize offset, usize arg_index, typename... Args>
 inline void emit_format(const Args &...args)
@@ -81,10 +62,6 @@ inline void emit_format(const Args &...args)
 }
 
 }  // namespace detail
-
-// =================================================================================================
-// Public API
-// =================================================================================================
 
 template <detail::fixed_string FMT, typename... Args>
 inline void kprint_ct(const Args &...args)

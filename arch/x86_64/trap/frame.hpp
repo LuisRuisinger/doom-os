@@ -1,24 +1,11 @@
 #ifndef DOOM_OS_KERNEL_ARCH_X86_64_TRAP_FRAME_HPP_
 #define DOOM_OS_KERNEL_ARCH_X86_64_TRAP_FRAME_HPP_
 
-// =================================================================================================
-// Kernel files
-// =================================================================================================
-
 #include "kernel/core/types.hpp"
 
 namespace kernel::arch::x86_64::trap {
 
 using kernel::core::u64;
-
-// =================================================================================================
-// Trap frame
-//
-// Shared saved-register layout for IDT entries that enter through arch/x86_64/trap/entry.inc.
-// The vector and error_code words are normalized by the leaf stub before the common entry runs:
-// exceptions with a CPU-pushed error code push only the vector, while all other traps push a zero
-// error code and the vector.
-// =================================================================================================
 
 struct frame {
     u64 r15;

@@ -1,10 +1,6 @@
 #ifndef DOOM_OS_ARCH_X86_64_LAPIC_LAPIC_HPP_
 #define DOOM_OS_ARCH_X86_64_LAPIC_LAPIC_HPP_
 
-// =================================================================================================
-// Kernel files
-// =================================================================================================
-
 #include "arch/x86_64/idt/idt.hpp"
 #include "kernel/acpi/acpi.hpp"
 #include "kernel/core/cast.hpp"
@@ -20,10 +16,6 @@ using kernel::core::u64;
 using kernel::core::u8;
 using kernel::core::usize;
 using kernel::core::vaddr_t;
-
-// =================================================================================================
-// Strongly-Typed Register Offsets
-// =================================================================================================
 
 enum class reg : u32 {
     id = 0x0020,
@@ -68,10 +60,6 @@ enum class reg : u32 {
     return (reg::irr_base as(u32) + (index * 0x10)) as(reg);
 }
 
-// =================================================================================================
-// Architectural Bit Flags
-// =================================================================================================
-
 inline constexpr u32 SVR_APIC_ENABLE = 1 << 8;
 inline constexpr u32 LVT_MASKED = 1 << 16;
 inline constexpr u32 LVT_TIMER_PERIODIC = 1 << 17;
@@ -79,10 +67,6 @@ inline constexpr u32 ICR_DELIVERY_INIT = 0x5 << 8;
 inline constexpr u32 ICR_DELIVERY_STARTUP = 0x6 << 8;
 inline constexpr u32 ICR_LEVEL_ASSERT = 1 << 14;
 inline constexpr u32 ICR_STATUS_PENDING = 1 << 12;
-
-// =================================================================================================
-// Component & Initialization Interface
-// =================================================================================================
 
 [[nodiscard]] bool is_ready();
 kernel::init::init_result init(paddr_t lapic_base_address);
@@ -114,10 +98,6 @@ struct core_component : kernel::init::component<core_component, kernel::init::no
 };
 
 void eoi();
-
-// =================================================================================================
-// Register Access & Commands
-// =================================================================================================
 
 [[nodiscard]] u32 read(reg r);
 void write(reg r, u32 value);

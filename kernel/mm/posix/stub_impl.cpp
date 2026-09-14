@@ -1,16 +1,8 @@
-// =================================================================================================
-// POSIX ABI files
-// =================================================================================================
-
-#include "posix/abi.hpp"
-
-// =================================================================================================
-// Kernel files
-// =================================================================================================
 
 #include "kernel/core/cast.hpp"
 #include "kernel/mm/pmm.hpp"
 #include "kernel/mm/vmm.hpp"
+#include "posix/abi.hpp"
 
 namespace {
 
@@ -20,15 +12,6 @@ using kernel::core::paddr_t;
 using kernel::core::u64;
 using kernel::core::u8;
 using kernel::core::usize;
-
-// =================================================================================================
-// Program break
-//
-// One 2 MiB page, taken on first use and never grown. sbrk's contract is a single contiguous
-// region that only moves forward, which is exactly what a large page already is - and a heap that
-// cannot grow is honest here, because nothing below this file can relocate one that has been
-// handed out.
-// =================================================================================================
 
 u8 *m_break_base = nullptr;
 u64 m_break_used = 0;
@@ -67,10 +50,6 @@ void zero_bytes(void *buffer, u64 length)
 }
 
 }  // namespace
-
-// =================================================================================================
-// Memory
-// =================================================================================================
 
 extern "C" void *sbrk(ptrdiff_t increment)
 {
@@ -125,11 +104,6 @@ extern "C" void *mmap(void *address, size_t length, int protection, int flags, i
     return memory;
 }
 
-// Succeeds and reclaims nothing, which is a leak rather than a wrong answer: the caller asked to
-// stop using the range and it may, it simply will not get the memory back. sbrk is the only source
-// below this and its break moves one way, so reclaiming needs a virtual address allocator to hand
-// ranges out and take them back - the same one map_mmio is waiting on. Reporting failure instead
-// would be worse, because a caller that cannot unmap usually cannot proceed either.
 extern "C" int munmap(void *address, size_t length)
 {
     if (address == nullptr || length == 0) {
@@ -139,22 +113,6 @@ extern "C" int munmap(void *address, size_t length)
 
     return 0;
 }
-
-// =================================================================================================
-// mprotect
-//
-// Answered, not applied. There is one address space, and the memory this file hands out lives in
-// the direct map - so taking write access away here would take it away from the kernel too, on
-// bytes the kernel reaches by formula and has no reason to expect to lose. The page walker can
-// split a 2 MiB leaf to reach 4 KiB granularity, so the obstacle is the sharing rather than the
-// granularity.
-//
-// What is left is still worth doing, because it is true: read the mapping back and report whether
-// it already grants what was asked for. A caller wanting no more than it has gets a success that
-// means something, and one wanting more is told no instead of being told yes and finding out at
-// the fault. Nothing is relaxed either - the direct map is writable and NX before this call and
-// after it, so a request to drop write or to add execute is refused rather than ignored.
-// =================================================================================================
 
 extern "C" int mprotect(void *address, size_t length, int protection)
 {
@@ -186,8 +144,6 @@ extern "C" int mprotect(void *address, size_t length, int protection)
 
         const page_prot prot = resolved.unwrap_ref().prot;
 
-        // PROT_NONE asks for access to be taken away, which is the one thing this cannot do at
-        // all: the page stays readable and writable whatever is returned here.
         if (protection == PROT_NONE) {
             errno = ENOSYS;
             return -1;

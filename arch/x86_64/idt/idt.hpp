@@ -1,10 +1,6 @@
 #ifndef DOOM_OS_KERNEL_ARCH_X86_64_IDT_HPP_
 #define DOOM_OS_KERNEL_ARCH_X86_64_IDT_HPP_
 
-// =================================================================================================
-// Kernel files
-// =================================================================================================
-
 #include "arch/x86_64/gdt/gdt.hpp"
 #include "kernel/core/types.hpp"
 #include "kernel/init/component.hpp"
@@ -22,10 +18,6 @@ using kernel::core::u32;
 using kernel::core::u64;
 using kernel::core::u8;
 
-// =================================================================================================
-// Constants
-// =================================================================================================
-
 static constexpr u16 ENTRY_COUNT = 256;
 
 static constexpr u8 GATE_TYPE_INTERRUPT = 0x8E;
@@ -33,14 +25,6 @@ static constexpr u8 GATE_TYPE_TRAP = 0x8F;
 static constexpr u8 GATE_TYPE_USER_TRAP = 0xEF;
 
 using handler = void (*)();
-
-// =================================================================================================
-// Gate table
-//
-// What an IDT should publish, described independently of the descriptor encoding. Components
-// that own vectors fill one of these in; the IDT consumes it and never hands out write access
-// to its own table, so no gate can appear after the IDT has gone live.
-// =================================================================================================
 
 struct gate_spec {
     handler entry_point;
@@ -61,10 +45,6 @@ public:
         return gates_m[vector];
     }
 };
-
-// =================================================================================================
-// Table
-// =================================================================================================
 
 struct [[gnu::packed]] entry {
     u16 offset_low;
@@ -89,13 +69,6 @@ public:
     void init(const gate_table &gates, u16 code_selector);
     void load() const;
 };
-
-// =================================================================================================
-// Core component
-//
-// Takes its contents from the exception gates and its kernel selector from the GDT, which is
-// also what orders it after both. The IDT is live when init returns.
-// =================================================================================================
 
 struct core_component
     : kernel::init::component<core_component, table, kernel::arch::x86_64::gdt::core_component,

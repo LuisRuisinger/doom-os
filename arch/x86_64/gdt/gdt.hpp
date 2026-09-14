@@ -1,10 +1,6 @@
 #ifndef DOOM_OS_KERNEL_ARCH_X86_64_GDT_HPP_
 #define DOOM_OS_KERNEL_ARCH_X86_64_GDT_HPP_
 
-// =================================================================================================
-// Kernel files
-// =================================================================================================
-
 #include "arch/x86_64/tss/tss.hpp"
 #include "kernel/core/types.hpp"
 #include "kernel/init/component.hpp"
@@ -15,20 +11,12 @@ using kernel::core::u16;
 using kernel::core::u64;
 using kernel::core::u8;
 
-// =================================================================================================
-// Selectors
-// =================================================================================================
-
 static constexpr u16 NULL_SELECTOR = 0x00;
 static constexpr u16 KERNEL_CODE_SELECTOR = 0x08;
 static constexpr u16 KERNEL_DATA_SELECTOR = 0x10;
 static constexpr u16 USER_DATA_SELECTOR = 0x18;
 static constexpr u16 USER_CODE_SELECTOR = 0x20;
 static constexpr u16 TSS_SELECTOR = 0x28;
-
-// =================================================================================================
-// Table
-// =================================================================================================
 
 static constexpr u16 ENTRY_COUNT = 7;
 
@@ -54,20 +42,10 @@ public:
     void init(const kernel::arch::x86_64::tss::state &task_state_segment);
     void load() const;
 
-    // The selector a gate must reference to enter the kernel through this table. Read by the
-    // IDT rather than assumed, so the two never disagree about the layout.
     [[nodiscard]] u16 kernel_code_selector() const;
 };
 
-// =================================================================================================
-// GDT
-// =================================================================================================
-
 void load_task_register(u16 selector);
-
-// =================================================================================================
-// Core component
-// =================================================================================================
 
 struct core_component
     : kernel::init::component<core_component, table, kernel::arch::x86_64::tss::core_component> {

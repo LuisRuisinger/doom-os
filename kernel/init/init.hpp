@@ -1,19 +1,12 @@
 #ifndef DOOM_OS_KERNEL_INIT_INIT_HPP_
 #define DOOM_OS_KERNEL_INIT_INIT_HPP_
 
-// =================================================================================================
-// Kernel files
-// =================================================================================================
-
 #include "arch/x86_64/cpu/cpu.hpp"
 #include "kernel/debug/kprint.hpp"
 #include "kernel/init/component.hpp"
 #include "kernel/init/init_graph.hpp"
 
 namespace kernel::init {
-// =================================================================================================
-// Default logger
-// =================================================================================================
 
 struct default_init_logger {
     template <typename Component, typename Backing>
@@ -34,13 +27,6 @@ struct default_init_logger {
         KPRINTLN("[init] {}: FAIL ({})", Component::name, error);
     }
 };
-
-// =================================================================================================
-// Init graph
-//
-// Components that own no per-core state run against the shared empty backing store, so the
-// same three entry points cover both the boot graph and the per-core graphs.
-// =================================================================================================
 
 template <typename Roots, typename Backing, typename Logger>
 bool run_init_graph(Backing &backing, Logger &logger)

@@ -15,10 +15,6 @@ inline constexpr const char *PANIC_PREFIX = "\x1b[1;31m[panic]\x1b[0m";
 
 }  // namespace detail
 
-// =================================================================================================
-// Panic register frame
-// =================================================================================================
-
 struct panic_register_frame {
 #define FIELD(name, asm_name) u64 name;
 
@@ -50,10 +46,6 @@ template <detail::fixed_string FMT, typename... Args>
 }
 
 }  // namespace kernel::debug
-
-// =================================================================================================
-// Panic register capture
-// =================================================================================================
 
 #define DOOM_OS_KPANIC_GPR_LINE(name, asm_name) "mov %%" asm_name ", %[out_" #name "]\n"
 
@@ -90,10 +82,6 @@ template <detail::fixed_string FMT, typename... Args>
         : "rax", "memory"                           \
     )
 
-// =================================================================================================
-// Panic macros
-// =================================================================================================
-
 #define KPANIC_0()                                                                      \
     do {                                                                                \
         ::kernel::debug::panic_register_frame __panic_frame{};                          \
@@ -116,9 +104,6 @@ template <detail::fixed_string FMT, typename... Args>
             &__panic_frame, __FILE__, __LINE__, __func__, __VA_ARGS__);            \
     } while (0)
 
-// Panic with a frame that was built elsewhere rather than captured here. Used by the fault
-// path, where the registers worth reporting belong to the interrupted context, not to the
-// handler that is about to print them.
 #define KPANIC_WITH_FRAME(frame__, fmt__, ...)                                     \
     do {                                                                           \
         ::kernel::debug::kpanic_fmt<::kernel::debug::detail::fixed_string{fmt__}>( \

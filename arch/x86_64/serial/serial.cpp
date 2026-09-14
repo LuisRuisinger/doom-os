@@ -13,15 +13,7 @@ using kernel::core::u32;
 using kernel::core::u8;
 using kernel::core::utils::bit;
 
-// =================================================================================================
-// Serial ports
-// =================================================================================================
-
 static constexpr u16 COM1 = 0x3F8;
-
-// =================================================================================================
-// COM1 registers
-// =================================================================================================
 
 static constexpr u16 DATA_PORT = COM1 + 0;
 static constexpr u16 INTERRUPT_ENABLE = COM1 + 1;
@@ -29,10 +21,6 @@ static constexpr u16 FIFO_CONTROL = COM1 + 2;
 static constexpr u16 LINE_CONTROL = COM1 + 3;
 static constexpr u16 MODEM_CONTROL = COM1 + 4;
 static constexpr u16 LINE_STATUS = COM1 + 5;
-
-// =================================================================================================
-// UART config
-// =================================================================================================
 
 static constexpr u32 UART_BASE_CLOCK_HZ = 115200;
 static constexpr u32 BAUD_RATE = 38400;
@@ -43,10 +31,6 @@ static constexpr u8 LINE_CONTROL_8N1 = 0x03;
 static constexpr u8 FIFO_ENABLE_CLEAR_14 = 0xC7;
 static constexpr u8 MODEM_DTR_RTS_OUT2 = 0x0B;
 static constexpr u8 LINE_STATUS_TX_EMPTY = bit<u8>(5);
-
-// =================================================================================================
-// Public API
-// =================================================================================================
 
 void init()
 {
@@ -89,13 +73,6 @@ void write(const char *s)
         ++s;
     }
 }
-
-// =================================================================================================
-// Console sink
-//
-// Registered by the boot component once the port is configured, so the formatter never has to
-// know which device it is writing to - or whether one exists yet.
-// =================================================================================================
 
 static void console_sink(const char *bytes, kernel::core::usize length)
 {

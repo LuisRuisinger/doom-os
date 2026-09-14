@@ -1,21 +1,7 @@
-// =================================================================================================
-// Kernel public files
-// =================================================================================================
 
 #include <uk/services.h>
 
 #include <uk/services.hpp>
-
-// =================================================================================================
-// C ABI for the driver services
-//
-// One forwarding body per call, and deliberately nothing else. Every function here is a rename:
-// no validation, no translation, no state. A binding that did more than rename would be a second
-// implementation to keep in step with the first, and the two would drift the moment either side
-// grew a rule the other did not.
-//
-// bool becomes int because bool's width is a C++ decision this ABI should not export.
-// =================================================================================================
 
 namespace {
 

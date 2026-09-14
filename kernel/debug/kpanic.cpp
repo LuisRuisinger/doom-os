@@ -1,6 +1,3 @@
-// =================================================================================================
-// Kernel files
-// =================================================================================================
 
 #include "kernel/debug/kpanic.hpp"
 
@@ -11,13 +8,6 @@
 
 namespace kernel::debug {
 
-// =================================================================================================
-// Kernel panic
-// =================================================================================================
-
-// The frame's fields are the register list, so this walks whatever registers.hpp currently
-// declares. That header already says a register is added by editing one list rather than every
-// place that enumerates one; until now the dump was one of the places that did.
 static constexpr kernel::core::usize REGISTERS_PER_LINE = 3;
 
 static void dump_panic_registers(const panic_register_frame &r)

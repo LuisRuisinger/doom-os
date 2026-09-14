@@ -1,31 +1,19 @@
 #ifndef DOOM_OS_KERNEL_DEBUG_FORMAT_SPEC_HPP_
 #define DOOM_OS_KERNEL_DEBUG_FORMAT_SPEC_HPP_
 
-// =================================================================================================
-// Cpp stdlib files
-// =================================================================================================
-
 #include <utility>
-
-// =================================================================================================
-// Kernel files
-// =================================================================================================
 
 #include "kernel/core/cast.hpp"
 #include "kernel/core/types.hpp"
 
 namespace kernel::debug {
+
 namespace detail {
+
 using kernel::core::i64;
 using kernel::core::u64;
 using kernel::core::u8;
 using kernel::core::usize;
-
-// Parsing only: every declaration below is consteval and nothing here emits a byte.
-
-// =================================================================================================
-// Fixed string
-// =================================================================================================
 
 template <usize N>
 struct fixed_string {
@@ -61,10 +49,6 @@ private:
 
 template <usize N>
 fixed_string(const char (&)[N]) -> fixed_string<N>;
-
-// =================================================================================================
-// Format model
-// =================================================================================================
 
 inline constexpr usize MAX_FORMAT_WIDTH = 128;
 inline constexpr usize MAX_FLOAT_PRECISION = 18;
@@ -184,62 +168,6 @@ consteval char format_char_at(usize index)
     return FMT[index];
 }
 
-// Supported field grammar:
-//
-//     {}
-//     {:spec}
-//
-// Supported spec subset:
-//
-//     [[fill]align][sign][#][0][width][.precision][type]
-//
-// Supported align:
-//
-//     <   left
-//     >   right
-//     ^   center
-//
-// Supported sign:
-//
-//     +
-//         emit + for positive numeric values
-//
-//     space
-//         emit space for positive numeric values
-//
-// Supported flags:
-//
-//     #
-//         alternate form. For hex, emits 0x / 0X.
-//
-//     0
-//         numeric zero padding after sign/prefix.
-//
-// Supported types:
-//
-//     d   decimal integer
-//     x   lowercase hex integer
-//     X   uppercase hex integer
-//     p   pointer
-//     f   fixed float
-//     s   string
-//     c   character
-//
-// Examples:
-//
-//     {}
-//     {:d}
-//     {:x}
-//     {:#x}
-//     {:016x}
-//     {:#018x}
-//     {:p}
-//     {:018p}
-//     {:.3f}
-//     {:10.3f}
-//     {:>16s}
-//     {:08d}
-//
 template <fixed_string FMT>
 consteval format_field parse_field_at(usize offset)
 {
@@ -429,6 +357,7 @@ consteval usize literal_run_length()
 }
 
 }  // namespace detail
+
 }  // namespace kernel::debug
 
 #endif  // DOOM_OS_KERNEL_DEBUG_FORMAT_SPEC_HPP_

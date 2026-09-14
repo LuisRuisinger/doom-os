@@ -1,15 +1,7 @@
-// =================================================================================================
-// POSIX ABI files
-// =================================================================================================
-
-#include "kernel/core/cast.hpp"
-#include "posix/abi.hpp"
-
-// =================================================================================================
-// Architecture files
-// =================================================================================================
 
 #include "arch/x86_64/cpu/registers.hpp"
+#include "kernel/core/cast.hpp"
+#include "posix/abi.hpp"
 
 namespace {
 
@@ -54,13 +46,6 @@ bool rdrand64(u64 &out)
 
 }  // namespace
 
-// =================================================================================================
-// Entropy
-//
-// RDRAND is used as the current minimal entropy source. This remains x86_64-specific until a
-// kernel/random subsystem can sit above hardware or paravirtual entropy drivers.
-// =================================================================================================
-
 extern "C" ssize_t getrandom(void *buffer, size_t length, unsigned int flags)
 {
     static_cast<void>(flags);
@@ -98,8 +83,6 @@ extern "C" ssize_t getrandom(void *buffer, size_t length, unsigned int flags)
     return done as(ssize_t);
 }
 
-// BSD's spelling of the same thing, and the one a few runtimes reach for first. All or nothing by
-// contract, which getrandom already is here.
 extern "C" int getentropy(void *buffer, size_t length)
 {
     if (length > 256) {

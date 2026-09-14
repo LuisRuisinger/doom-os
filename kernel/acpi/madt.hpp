@@ -1,10 +1,6 @@
 #ifndef DOOM_OS_KERNEL_ACPI_MADT_HPP_
 #define DOOM_OS_KERNEL_ACPI_MADT_HPP_
 
-// =================================================================================================
-// Kernel files
-// =================================================================================================
-
 #include "kernel/acpi/acpi.hpp"
 #include "kernel/core/types.hpp"
 

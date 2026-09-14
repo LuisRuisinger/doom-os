@@ -1,25 +1,15 @@
-// =================================================================================================
-// Kernel files
-// =================================================================================================
 
 #include "arch/x86_64/gdt/gdt.hpp"
 
 #include "kernel/core/cast.hpp"
 
 namespace kernel::arch::x86_64::gdt {
+
 using kernel::core::u16;
 using kernel::core::u32;
 using kernel::core::u8;
 
-// =================================================================================================
-// Assembly
-// =================================================================================================
-
 extern "C" void gdt_load(const void *gdt_pointer, u16 code_selector, u16 data_selector);
-
-// =================================================================================================
-// Descriptor constants
-// =================================================================================================
 
 static_assert(sizeof(descriptor) == 8);
 static_assert(sizeof(pointer) == 10);
@@ -40,10 +30,6 @@ static constexpr u32 FLAT_BASE = 0;
 static constexpr u32 FLAT_LIMIT = 0xFFFFF;
 
 static constexpr u16 TSS_ENTRY_INDEX = TSS_SELECTOR >> 3;
-
-// =================================================================================================
-// Descriptor construction
-// =================================================================================================
 
 static constexpr descriptor make_descriptor(u32 base, u32 limit, u8 access, u8 flags)
 {
@@ -83,10 +69,6 @@ static constexpr descriptor make_tss_descriptor_high(u64 base)
     };
 }
 
-// =================================================================================================
-// Table
-// =================================================================================================
-
 void table::init(const kernel::arch::x86_64::tss::state &task_state_segment)
 {
     static_assert(TSS_ENTRY_INDEX == 5);
@@ -95,7 +77,6 @@ void table::init(const kernel::arch::x86_64::tss::state &task_state_segment)
     for (auto &i : entries_m)
         i = make_descriptor(0, 0, 0, 0);
 
-    // GDT base
     entries_m[0] = make_descriptor(0, 0, 0, 0);
 
     entries_m[1] = make_descriptor(
@@ -118,7 +99,6 @@ void table::init(const kernel::arch::x86_64::tss::state &task_state_segment)
         ACCESS_PRESENT | ACCESS_RING_3 | ACCESS_DESCRIPTOR | ACCESS_EXECUTABLE | ACCESS_READ_WRITE,
         FLAGS_GRANULARITY_4K | FLAGS_64_BIT);
 
-    // TSS descriptor
     entries_m[TSS_ENTRY_INDEX] =
         make_tss_descriptor_low(task_state_segment.base(), tss::state::limit());
     entries_m[TSS_ENTRY_INDEX + 1] = make_tss_descriptor_high(task_state_segment.base());
@@ -138,10 +118,6 @@ u16 table::kernel_code_selector() const
 {
     return KERNEL_CODE_SELECTOR;
 }
-
-// =================================================================================================
-// GDT
-// =================================================================================================
 
 void load_task_register(u16 selector)
 {

@@ -5,10 +5,6 @@
 #include <type_traits>
 #include <utility>
 
-// =================================================================================================
-// RTTI Configuration
-// =================================================================================================
-
 #if defined(__cpp_rtti) || defined(__GXX_RTTI)
 #    define DOOM_OS_CAST_HAS_RTTI 1
 #else
@@ -109,10 +105,6 @@ constexpr To dynamic_cast_or_trap(From &&value) noexcept
 
 }  // namespace detail
 
-// =================================================================================================
-// Dispatch Pipeline
-// =================================================================================================
-
 template <typename To, typename From>
 [[nodiscard]] constexpr To auto_cast(From &&value) noexcept
 {
@@ -163,10 +155,6 @@ template <typename From, typename To>
     ->*::kernel::core::cast::as_tag<__VA_ARGS__> \
     {                                            \
     }
-
-// =================================================================================================
-// Compile-Time Tests
-// =================================================================================================
 
 static_assert(3.5 as(int) == 3);
 static_assert((3.5 as(int) + 2) == 5);

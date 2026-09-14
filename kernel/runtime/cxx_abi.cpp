@@ -1,29 +1,6 @@
-// =================================================================================================
-// Kernel files
-// =================================================================================================
 
 #include "kernel/core/types.hpp"
 #include "kernel/debug/kpanic.hpp"
-
-// =================================================================================================
-// C++ ABI
-//
-// What the kernel's own C++ needs from a runtime, so that needing it does not depend on what the
-// application linked. A virtual call and a function-local static are language features, not
-// application features; leaving them to libsupc++ would make them available only in images that
-// happen to carry a C++ application, which is not a property kernel code can reason about.
-//
-// Weak, and that word is doing exactly one job: an application object carrying its own definitions
-// - a Rust staticlib, or a C++ application that linked a runtime into itself - overrides these
-// rather than colliding with them. It does not defer to libsupc++, which lives in an archive: a
-// weak definition already satisfies the reference, so the archive member is never extracted. That
-// is the intent. These bodies panic with a message and pull no unwinder behind them, which is what
-// an image compiled -fno-exceptions throughout wants from a failure it cannot recover from.
-//
-// Absent, and staying absent: operator new. The kernel does not allocate through it - global
-// operator new has no parameter for which pool, whether this may sleep, or what happens on
-// failure - and a weak definition here would shadow libsupc++'s for the application too.
-// =================================================================================================
 
 #define DOOM_OS_WEAK __attribute__((weak))
 
@@ -40,18 +17,6 @@ extern "C" {
 }
 
 }  // extern "C"
-
-// =================================================================================================
-// Function-local static guards
-//
-// Reachable from kernel code only when it is compiled without -fno-threadsafe-statics, which it is
-// not, and from prebuilt libstdc++ objects, which are. Kept so that dropping that flag stays a
-// decision rather than a link error.
-//
-// Guard layout follows the usual Itanium C++ ABI idea:
-//  bit 0: initialized
-//  bit 1: initialization in progress
-// =================================================================================================
 
 extern "C" DOOM_OS_WEAK int __cxa_guard_acquire(kernel::core::u64 *guard) noexcept
 {

@@ -1,34 +1,21 @@
 #ifndef DOOM_OS_KERNEL_DEBUG_FORMATTER_HPP_
 #define DOOM_OS_KERNEL_DEBUG_FORMATTER_HPP_
 
-// =================================================================================================
-// Cpp stdlib files
-// =================================================================================================
-
 #include <concepts>
 #include <type_traits>
-
-// =================================================================================================
-// Kernel files
-// =================================================================================================
 
 #include "kernel/core/cast.hpp"
 #include "kernel/core/reflect.hpp"
 #include "kernel/debug/emit.hpp"
 
 namespace kernel::debug {
+
 namespace detail {
+
 using kernel::core::i64;
 using kernel::core::u64;
 using kernel::core::u8;
 using kernel::core::usize;
-
-// =================================================================================================
-// Integer classification
-//
-// Deliberately narrower than std::is_integral: bool and plain char are excluded because both
-// have their own formatting, and must not be dispatched to the integer emitters below.
-// =================================================================================================
 
 template <typename T>
 struct is_signed_integer_base : std::false_type {};
@@ -65,14 +52,6 @@ template <typename T>
 inline constexpr bool is_unsigned_integer_v =
     is_unsigned_integer_base<std::remove_cvref_t<T>>::value;
 
-// =================================================================================================
-// Formattable categories
-//
-// Disjoint by construction, so a type matches exactly one formatter and there is no overload set
-// to reason about. The integer concepts above already exclude bool and plain char, which is why
-// those two get categories of their own rather than falling in with the integers.
-// =================================================================================================
-
 template <typename T>
 concept character_value = std::same_as<T, char>;
 
@@ -97,16 +76,6 @@ concept null_value = std::same_as<T, decltype(nullptr)>;
 // A char pointer is a string, not an address, unless the spec asks for one.
 template <typename T>
 concept pointer_value = std::is_pointer_v<T> && !c_string_value<T>;
-
-// =================================================================================================
-// Formatter
-//
-// Maps a type to the emitter that renders it, and nothing else - whether a given spec makes
-// sense for that emitter is the emitter's own static_assert, so the rule lives in one place.
-//
-// Teaching kprint a new type means specialising formatter<T>; the primary template exists to
-// say so rather than to fail with a wall of overload candidates.
-// =================================================================================================
 
 template <typename T>
 struct unsupported_formatted_type : std::false_type {};
@@ -225,21 +194,6 @@ struct formatter<T> {
     }
 };
 
-// =================================================================================================
-// Reflected values
-//
-// reflect answers what fields a type has, and these three specialisations are the whole of its
-// contact with kprint. A flags struct or an error enum then formats without a formatter of its
-// own, which is what stops this file growing a specialisation per struct as the kernel does.
-//
-// Names come out of __PRETTY_FUNCTION__ as a pointer and a length into the middle of that
-// signature, so they are not NUL-terminated. Every path below carries the length explicitly:
-// handing name.data() to a C-string emitter runs off the end of the name and prints the rest of
-// the mangled signature.
-// =================================================================================================
-
-// Defined below, in the dispatch section. Declared here because the aggregate formatter recurses
-// through it to reach its fields.
 template <format_spec Spec, typename T>
 inline void emit_value(const T &value);
 
@@ -249,8 +203,6 @@ concept reflect_string_value = std::same_as<T, reflect::str_view>;
 template <typename T>
 concept enum_value = std::is_enum_v<T>;
 
-// str_view keeps its storage private, so it is not an aggregate and never reaches this one -
-// which is what keeps it disjoint from reflect_string_value above.
 template <typename T>
 concept reflectable_value = reflect::reflectable<T>;
 
@@ -290,8 +242,6 @@ struct formatter<T> {
         } else {
             const reflect::str_view name = reflect::enum_name(value);
 
-            // No enumerator names this value: a cast, a mask, or a field that was corrupted.
-            // Printing the number beats printing nothing, and this is a panic path.
             if (name.empty()) {
                 formatter<underlying>::template emit<Spec>(value as(underlying));
                 return;
@@ -323,22 +273,12 @@ struct formatter<T> {
             emit_bytes(name.data(), name.size());
             emit_char('=');
 
-            // The spec reaches the leaves rather than the braces: {:#018X} on a register frame
-            // is what makes every register in it print as padded hex.
             emit_value<Spec>(field);
         });
 
         emit_char('}');
     }
 };
-
-// =================================================================================================
-// Dispatch
-//
-// decay collapses the cases the old overload set spelled out one by one: arrays of char become
-// char pointers, references and cv-qualifiers fall away, so each type reaches exactly one
-// formatter specialisation.
-// =================================================================================================
 
 template <format_spec Spec, typename T>
 inline void emit_value(const T &value)
@@ -347,6 +287,7 @@ inline void emit_value(const T &value)
 }
 
 }  // namespace detail
+
 }  // namespace kernel::debug
 
 #endif  // DOOM_OS_KERNEL_DEBUG_FORMATTER_HPP_

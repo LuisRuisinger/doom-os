@@ -1,17 +1,9 @@
-// =================================================================================================
-// POSIX ABI files
-// =================================================================================================
-
-#include "posix/abi.hpp"
-
-// =================================================================================================
-// Kernel files
-// =================================================================================================
 
 #include "kernel/boot/boot_info.hpp"
 #include "kernel/core/cast.hpp"
 #include "kernel/debug/emit.hpp"
 #include "kernel/mm/vmm.hpp"
+#include "posix/abi.hpp"
 
 namespace {
 
@@ -20,14 +12,6 @@ using namespace libos::abi;  // NOLINT(google-build-using-namespace) - this file
 using kernel::core::u64;
 using kernel::core::u8;
 using kernel::core::usize;
-
-// =================================================================================================
-// Descriptor table
-//
-// The one piece of state that is genuinely POSIX's rather than the kernel's. Descriptor numbers,
-// the offset attached to each, and errno are concepts the kernel below deliberately does not have,
-// so they stop here.
-// =================================================================================================
 
 constexpr int MAX_DESCRIPTORS = 8;
 constexpr int FIRST_FILE_DESCRIPTOR = 3;
@@ -103,10 +87,6 @@ bool validate_iovecs(const iovec *vectors, int count)
 
 }  // namespace
 
-// =================================================================================================
-// Console
-// =================================================================================================
-
 extern "C" ssize_t write(int fd, const void *buffer, size_t count)
 {
     if (fd != STDOUT_FILENO && fd != STDERR_FILENO) {
@@ -143,13 +123,6 @@ extern "C" ssize_t writev(int fd, const iovec *vectors, int count)
 
     return total;
 }
-
-// =================================================================================================
-// Files
-//
-// Boot modules are the only openable thing. They are already resident, so a read is a copy out of
-// memory the bootloader placed and nothing here has to touch a device.
-// =================================================================================================
 
 extern "C" int open(const char *path, int flags, ...)
 {
@@ -295,8 +268,6 @@ extern "C" int fstat(int fd, stat *out)
         return -1;
     }
 
-    // Field by field rather than aggregate initialisation: st_dev and st_ino come first in the
-    // Linux layout, so a braced list would quietly fill in the wrong two.
     if (is_console(fd)) {
         out->mode = S_IFCHR;
         out->size = 0;

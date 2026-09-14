@@ -6,10 +6,6 @@
 
 namespace kernel::core::utils {
 
-// =================================================================================================
-// Bit utilities
-// =================================================================================================
-
 template <typename T>
 constexpr __attribute__((always_inline)) u32 bit_width()
 {
@@ -52,10 +48,6 @@ constexpr __attribute__((always_inline)) T mask(u32 bit_count)
     return bit_count >= bit_width<T>() ? all_bits<T>() : (bit<T>(bit_count) - T{1}) as(T);
 }
 
-// =================================================================================================
-// Alignment utilities
-// =================================================================================================
-
 template <typename T = usize>
 constexpr __attribute__((always_inline)) bool is_power_of_two(T value)
 {
@@ -79,10 +71,6 @@ constexpr __attribute__((always_inline)) bool is_aligned(T value, T alignment)
 {
     return (value & (alignment - T{1}) as(T)) == T{0};
 }
-
-// =================================================================================================
-// Constexpr test cases
-// =================================================================================================
 
 static_assert(bit_width<u8>() == 8);
 static_assert(bit_width<u16>() == 16);
@@ -207,6 +195,7 @@ static_assert(is_aligned(usize{16}, usize{8}));
 static_assert(is_aligned(usize{0x1000}, usize{0x1000}));
 static_assert(!is_aligned(usize{0x1001}, usize{0x1000}));
 static_assert(is_aligned(usize{0x2000}, usize{0x1000}));
+
 }  // namespace kernel::core::utils
 
 #endif  // DOOM_OS_KERNEL_CORE_BITS_HPP_

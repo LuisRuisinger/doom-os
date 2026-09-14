@@ -1,6 +1,3 @@
-// =================================================================================================
-// Kernel files
-// =================================================================================================
 
 #include <uk/services.hpp>
 
@@ -28,9 +25,6 @@ u8 io_read8(u16 port)
     return kernel::arch::x86_64::inb(port);
 }
 
-// The kernel heap, not a pool of its own. Drivers are trusted and share this address space, so a
-// second space would buy accounting rather than isolation - and isolation only with a footprint
-// limit on top of it. See kernel/mm/kheap.hpp.
 void *alloc(usize bytes, usize alignment)
 {
     return kernel::mm::kheap::alloc(bytes, alignment);

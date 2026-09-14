@@ -1,29 +1,7 @@
 #ifndef DOOM_OS_POSIX_ABI_HPP_
 #define DOOM_OS_POSIX_ABI_HPP_
 
-// =================================================================================================
-// The ABI this image implements
-//
-// x86_64 Linux. Every type, constant and layout here is fixed by that ABI rather than chosen, so
-// the numbers are copied rather than invented and none of them may be changed to something more
-// convenient. glibc, musl and Rust's Linux targets disagree on plenty of symbol names above this
-// layer, but they agree on these kernel-facing sizes and values.
-//
-// It is written out instead of included because there is no C library in this repository to
-// include it from. Which libc an image carries is the integrator's decision, exactly as the
-// application and its drivers are, so this file is the contract both sides compile against and
-// neither side ships.
-//
-// The risk of restating a declaration is real - a prototype that drifts from the caller's is a
-// bug no compiler here can see - which is why this is one header rather than a declaration at
-// each use, and why the struct layouts carry their offsets.
-// =================================================================================================
-
 namespace libos::abi {
-
-// =================================================================================================
-// Types
-// =================================================================================================
 
 using size_t = unsigned long;
 using ssize_t = long;
@@ -43,13 +21,6 @@ using pthread_key_t = unsigned int;
 
 inline constexpr size_t SSIZE_MAX_VALUE = (size_t{1} << (sizeof(ssize_t) * 8 - 1)) - 1;
 
-// =================================================================================================
-// errno
-//
-// Linux's numbers, which are not the same as any other Unix's. ENOSYS is 38 here; a libc from a
-// different family would call that ENOTNAM and report something unrelated.
-// =================================================================================================
-
 inline constexpr int EPERM = 1;
 inline constexpr int ENOENT = 2;
 inline constexpr int EIO = 5;
@@ -60,10 +31,6 @@ inline constexpr int EINVAL = 22;
 inline constexpr int EMFILE = 24;
 inline constexpr int ESPIPE = 29;
 inline constexpr int ENOSYS = 38;
-
-// =================================================================================================
-// Descriptors and files
-// =================================================================================================
 
 inline constexpr int STDIN_FILENO = 0;
 inline constexpr int STDOUT_FILENO = 1;
@@ -82,13 +49,6 @@ inline constexpr mode_t S_IFREG = 0100000;
 
 inline constexpr int IOV_MAX = 1024;
 
-// =================================================================================================
-// Memory protection and mapping
-//
-// Linux's numbers. They were local to mmap until mprotect needed the same set; one definition is
-// the point of this file.
-// =================================================================================================
-
 inline constexpr int PROT_NONE = 0x0;
 inline constexpr int PROT_READ = 0x1;
 inline constexpr int PROT_WRITE = 0x2;
@@ -97,14 +57,6 @@ inline constexpr int PROT_EXEC = 0x4;
 inline constexpr int MAP_PRIVATE = 0x02;
 inline constexpr int MAP_ANONYMOUS = 0x20;
 inline constexpr int MAP_NORESERVE = 0x4000;
-
-// =================================================================================================
-// Structures
-//
-// Offsets are asserted rather than trusted. A caller compiled against glibc's headers reads these
-// at fixed displacements, so a field in the wrong place is not a compile error anywhere - it is a
-// value silently taken from the middle of another one.
-// =================================================================================================
 
 struct timespec {
     long tv_sec;
@@ -159,13 +111,6 @@ static_assert(sizeof(timespec) == 16, "timespec is two longs");
 static_assert(sizeof(iovec) == 16, "iovec is two machine words");
 
 }  // namespace libos::abi
-
-// =================================================================================================
-// errno storage
-//
-// One int, because there is one thread. glibc reaches it through __errno_location rather than
-// directly, which is what makes it replaceable later without touching a caller.
-// =================================================================================================
 
 extern "C" int errno;
 

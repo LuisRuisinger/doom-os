@@ -1,10 +1,6 @@
 #ifndef DOOM_OS_KERNEL_ARCH_X86_64_CPU_HPP_
 #define DOOM_OS_KERNEL_ARCH_X86_64_CPU_HPP_
 
-// =================================================================================================
-// Kernel files
-// =================================================================================================
-
 #include "arch/x86_64/cpu/stacks.hpp"
 #include "arch/x86_64/gdt/gdt.hpp"
 #include "arch/x86_64/idt/idt.hpp"
@@ -20,27 +16,11 @@ using kernel::core::u64;
 using kernel::core::u8;
 using kernel::core::usize;
 
-// =================================================================================================
-// Constants
-// =================================================================================================
-
 static constexpr u32 MAX_CORE_COUNT = 64;
-
-// =================================================================================================
-// Local CPU state
-// =================================================================================================
 
 class local_state;
 
 void init_bsp();
-
-// =================================================================================================
-// Backing store for the per-core init graph.
-//
-// Every resource here is owned by exactly one component and reachable during init only
-// through that component's view. The public accessors are const and exist for the runtime
-// paths (panic reporting, diagnostics) that read state long after it was published.
-// =================================================================================================
 
 class local_state {
     u32  logical_id_m{};
@@ -86,10 +66,6 @@ public:
     }
 };
 
-// =================================================================================================
-// CPU state storage
-// =================================================================================================
-
 local_state &bsp();
 local_state &current();
 local_state *get(u32 logical_id);
@@ -105,10 +81,6 @@ inline void relax()
     for (;;)
         asm volatile("cli; hlt");
 }
-
-// =================================================================================================
-// Component
-// =================================================================================================
 
 struct component : kernel::init::component<component, kernel::init::no_resource> {
     static constexpr auto *name = "CPU";

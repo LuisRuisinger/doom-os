@@ -1,10 +1,6 @@
 #ifndef DOOM_OS_KERNEL_ACPI_ACPI_HPP_
 #define DOOM_OS_KERNEL_ACPI_ACPI_HPP_
 
-// =================================================================================================
-// Kernel files
-// =================================================================================================
-
 #include "kernel/boot/boot_info.hpp"
 #include "kernel/core/cast.hpp"
 #include "kernel/core/types.hpp"

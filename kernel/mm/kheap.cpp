@@ -94,6 +94,7 @@ void *morecore(ptrdiff_t increment)
 #define LACKS_UNISTD_H     1
 
 extern "C" {
+
 static size_t dlmalloc_usable_size(void *);
 }
 
