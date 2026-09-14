@@ -4,10 +4,10 @@
 
 #include "kernel/device/lifecycle.hpp"
 
+#include <uk/capability.hpp>
+
 #include "arch/x86_64/cpu/cpu.hpp"
 #include "kernel/debug/kprint.hpp"
-
-#include <uk/capability.hpp>
 
 namespace uk {
 
@@ -445,8 +445,7 @@ init_result run_driver(driver_node &node)
     init_result capabilities = register_capabilities(node);
 
     if (capabilities.is_err()) {
-        KPRINTLN("[driver] {}: FAIL ({})", node.id->name,
-                 describe(capabilities.unwrap_err_ref()));
+        KPRINTLN("[driver] {}: FAIL ({})", node.id->name, describe(capabilities.unwrap_err_ref()));
         return capabilities;
     }
 

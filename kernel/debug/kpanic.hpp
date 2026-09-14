@@ -70,7 +70,7 @@ template <detail::fixed_string FMT, typename... Args>
 
 #define DOOM_OS_KPANIC_OUT(name, asm_name) , [out_##name] "=m"(__panic_frame.name)
 
-#define DOOM_OS_KPANIC_CAPTURE()                    \
+#define DOOM_OS_KPANIC_CAPTURE() \
     asm volatile(                                   \
         DOOM_OS_X86_GPRS(DOOM_OS_KPANIC_GPR_LINE)   \
         "leaq 0f(%%rip), %%rax\n"                   \

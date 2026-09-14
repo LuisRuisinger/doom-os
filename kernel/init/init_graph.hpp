@@ -72,9 +72,8 @@ struct list_filter_out_accum<type_list<>, Excluded, Accum> {
 
 template <typename Head, typename... Tail, typename Excluded, typename Accum>
 struct list_filter_out_accum<type_list<Head, Tail...>, Excluded, Accum> {
-    using with_head =
-        std::conditional_t<list_contains<Head, Excluded>::value, Accum,
-                           typename list_append<Accum, Head>::type>;
+    using with_head = std::conditional_t<list_contains<Head, Excluded>::value, Accum,
+                                         typename list_append<Accum, Head>::type>;
 
     using type = typename list_filter_out_accum<type_list<Tail...>, Excluded, with_head>::type;
 };

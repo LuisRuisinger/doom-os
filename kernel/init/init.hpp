@@ -5,9 +5,10 @@
 // Kernel files
 // =================================================================================================
 
+#include "arch/x86_64/cpu/cpu.hpp"
+#include "kernel/debug/kprint.hpp"
 #include "kernel/init/component.hpp"
 #include "kernel/init/init_graph.hpp"
-#include "kernel/debug/kprint.hpp"
 
 namespace kernel::init {
 // =================================================================================================

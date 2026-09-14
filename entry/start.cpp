@@ -14,7 +14,7 @@
 // =================================================================================================
 
 #ifndef DOOM_OS_HAS_APPLICATION
-#define DOOM_OS_HAS_APPLICATION 0
+#    define DOOM_OS_HAS_APPLICATION 0
 #endif
 
 extern "C" [[noreturn]] void _exit(int status);

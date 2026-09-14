@@ -93,18 +93,18 @@ struct madt_info {
     paddr_t lapic_address{0xFEE00000};
     u32     flags;
 
-    static constexpr usize MAX_CPUS    = 64;
+    static constexpr usize MAX_CPUS = 64;
     static constexpr usize MAX_IOAPICS = 8;
-    static constexpr usize MAX_ISOS    = 32;
+    static constexpr usize MAX_ISOS = 32;
 
     processor_info cpus[MAX_CPUS];
     usize          cpu_count;
 
-    ioapic_record  ioapics[MAX_IOAPICS];
-    usize          ioapic_count;
+    ioapic_record ioapics[MAX_IOAPICS];
+    usize         ioapic_count;
 
-    iso_record     isos[MAX_ISOS];
-    usize          iso_count;
+    iso_record isos[MAX_ISOS];
+    usize      iso_count;
 };
 
 [[nodiscard]] madt_info parse_madt(sdt_view view);

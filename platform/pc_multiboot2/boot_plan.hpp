@@ -5,11 +5,11 @@
 // Kernel files
 // =================================================================================================
 
-#include "kernel/boot/boot_info.hpp"
-#include "kernel/init/component.hpp"
+#include "arch/x86_64/core_init.hpp"
 #include "arch/x86_64/lapic/lapic.hpp"
 #include "arch/x86_64/mmu/mmu.hpp"
-#include "arch/x86_64/core_init.hpp"
+#include "kernel/boot/boot_info.hpp"
+#include "kernel/init/component.hpp"
 #include "kernel/mm/kheap.hpp"
 #include "kernel/mm/pmm.hpp"
 #include "kernel/runtime/init.hpp"

@@ -53,15 +53,15 @@ Return finish_stub(MakeValue make_value)
 
 #define DOOM_OS_WEAK __attribute__((weak))
 
-#define POSIX_STUB(return_type__, name__, value__, errno__, ...)                \
-    extern "C" DOOM_OS_WEAK return_type__ name__(__VA_ARGS__)                  \
-    {                                                                           \
-        static bool reported_m = false;                                         \
-        report_once(#name__, reported_m);                                       \
-        if constexpr ((errno__) != 0) {                                         \
-            errno = (errno__);                                                  \
-        }                                                                       \
-        return finish_stub<return_type__>([] { return (value__); });            \
+#define POSIX_STUB(return_type__, name__, value__, errno__, ...)     \
+    extern "C" DOOM_OS_WEAK return_type__ name__(__VA_ARGS__)        \
+    {                                                                \
+        static bool reported_m = false;                              \
+        report_once(#name__, reported_m);                            \
+        if constexpr ((errno__) != 0) {                              \
+            errno = (errno__);                                       \
+        }                                                            \
+        return finish_stub<return_type__>([] { return (value__); }); \
     }
 
 #include "posix/symbols.def"

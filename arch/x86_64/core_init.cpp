@@ -6,8 +6,8 @@
 
 #include "arch/x86_64/core_wiring.hpp"
 #include "arch/x86_64/lapic/lapic.hpp"
-#include "kernel/init/init.hpp"
 #include "kernel/debug/kprint.hpp"
+#include "kernel/init/init.hpp"
 
 namespace kernel::arch::x86_64::core_init {
 // =================================================================================================
@@ -42,8 +42,8 @@ bool init_core(cpu::local_state &cpu)
 {
     core_logger logger{};
 
-    if (!kernel::init::run_init_graph<kernel::arch::x86_64::core_wiring::early_core_roots>(
-            cpu, logger))
+    if (!kernel::init::run_init_graph<kernel::arch::x86_64::core_wiring::early_core_roots>(cpu,
+                                                                                           logger))
         return false;
 
     if (kernel::arch::x86_64::lapic::is_ready()) {
@@ -64,9 +64,9 @@ bool init_late_core(cpu::local_state &cpu)
 {
     core_logger logger{};
 
-    return kernel::init::run_init_graph_after<
-        kernel::arch::x86_64::core_wiring::late_core_roots,
-        kernel::arch::x86_64::core_wiring::early_core_roots>(cpu, logger);
+    return kernel::init::run_init_graph_after<kernel::arch::x86_64::core_wiring::late_core_roots,
+                                              kernel::arch::x86_64::core_wiring::early_core_roots>(
+        cpu, logger);
 }
 
 bool init_late_bsp()

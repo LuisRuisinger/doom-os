@@ -5,9 +5,9 @@
 // Kernel files
 // =================================================================================================
 
-#include "kernel/init/component.hpp"
-
 #include <uk/registry.hpp>
+
+#include "kernel/init/component.hpp"
 
 namespace uk {
 

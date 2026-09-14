@@ -3,11 +3,11 @@
 // =================================================================================================
 
 #include "kernel/boot/boot_info.hpp"
-#include "platform/pc_multiboot2/boot_plan.hpp"
-#include "kernel/init/init.hpp"
 #include "kernel/core/types.hpp"
 #include "kernel/debug/kpanic.hpp"
 #include "kernel/debug/kprint.hpp"
+#include "kernel/init/init.hpp"
+#include "platform/pc_multiboot2/boot_plan.hpp"
 
 // =================================================================================================
 // Application

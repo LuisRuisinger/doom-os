@@ -17,8 +17,7 @@ void call_global_destructors();
 // the heap pulls mmu -> pmm -> boot_info underneath it, so this is the same order with the reason
 // stated as an edge the compiler checks instead of a comment asking for it.
 struct component
-    : kernel::init::component<component, kernel::init::no_resource,
-                              kernel::mm::kheap::component> {
+    : kernel::init::component<component, kernel::init::no_resource, kernel::mm::kheap::component> {
     static constexpr auto *name = "RUNTIME";
 
     template <typename View>

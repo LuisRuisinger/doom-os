@@ -9,8 +9,8 @@
 #include "arch/x86_64/gdt/gdt.hpp"
 #include "arch/x86_64/idt/idt.hpp"
 #include "arch/x86_64/tss/tss.hpp"
-#include "kernel/init/component.hpp"
 #include "kernel/core/types.hpp"
+#include "kernel/init/component.hpp"
 
 namespace kernel::arch::x86_64::cpu {
 
