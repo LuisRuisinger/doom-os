@@ -11,9 +11,9 @@
 // Kernel files
 // =================================================================================================
 
-#include "kernel/init/component.hpp"
 #include "kernel/core/types.hpp"
 #include "kernel/debug/formatter.hpp"
+#include "kernel/init/component.hpp"
 
 namespace kernel::boot {
 
@@ -58,6 +58,16 @@ struct fixed_table {
     const Entry &operator[](usize index) const
     {
         return entries[index];
+    }
+
+    [[nodiscard]] const Entry *begin() const
+    {
+        return entries;
+    }
+
+    [[nodiscard]] const Entry *end() const
+    {
+        return entries + count;
     }
 
     void clear()
