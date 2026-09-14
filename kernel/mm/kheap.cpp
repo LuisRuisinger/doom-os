@@ -1,30 +1,13 @@
-// =================================================================================================
-// Cpp stdlib files
-// =================================================================================================
+#include "kernel/mm/kheap.hpp"
 
 #include <stddef.h>
 
-// =================================================================================================
-// Kernel files
-// =================================================================================================
-
-#include "kernel/mm/kheap.hpp"
-
-#include "kernel/core/result.hpp"
+#include "kernel/core/cast.hpp"
 #include "kernel/debug/kpanic.hpp"
 #include "kernel/mm/page.hpp"
 #include "kernel/mm/pmm.hpp"
 #include "kernel/mm/vmm.hpp"
-
-// =================================================================================================
-// Third-party dlmalloc entry points (prefixed via USE_DL_PREFIX)
-// =================================================================================================
-
-extern "C" {
-void *dlmalloc(size_t bytes);
-void *dlmemalign(size_t alignment, size_t bytes);
-void  dlfree(void *mem);
-}
+#include "kernel/runtime/memory.hpp"
 
 namespace {
 
@@ -32,77 +15,98 @@ using kernel::core::paddr_t;
 using kernel::core::u8;
 using kernel::core::uptr;
 using kernel::core::usize;
+using kernel::mm::page_size;
 
 namespace pmm = kernel::mm::pmm;
 namespace vmm = kernel::mm::vmm;
 
-constexpr usize FRAME_BYTES = 2 * 1024 * 1024;
-
-static_assert(FRAME_BYTES == kernel::mm::bytes_in(kernel::mm::page_size::SIZE_2M),
-              "the heap grows one MMU page at a time, so its unit is that page");
-
+constexpr usize FRAME_BYTES = kernel::mm::bytes_in(page_size::SIZE_2M);
 constexpr usize NATURAL_ALIGNMENT = 2 * sizeof(void *);
 
 constinit bool m_heap_ready = false;
 constinit u8  *m_break = nullptr;
 
-void *morecore_failure()
-{
-    return reinterpret_cast<void *>(~uptr{0});
-}
-
 u8 *claim_frame()
 {
-    // The frame is only ours once it has a window: without one there is no way to reach it, so
-    // the failed lookup hands it straight back rather than leaking it for the life of the kernel.
-    return pmm::alloc(kernel::mm::page_size::SIZE_2M)
+    return pmm::alloc(page_size::SIZE_2M)
         .map([](paddr_t frame) -> u8 * {
             void *window = vmm::phy_to_vrt(frame);
 
-            if (window == nullptr) {
-                pmm::free(kernel::mm::page_size::SIZE_2M, frame);
-                return nullptr;
-            }
+            if (window == nullptr)
+                pmm::free(page_size::SIZE_2M, frame);
 
-            return static_cast<u8 *>(window);
+            return window as(u8 *);
         })
         .unwrap_or(nullptr);
 }
 
-}  // namespace
-
-// =================================================================================================
-// dlmalloc hooks
-// =================================================================================================
-
-extern "C" void *doom_os_kheap_morecore(ptrdiff_t increment)
+void *morecore(ptrdiff_t increment)
 {
     if (increment == 0)
         return m_break;
 
-    if (increment < 0 || static_cast<usize>(increment) > FRAME_BYTES)
-        return morecore_failure();
+    if (increment < 0 || increment as(usize) > FRAME_BYTES)
+        return (~uptr{0})as(void *);
 
     u8 *frame = claim_frame();
 
     if (frame == nullptr)
-        return morecore_failure();
+        return (~uptr{0})as(void *);
 
     m_break = frame + FRAME_BYTES;
 
     return frame;
 }
 
-extern "C" void doom_os_kheap_abort()
+[[noreturn]] void corrupted()
 {
     KPANIC("kernel heap detected a corrupted chunk");
 }
 
-namespace kernel::mm::kheap {
+}  // namespace
 
-// =================================================================================================
-// Allocation
-// =================================================================================================
+#define DLMALLOC_EXPORT      static
+#define USE_DL_PREFIX        1
+#define HAVE_MORECORE        1
+#define MORECORE             morecore
+#define MORECORE_CONTIGUOUS  0
+#define MORECORE_CANNOT_TRIM 1
+#define HAVE_MMAP            0
+#define HAVE_MREMAP          0
+#define DEFAULT_GRANULARITY  ((size_t)2U * 1024U * 1024U)
+#define USE_LOCKS            0
+#define NO_MALLOC_STATS      1
+#define MALLOC_FAILURE_ACTION
+#define ABORT              corrupted()
+#define malloc_getpagesize ((size_t)4096U)
+#define EINVAL             22
+#define ENOMEM             12
+#define LACKS_ERRNO_H      1
+#define LACKS_FCNTL_H      1
+#define LACKS_SCHED_H      1
+#define LACKS_STDLIB_H     1
+#define LACKS_STRING_H     1
+#define LACKS_STRINGS_H    1
+#define LACKS_SYS_MMAN_H   1
+#define LACKS_SYS_PARAM_H  1
+#define LACKS_SYS_TYPES_H  1
+#define LACKS_TIME_H       1
+#define LACKS_UNISTD_H     1
+
+extern "C" {
+static size_t dlmalloc_usable_size(void *);
+}
+
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wunused-function"
+#pragma GCC diagnostic ignored "-Wunused-but-set-variable"
+#if defined(__clang__)
+#    pragma clang diagnostic ignored "-Wgnu-null-pointer-arithmetic"
+#endif
+#include <malloc.c>
+#pragma GCC diagnostic pop
+
+namespace kernel::mm::kheap {
 
 void *alloc(usize bytes, usize alignment)
 {
@@ -129,13 +133,10 @@ void free(void *ptr)
     dlfree(ptr);
 }
 
-// =================================================================================================
-// Init
-// =================================================================================================
-
 kernel::init::init_result component::init_heap()
 {
     m_heap_ready = true;
+
     return kernel::core::Ok();
 }
 

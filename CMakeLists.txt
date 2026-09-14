@@ -119,10 +119,7 @@ FetchContent_Declare(reflect
         GIT_TAG experimental)
 FetchContent_MakeAvailable(reflect)
 
-# dlmalloc 2.8.6, the kernel heap's free lists. A single unversioned file rather than a repository,
-# so the hash is the pin: an unofficial mirror would be a weaker guarantee than this, not a
-# stronger one. It carries no CMakeLists, so MakeAvailable populates it and nothing more - the
-# object library is built below, against kernel/mm/dlmalloc_config.h.
+# dlmalloc 2.8.6, included into kernel/mm/kheap.cpp; the hash is the pin.
 FetchContent_Declare(dlmalloc
         URL https://gee.cs.oswego.edu/pub/misc/malloc.c
         URL_HASH SHA256=be7be56b40b4b31417e74e77687f9b96127ea6cae534cf236aee40a4c739508d
@@ -236,32 +233,6 @@ add_custom_command(
 add_custom_target(linker-script DEPENDS ${DOOM_OS_LINKER_SCRIPT})
 
 # =================================================================================================
-# Kernel
-# =================================================================================================
-
-# =================================================================================================
-# dlmalloc
-#
-# Its own translation unit, because the configuration is expressed as macros read before the file
-# is parsed and there is nowhere to put those but ahead of it. NO_WARNINGS is for the source, not
-# for the flags: the ABI options are the same ones the kernel is built with, and have to be.
-#
-# The image exports no malloc. ONLY_MSPACES in the config header is what guarantees that, and the
-# post-build check on kernel.elf is what notices if it ever stops being true.
-# =================================================================================================
-
-add_library(doom_os_dlmalloc OBJECT ${dlmalloc_SOURCE_DIR}/malloc.c)
-
-# For kernel/runtime/memory.h, which the config header reaches for. The C spelling exists so that
-# this translation unit and memory.cpp declare memset and memcpy once between them.
-target_include_directories(doom_os_dlmalloc PRIVATE ${DOOM_OS_ROOT})
-
-target_compile_options(doom_os_dlmalloc PRIVATE
-        -include ${DOOM_OS_ROOT}/kernel/mm/dlmalloc_config.h)
-
-doom_os_configure_freestanding_target(doom_os_dlmalloc NO_WARNINGS)
-
-# =================================================================================================
 # libos
 #
 # Library layer to link application code against. The shape is deliberately small:
@@ -291,7 +262,6 @@ add_executable(kernel.elf
         ${KERNEL_ASM_SOURCES}
         ${DOOM_OS_DRIVER_OBJECTS}
         ${DOOM_OS_APPLICATION_OBJECTS}
-        $<TARGET_OBJECTS:doom_os_dlmalloc>
         $<TARGET_OBJECTS:doom_os_libos>)
 
 add_dependencies(kernel.elf linker-script)
@@ -304,7 +274,8 @@ endif()
 
 target_include_directories(kernel.elf PRIVATE
         ${DOOM_OS_ROOT}
-        ${DOOM_OS_ROOT}/include)
+        ${DOOM_OS_ROOT}/include
+        ${dlmalloc_SOURCE_DIR})
 
 # Hacky fix, given result and reflex default to the same namespace and their freestanding dependencies violate ODR
 target_compile_definitions(kernel.elf PRIVATE REFLECT_NAMESPACE=reflect)
