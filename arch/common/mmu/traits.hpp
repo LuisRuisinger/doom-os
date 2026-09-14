@@ -1,82 +1,71 @@
 #ifndef DOOM_OS_ARCH_COMMON_MMU_TRAITS_HPP_
 #define DOOM_OS_ARCH_COMMON_MMU_TRAITS_HPP_
 
-// =================================================================================================
-// Cpp stdlib files
-// =================================================================================================
-
 #include <concepts>
 
-// =================================================================================================
-// Kernel files
-// =================================================================================================
-
+#include "kernel/core/cast.hpp"
+#include "kernel/core/result.hpp"
 #include "kernel/core/types.hpp"
 #include "kernel/mm/page.hpp"
 
 namespace kernel::arch::common::mmu {
 
 using kernel::core::paddr_t;
+using kernel::core::Result;
 using kernel::core::u64;
 using kernel::core::usize;
 using kernel::core::vaddr_t;
+using kernel::mm::mm_error;
+using kernel::mm::page_prot;
 using kernel::mm::page_size;
+using kernel::mm::shift_of;
 
-// =================================================================================================
-// Common 9-bit Radix Geometry (Shared by x86_64, AArch64 4K, and RISC-V Sv48)
-// =================================================================================================
+template <usize Levels>
+struct radix9 {
+    static constexpr usize LEVELS = Levels;
+    static constexpr usize ENTRIES = 512;
 
-struct radix9_geometry {
-    static constexpr usize ENTRIES_PER_TABLE = 512; //
-
-    [[nodiscard]] static constexpr usize index_at(usize level, vaddr_t vaddr)
+    [[nodiscard]] static constexpr usize index(usize level, vaddr_t va)
     {
-        // Level 1 = shift 12, Level 2 = shift 21, Level 3 = shift 30, Level 4 = shift 39
-        const usize shift = 12 + (level - 1) * 9;
-        return static_cast<usize>((vaddr >> shift) & 0x1FF); //
+        return ((va >> (3 + 9 * level)) & 0x1FF) as(usize);
     }
 
-    [[nodiscard]] static constexpr u64 span_at(usize level)
+    [[nodiscard]] static constexpr usize level_of(page_size size)
     {
-        return u64{1} << (12 + (level - 1) * 9);
+        return ((shift_of(size) - 12) / 9 + 1) as(usize);
+    }
+
+    [[nodiscard]] static constexpr page_size size_at(usize level)
+    {
+        return (12 + 9 * (level - 1)) as(page_size);
     }
 };
 
-// =================================================================================================
-// Concepts
-// =================================================================================================
-
-template <typename T>
-concept paging_traits = requires(u64 entry, usize level, vaddr_t vaddr, paddr_t paddr,
-                                 page_size size, typename T::flags_type flags, u64 *table) {
-    { T::MAX_LEVEL } -> std::convertible_to<usize>;
-    { T::ENTRIES_PER_TABLE } -> std::convertible_to<usize>;
-
-    { T::index_at(level, vaddr) } -> std::same_as<usize>;
-    { T::span_at(level) } -> std::same_as<u64>;
-    { T::page_size_at(level) } -> std::same_as<page_size>;
-    { T::maps_page_size(level, size) } -> std::same_as<bool>;
-
-    { T::is_present(entry) } -> std::same_as<bool>;
-    { T::is_leaf(entry, level) } -> std::same_as<bool>;
-    { T::is_user(entry) } -> std::same_as<bool>;
-    { T::is_user_flags(flags) } -> std::same_as<bool>;
-    { T::entry_address(entry) } -> std::same_as<paddr_t>;
-
-    { T::make_table_entry(paddr, true) } -> std::same_as<u64>;
-    { T::make_leaf_entry(paddr, size, flags) } -> std::same_as<u64>;
-    { T::ensure_intermediate_permissions(entry) } -> std::same_as<void>;
-    { T::populate_split(table, entry, level) } -> std::same_as<void>;
-    { T::flags_from_entry(entry) } -> std::same_as<typename T::flags_type>;
+template <class F>
+concept page_format = requires(u64 entry, usize level, vaddr_t va, paddr_t pa, page_size size,
+                               page_prot prot, u64 *table) {
+    { F::LEVELS } -> std::convertible_to<usize>;
+    { F::ENTRIES } -> std::convertible_to<usize>;
+    { F::index(level, va) } -> std::same_as<usize>;
+    { F::level_of(size) } -> std::same_as<usize>;
+    { F::size_at(level) } -> std::same_as<page_size>;
+    { F::valid(va) } -> std::same_as<bool>;
+    { F::supports(size) } -> std::same_as<bool>;
+    { F::present(entry) } -> std::same_as<bool>;
+    { F::leaf(entry, level) } -> std::same_as<bool>;
+    { F::address(entry) } -> std::same_as<paddr_t>;
+    { F::prot(entry) } -> std::same_as<page_prot>;
+    { F::table_entry(pa) } -> std::same_as<u64>;
+    { F::leaf_entry(pa, size, prot) } -> std::same_as<u64>;
+    { F::split(table, entry, level) } -> std::same_as<void>;
 };
 
-template <typename E>
-concept paging_environment = requires(paddr_t paddr) {
-    { E::INVALID_ADDRESS } -> std::convertible_to<paddr_t>;
-    { E::allocate_table() } -> std::same_as<paddr_t>;
-    { E::free_table(paddr) } -> std::same_as<void>;
-    { E::map_table(paddr) } -> std::same_as<u64 *>;
-    { E::is_reclaimable(paddr) } -> std::same_as<bool>;
+template <class E>
+concept page_env = requires(paddr_t pa, vaddr_t va, u64 &slot, u64 entry) {
+    { E::at(pa) } -> std::same_as<u64 *>;
+    { E::alloc_table() } -> std::same_as<Result<paddr_t, mm_error>>;
+    { E::free_table(pa) } -> std::same_as<void>;
+    { E::replace(slot, entry, va) } -> std::same_as<void>;
 };
 
 }  // namespace kernel::arch::common::mmu

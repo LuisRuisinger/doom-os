@@ -1,132 +1,93 @@
 #ifndef DOOM_OS_KERNEL_MM_PAGE_HPP_
 #define DOOM_OS_KERNEL_MM_PAGE_HPP_
 
-// =================================================================================================
-// Kernel files
-// =================================================================================================
-
+#include "kernel/core/cast.hpp"
 #include "kernel/core/types.hpp"
 
 namespace kernel::mm {
 
+using kernel::core::paddr_t;
 using kernel::core::u64;
 using kernel::core::u8;
 using kernel::core::usize;
 
-// =================================================================================================
-// Page geometry
-//
-// Compile-time page-size geometry constants. A layer can map only the sizes supported by the
-// underlying hardware, but byte counts, shifts, and 4 KiB frame counts share this single
-// source of truth.
-// =================================================================================================
-
 enum class page_size : u8 {
-    SIZE_4K,
-    SIZE_2M,
-    SIZE_1G,
+    SIZE_4K = 12,
+    SIZE_2M = 21,
+    SIZE_1G = 30,
 };
 
-template <usize Bytes>
-struct page {
-    static constexpr u64   bytes  = static_cast<u64>(Bytes);
-    static constexpr u64   shift  = 0;
-    static constexpr usize frames = 0;
-    static constexpr bool  is_sw_allocatable = false;
-};
+inline constexpr u64 FRAME_SHIFT = page_size::SIZE_4K as(u64);
+inline constexpr u64                                  FRAME_SIZE = u64{1} << FRAME_SHIFT;
 
-template <>
-struct page<4096> {
-    static constexpr u64   bytes  = 4096;
-    static constexpr u64   shift  = 12;
-    static constexpr usize frames = 1;
-    static constexpr bool  is_sw_allocatable = true;
-};
-
-template <>
-struct page<2 * 1024 * 1024> {
-    static constexpr u64   bytes  = 2 * 1024 * 1024;
-    static constexpr u64   shift  = 21;
-    static constexpr usize frames = 512;
-    static constexpr bool  is_sw_allocatable = true;
-};
-
-template <>
-struct page<1024 * 1024 * 1024> {
-    static constexpr u64   bytes  = 1024 * 1024 * 1024;
-    static constexpr u64   shift  = 30;
-    static constexpr usize frames = 512 * 512;
-    static constexpr bool  is_sw_allocatable = true;
-};
-
-using page_4k = page<4096>;
-using page_2m = page<2 * 1024 * 1024>;
-using page_1g = page<1024 * 1024 * 1024>;
-
-inline constexpr u64 PAGE_SHIFT_4K = page_4k::shift;
-inline constexpr u64 PAGE_SHIFT_2M = page_2m::shift;
-inline constexpr u64 PAGE_SHIFT_1G = page_1g::shift;
-
-inline constexpr u64 PAGE_SIZE_4K = page_4k::bytes;
-inline constexpr u64 PAGE_SIZE_2M = page_2m::bytes;
-inline constexpr u64 PAGE_SIZE_1G = page_1g::bytes;
-
-inline constexpr u64   FRAME_SIZE   = PAGE_SIZE_4K;
-inline constexpr u64   FRAME_SHIFT  = PAGE_SHIFT_4K;
-inline constexpr usize FRAMES_PER_2M = page_2m::frames;
-inline constexpr usize FRAMES_PER_1G = page_1g::frames;
-
-[[nodiscard]] inline constexpr u64 bytes_in(page_size size)
+[[nodiscard]] constexpr u64 shift_of(page_size size)
 {
-    switch (size) {
-        case page_size::SIZE_4K: return page_4k::bytes;
-        case page_size::SIZE_2M: return page_2m::bytes;
-        case page_size::SIZE_1G: return page_1g::bytes;
+    return size as(u64);
+}
+
+[[nodiscard]] constexpr u64 bytes_in(page_size size)
+{
+    return u64{1} << shift_of(size);
+}
+
+[[nodiscard]] constexpr usize frames_in(page_size size)
+{
+    return usize{1} << (shift_of(size) - FRAME_SHIFT);
+}
+
+enum class page_prot : u8 {
+    NONE = 0,
+    WRITE = 1 << 0,
+    EXEC = 1 << 1,
+    USER = 1 << 2,
+    GLOBAL = 1 << 3,
+    UNCACHED = 1 << 4,
+
+    KERNEL_TEXT = EXEC | GLOBAL,
+    KERNEL_RODATA = GLOBAL,
+    KERNEL_DATA = WRITE | GLOBAL,
+    MMIO = WRITE | GLOBAL | UNCACHED,
+};
+
+[[nodiscard]] constexpr page_prot operator|(page_prot a, page_prot b)
+{
+    return (a as(u8) | b as(u8)) as(page_prot);
+}
+
+[[nodiscard]] constexpr page_prot operator&(page_prot a, page_prot b)
+{
+    return (a as(u8) & b as(u8)) as(page_prot);
+}
+
+constexpr page_prot &operator|=(page_prot &a, page_prot b)
+{
+    return a = a | b;
+}
+
+[[nodiscard]] constexpr bool has(page_prot set, page_prot bit)
+{
+    return (set & bit) != page_prot::NONE;
+}
+
+enum class mm_error : u8 {
+    OUT_OF_MEMORY,
+    INVALID_ADDRESS,
+    UNSUPPORTED_SIZE,
+    NOT_MAPPED,
+    CONFLICT,
+};
+
+struct mapping {
+    paddr_t   frame;
+    u64       offset;
+    page_size size;
+    page_prot prot;
+
+    [[nodiscard]] paddr_t physical() const
+    {
+        return frame + offset;
     }
-    return 0;
-}
-
-[[nodiscard]] inline constexpr u64 shift_of(page_size size)
-{
-    switch (size) {
-        case page_size::SIZE_4K: return page_4k::shift;
-        case page_size::SIZE_2M: return page_2m::shift;
-        case page_size::SIZE_1G: return page_1g::shift;
-    }
-    return 0;
-}
-
-[[nodiscard]] inline constexpr usize frames_in(page_size size)
-{
-    switch (size) {
-        case page_size::SIZE_4K: return page_4k::frames;
-        case page_size::SIZE_2M: return page_2m::frames;
-        case page_size::SIZE_1G: return page_1g::frames;
-    }
-    return 0;
-}
-
-[[nodiscard]] inline constexpr bool is_sw_allocatable(page_size size)
-{
-    switch (size) {
-        case page_size::SIZE_4K: return page_4k::is_sw_allocatable;
-        case page_size::SIZE_2M: return page_2m::is_sw_allocatable;
-        case page_size::SIZE_1G: return page_1g::is_sw_allocatable;
-    }
-    return false;
-}
-
-[[nodiscard]] inline constexpr bool is_page_size(u64 bytes)
-{
-    return bytes == page_4k::bytes || bytes == page_2m::bytes || bytes == page_1g::bytes;
-}
-
-[[nodiscard]] inline constexpr page_size page_size_of(u64 bytes)
-{
-    return bytes == page_4k::bytes   ? page_size::SIZE_4K
-         : bytes == page_2m::bytes   ? page_size::SIZE_2M
-                                     : page_size::SIZE_1G;
-}
+};
 
 }  // namespace kernel::mm
 

@@ -38,7 +38,7 @@ namespace vmm = kernel::mm::vmm;
 
 constexpr usize FRAME_BYTES = 2 * 1024 * 1024;
 
-static_assert(FRAME_BYTES == kernel::mm::PAGE_SIZE_2M,
+static_assert(FRAME_BYTES == kernel::mm::bytes_in(kernel::mm::page_size::SIZE_2M),
               "the heap grows one MMU page at a time, so its unit is that page");
 
 constexpr usize NATURAL_ALIGNMENT = 2 * sizeof(void *);
@@ -55,18 +55,18 @@ u8 *claim_frame()
 {
     // The frame is only ours once it has a window: without one there is no way to reach it, so
     // the failed lookup hands it straight back rather than leaking it for the life of the kernel.
-    return pmm::alloc_page(pmm::page_size::SIZE_2M)
+    return pmm::alloc(kernel::mm::page_size::SIZE_2M)
         .map([](paddr_t frame) -> u8 * {
             void *window = vmm::phy_to_vrt(frame);
 
             if (window == nullptr) {
-                pmm::free_page(pmm::page_size::SIZE_2M, frame);
+                pmm::free(kernel::mm::page_size::SIZE_2M, frame);
                 return nullptr;
             }
 
             return static_cast<u8 *>(window);
         })
-        .unwrap_or(static_cast<u8 *>(nullptr));
+        .unwrap_or(nullptr);
 }
 
 }  // namespace

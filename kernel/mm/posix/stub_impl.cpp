@@ -8,9 +8,8 @@
 // Kernel files
 // =================================================================================================
 
-#include "arch/x86_64/mmu/direct_map.hpp"
-#include "arch/x86_64/mmu/mmu.hpp"
 #include "kernel/mm/pmm.hpp"
+#include "kernel/mm/vmm.hpp"
 
 namespace {
 
@@ -44,16 +43,16 @@ u64 aligned_up(u64 value, u64 alignment)
 bool ensure_break()
 {
     namespace pmm = kernel::mm::pmm;
-    namespace mmu = kernel::arch::x86_64::mmu;
+    namespace vmm = kernel::mm::vmm;
 
     if (m_break_base != nullptr) {
         return true;
     }
 
     m_break_base =
-        pmm::alloc_page(kernel::mm::page_size::SIZE_2M)
-            .map([](paddr_t page) { return static_cast<u8 *>(mmu::phy_to_vrt(page)); })
-            .unwrap_or(static_cast<u8 *>(nullptr));
+        pmm::alloc(kernel::mm::page_size::SIZE_2M)
+            .map([](paddr_t page) { return static_cast<u8 *>(vmm::phy_to_vrt(page)); })
+            .unwrap_or(nullptr);
 
     return m_break_base != nullptr;
 }
@@ -159,7 +158,8 @@ extern "C" int munmap(void *address, size_t length)
 
 extern "C" int mprotect(void *address, size_t length, int protection)
 {
-    namespace mmu = kernel::arch::x86_64::mmu;
+    using kernel::mm::has;
+    using kernel::mm::page_prot;
 
     if (address == nullptr || length == 0) {
         errno = EINVAL;
@@ -177,14 +177,14 @@ extern "C" int mprotect(void *address, size_t length, int protection)
     const u64 last = aligned_up(reinterpret_cast<u64>(address) + length, PAGE_SIZE);
 
     for (u64 page = first; page < last; page += PAGE_SIZE) {
-        const mmu::mapping resolved = mmu::vrt_to_phy(page);
+        const auto resolved = kernel::mm::vmm::vrt_to_phy(page);
 
-        if (!resolved.present) {
+        if (resolved.is_err()) {
             errno = ENOMEM;
             return -1;
         }
 
-        const u64 flags = resolved.flags.word(0);
+        const page_prot prot = resolved.unwrap_ref().prot;
 
         // PROT_NONE asks for access to be taken away, which is the one thing this cannot do at
         // all: the page stays readable and writable whatever is returned here.
@@ -193,12 +193,12 @@ extern "C" int mprotect(void *address, size_t length, int protection)
             return -1;
         }
 
-        if ((protection & PROT_WRITE) == 0 && (flags & mmu::PAGE_FLAG_WRITABLE) != 0) {
+        if ((protection & PROT_WRITE) == 0 && has(prot, page_prot::WRITE)) {
             errno = ENOSYS;
             return -1;
         }
 
-        if ((protection & PROT_EXEC) != 0 && (flags & mmu::PAGE_FLAG_NO_EXECUTE) != 0) {
+        if ((protection & PROT_EXEC) != 0 && !has(prot, page_prot::EXEC)) {
             errno = ENOSYS;
             return -1;
         }

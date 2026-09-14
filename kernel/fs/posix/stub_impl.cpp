@@ -8,7 +8,7 @@
 // Kernel files
 // =================================================================================================
 
-#include "arch/x86_64/mmu/direct_map.hpp"
+#include "kernel/mm/vmm.hpp"
 #include "kernel/boot/boot_info.hpp"
 #include "kernel/debug/emit.hpp"
 
@@ -171,7 +171,7 @@ extern "C" int open(const char *path, int flags, ...)
             continue;
         }
 
-        void *window = kernel::arch::x86_64::mmu::phy_to_vrt(module.range.base);
+        void *window = kernel::mm::vmm::phy_to_vrt(module.range.base);
 
         if (window == nullptr) {
             errno = ENOMEM;

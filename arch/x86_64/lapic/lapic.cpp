@@ -5,6 +5,7 @@
 #include "arch/x86_64/lapic/lapic.hpp"
 
 #include "arch/x86_64/core_init.hpp"
+#include "kernel/core/cast.hpp"
 #include "kernel/acpi/madt.hpp"
 #include "kernel/mm/page.hpp"
 #include "kernel/mm/vmm.hpp"
@@ -60,12 +61,12 @@ kernel::init::init_result init(paddr_t lapic_base_address)
         return kernel::core::Err(kernel::init::init_error::INVALID_BOOT_DATA);
     }
 
-    auto mapping = kernel::mm::vmm::map_mmio(lapic_base_address, kernel::mm::PAGE_SIZE_4K);
+    auto mapping = kernel::mm::vmm::map_mmio(lapic_base_address, kernel::mm::FRAME_SIZE);
     if (mapping.is_err())
         return kernel::core::Err(kernel::init::init_error::NO_USABLE_MEMORY);
 
     m_lapic_base_paddr = lapic_base_address;
-    m_lapic_base_vaddr = mapping.unwrap_ref();
+    m_lapic_base_vaddr = mapping.unwrap_ref() as(vaddr_t);
 
     return kernel::core::Ok();
 }
