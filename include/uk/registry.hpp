@@ -17,10 +17,6 @@ namespace uk::detail {
 #    define RESULT_ERROR(message__) ::uk::detail::result_error(message__)
 #endif
 
-#ifndef RESULT_SMALL_ENUM_SENTINEL_PROBE_SEQUENCE
-#    define RESULT_SMALL_ENUM_SENTINEL_PROBE_SEQUENCE 32
-#endif
-
 // =================================================================================================
 // Third-party files
 // =================================================================================================
@@ -29,9 +25,9 @@ namespace uk::detail {
 
 namespace uk {
 
-using lsr::Err;
-using lsr::Ok;
-using lsr::Result;
+using lsr::result::Err;
+using lsr::result::Ok;
+using lsr::result::Result;
 
 // =================================================================================================
 // Driver records

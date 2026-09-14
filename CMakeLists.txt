@@ -110,7 +110,7 @@ set(BUILD_TESTING OFF)
 # Freestanding via __STDC_HOSTED__
 FetchContent_Declare(result
         GIT_REPOSITORY https://github.com/LuisRuisinger/result.git
-        GIT_TAG c5f66e342e3b40a8b86733a5d5cc689c663645f7)
+        GIT_TAG 57046555b6db0adcb1c9ec1232919cab79397865)
 FetchContent_MakeAvailable(result)
 
 # Freestanding via __STDC_HOSTED__
