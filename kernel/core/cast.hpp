@@ -1,171 +1,174 @@
 #ifndef DOOM_OS_KERNEL_CORE_CAST_HPP_
 #define DOOM_OS_KERNEL_CORE_CAST_HPP_
 
-// =================================================================================================
-// Cpp stdlib files
-// =================================================================================================
-
-#include <stddef.h>
-
+#include <cstddef>
 #include <type_traits>
 #include <utility>
 
 // =================================================================================================
-// `x as T`
+// RTTI Configuration
 // =================================================================================================
-//
-// An infix cast that picks the cast itself:
-//
-//     void *aligned = ((ptr as uintptr_t + (align - 1)) & ~(align - 1)) as void *;
-//
-// Order, per (source, target) pair, decided at compile time - see auto_cast:
-//   1. static_cast where well-formed. A polymorphic downcast is additionally checked against
-//      dynamic_cast where RTTI exists; the kernel has none, so there it is a plain static_cast.
-//   2. dynamic_cast where only that is well-formed (cross-casts, casts across a virtual base).
-//      Never in the kernel: under -fno-rtti dynamic_cast is never well-formed.
-//   3. reinterpret_cast: integer/pointer and pointer/pointer punning. Refused between two
-//      polymorphic class types - that is a cross-cast, which step 2 would have handled with RTTI
-//      and which must not quietly become pointer punning without it. Spell reinterpret_cast.
-//   4. otherwise a static_assert.
-//
-// How the target type gets out of a bare type-id: `as` expands to `->* tag{} ->* new (tag{}) T`.
-// The first ->* binds the operand, the second receives the placement-new expression. The tag
-// overload of operator new is noexcept and returns nullptr, so the new-expression evaluates to a
-// `T*` null pointer and initialises nothing ([expr.new]); its only job is carrying T. The
-// operator->* deduces T from that pointer. Nothing survives -O2.
-//
-// The alternative front end, `->* &as_t::operator T` with a conversion function template, is the
-// one usually posted. GCC rejects it: `&as_t::operator T` is an unresolved overload set to GCC and
-// deduction from it fails ([temp.deduct.call]/6); only Clang treats the conversion-type-id as
-// naming a single specialisation. The kernel is built with x86_64-elf-g++, hence new.
-//
-// Consequences of going through new:
-//   - the target must be a type `new T` accepts: scalars, pointers, default-constructible classes.
-//     No reference targets - cast the address instead - and no classes without a default
-//     constructor;
-//   - the expression is not a constant expression;
-//   - the target greedily absorbs trailing declarators: `x as int * 2` is a cast to int*.
-//     Parenthesise: `(x as int) * 2`. Binary operators other than * and & are safe, which is why
-//     `ptr as uintptr_t + (align - 1)` parses as intended - and ->* binds tighter than +.
-//
-// `as` is a global macro. No identifier in the tree spells `as` today; keep it that way.
+
+#if defined(__cpp_rtti) || defined(__GXX_RTTI)
+#    define DOOM_OS_CAST_HAS_RTTI 1
+#else
+#    define DOOM_OS_CAST_HAS_RTTI 0
+#endif
+
+#ifndef DOOM_OS_CAST_ENABLE_RTTI
+#    define DOOM_OS_CAST_ENABLE_RTTI DOOM_OS_CAST_HAS_RTTI
+#endif
+
+#if DOOM_OS_CAST_ENABLE_RTTI && !DOOM_OS_CAST_HAS_RTTI
+#    error "DOOM_OS_CAST_ENABLE_RTTI requires compiler RTTI support (-frtti)"
+#endif
 
 namespace kernel::core::cast {
 
-struct tag {};
+inline constexpr bool has_rtti = DOOM_OS_CAST_HAS_RTTI != 0;
+inline constexpr bool rtti_enabled = DOOM_OS_CAST_ENABLE_RTTI != 0;
 
 namespace detail {
 
-template <class...>
-inline constexpr bool always_false_v = false;
+template <typename T>
+using object_t = std::remove_cv_t<std::remove_pointer_t<std::remove_reference_t<T>>>;
 
-#if defined(__cpp_rtti)
-inline constexpr bool has_rtti = true;
-#else
-inline constexpr bool has_rtti = false;
-#endif
+template <typename T>
+concept complete = requires { sizeof(T); };
 
-template <class T>
-using raw_t = std::remove_cv_t<std::remove_pointer_t<std::remove_reference_t<T>>>;
+template <typename T>
+concept possibly_polymorphic = std::is_class_v<T> && (!complete<T> || std::is_polymorphic_v<T>);
 
-// =================================================================================================
-// Checked downcast
-// =================================================================================================
-//
-// static_cast; where RTTI exists the dynamic type is verified first. The kernel builds with
-// -fno-rtti, so there this is the static_cast alone - the check is for hosted builds that include
-// this header.
+template <typename To, typename From>
+concept static_castable = requires(From &&f) { static_cast<To>(std::forward<From>(f)); };
 
-template <class To, class From>
-constexpr To checked_downcast(From&& f)
+template <typename To, typename From>
+concept reinterpret_castable = requires(From &&f) { reinterpret_cast<To>(std::forward<From>(f)); };
+
+template <typename To, typename From>
+concept permitted_reinterpret =
+    reinterpret_castable<To, From> &&
+    !(possibly_polymorphic<object_t<To>> && possibly_polymorphic<object_t<From>>);
+
+#if DOOM_OS_CAST_ENABLE_RTTI
+
+template <typename To, typename From>
+concept dynamic_castable = requires(From &&f) { dynamic_cast<To>(std::forward<From>(f)); };
+
+template <typename To, typename From>
+concept checked_downcastable = static_castable<To, From> && dynamic_castable<To, From> &&
+                               (!std::is_same_v<object_t<To>, object_t<From>>) &&
+                               std::is_base_of_v<object_t<From>, object_t<To>>;
+
+template <typename To, typename From>
+constexpr To checked_pointer(From *source) noexcept
 {
-    if constexpr (has_rtti) {
-        if constexpr (std::is_pointer_v<std::remove_reference_t<To>>) {
-            if (!(f == nullptr || dynamic_cast<To>(f) == static_cast<To>(f))) {
-                __builtin_trap();
-            }
-        } else {
-            using ptr = std::add_pointer_t<std::remove_reference_t<To>>;
-            if (dynamic_cast<ptr>(__builtin_addressof(f)) != static_cast<ptr>(__builtin_addressof(f))) {
-                __builtin_trap();
-            }
-        }
+    if (source == nullptr) {
+        return nullptr;
     }
 
-    return static_cast<To>(std::forward<From>(f));
+    auto *result = dynamic_cast<To>(source);
+    using source_view = const volatile std::remove_cv_t<From> *;
+
+    // Verify valid subobject and trap on cast mismatch
+    if (result == nullptr || static_cast<source_view>(result) != source) {
+        __builtin_trap();
+    }
+
+    return result;
 }
 
-// =================================================================================================
-// Strategy selection
-// =================================================================================================
-
-template <class To, class From>
-constexpr decltype(auto) auto_cast(From&& f)
+template <typename To, typename From>
+constexpr To checked_downcast(From &&value) noexcept
 {
-    constexpr bool can_static = requires { static_cast<To>(std::forward<From>(f)); };
-    constexpr bool can_dynamic = requires { dynamic_cast<To>(std::forward<From>(f)); };
-    constexpr bool can_reinterpret = requires { reinterpret_cast<To>(std::forward<From>(f)); };
-    constexpr bool cross_cast = std::is_polymorphic_v<raw_t<From>> && std::is_polymorphic_v<raw_t<To>>;
-
-    // Both static and dynamic: upcast/identity is free, downcast is checked, anything else
-    // (polymorphic pointer to void*) is static.
-    if constexpr (can_static && can_dynamic) {
-        if constexpr (std::is_base_of_v<raw_t<To>, raw_t<From>>) {
-            return static_cast<To>(std::forward<From>(f));
-        } else if constexpr (std::is_base_of_v<raw_t<From>, raw_t<To>>) {
-            return checked_downcast<To>(std::forward<From>(f));
-        } else {
-            return static_cast<To>(std::forward<From>(f));
-        }
-    }
-    // Static only: arithmetic, void*, non-polymorphic hierarchies, explicit constructors.
-    else if constexpr (can_static) {
-        return static_cast<To>(std::forward<From>(f));
-    }
-    // Dynamic only: cross-casts, downcasts across a virtual base.
-    else if constexpr (can_dynamic) {
-        return dynamic_cast<To>(std::forward<From>(f));
-    }
-    // Reinterpret: integer/pointer, pointer/pointer - but not a cross-cast, see the header comment.
-    else if constexpr (can_reinterpret && !cross_cast) {
-        return reinterpret_cast<To>(std::forward<From>(f));
+    if constexpr (std::is_pointer_v<To>) {
+        return checked_pointer<To>(value);
     } else {
-        static_assert(always_false_v<To>, "as: no cast applies");
+        using target_pointer = std::add_pointer_t<std::remove_reference_t<To>>;
+        auto *result = checked_pointer<target_pointer>(__builtin_addressof(value));
+        return static_cast<To>(*result);
     }
 }
+
+template <typename To, typename From>
+constexpr To dynamic_cast_or_trap(From &&value) noexcept
+{
+    if constexpr (std::is_pointer_v<To>) {
+        return dynamic_cast<To>(value);
+    } else {
+        using target_pointer = std::add_pointer_t<std::remove_reference_t<To>>;
+        auto *result = dynamic_cast<target_pointer>(__builtin_addressof(value));
+        if (result == nullptr) {
+            __builtin_trap();
+        }
+        return static_cast<To>(*result);
+    }
+}
+
+#endif  // DOOM_OS_CAST_ENABLE_RTTI
 
 }  // namespace detail
 
 // =================================================================================================
-// Front end
+// Dispatch Pipeline
 // =================================================================================================
 
-template <class From>
-struct bound {
-    From v;
-
-    template <class To>
-    constexpr decltype(auto) operator->*(To *) const
-    {
-        return detail::auto_cast<To>(std::forward<From>(v));
-    }
-};
-
-template <class From>
-constexpr bound<From &&> operator->*(From &&v, tag) noexcept
+template <typename To, typename From>
+[[nodiscard]] constexpr To auto_cast(From &&value) noexcept
 {
-    return {std::forward<From>(v)};
+    if constexpr (std::is_void_v<To>) {
+        static_cast<void>(value);
+    }
+#if DOOM_OS_CAST_ENABLE_RTTI
+    // 1. Checked polymorphic downcast (traps on invalid type instead of throwing)
+    else if constexpr (detail::checked_downcastable<To, From>) {
+        return detail::checked_downcast<To>(std::forward<From>(value));
+    }
+#endif
+    // 2. Standard conversions, upcasts, and non-polymorphic casts
+    else if constexpr (detail::static_castable<To, From>) {
+        return static_cast<To>(std::forward<From>(value));
+    }
+#if DOOM_OS_CAST_ENABLE_RTTI
+    // 3. Dynamic cross-casting (when static_cast is invalid)
+    else if constexpr (detail::dynamic_castable<To, From>) {
+        return detail::dynamic_cast_or_trap<To>(std::forward<From>(value));
+    }
+#endif
+    // 4. Pointer/integer reinterpretation (blocks accidental polymorphic slicing)
+    else if constexpr (detail::permitted_reinterpret<To, From>) {
+        return reinterpret_cast<To>(std::forward<From>(value));
+    } else {
+        static_assert(!sizeof(From), "Invalid cast: no compatible conversion strategy available.");
+    }
+}
+
+// Infix tag carrier
+template <typename To>
+struct as_tag {};
+
+template <typename From, typename To>
+[[nodiscard]] constexpr To operator->*(From &&from, as_tag<To>) noexcept
+{
+    return auto_cast<To>(std::forward<From>(from));
 }
 
 }  // namespace kernel::core::cast
 
-// The carrier for `new (tag) T`: noexcept and null, so the new-expression constructs nothing and
-// yields (T*)nullptr. Not an allocator; the kernel has no global operator new and this is not one.
-inline void *operator new(size_t, ::kernel::core::cast::tag) noexcept
-{
-    return nullptr;
-}
+#ifdef as
+#    undef as
+#endif
 
-#define as ->* ::kernel::core::cast::tag{} ->* new (::kernel::core::cast::tag{})
+#define as(...)                                  \
+    ->*::kernel::core::cast::as_tag<__VA_ARGS__> \
+    {                                            \
+    }
+
+// =================================================================================================
+// Compile-Time Tests
+// =================================================================================================
+
+static_assert(3.5 as(int) == 3);
+static_assert((3.5 as(int) + 2) == 5);
 
 #endif  // DOOM_OS_KERNEL_CORE_CAST_HPP_
