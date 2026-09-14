@@ -8,8 +8,8 @@ namespace kernel::acpi {
 
 namespace {
 
-madt_info g_cached_madt_info{};
-bool      g_madt_parsed{false};
+madt_info m_cached_madt_info{};
+bool      m_madt_parsed{false};
 
 enum madt_type : u8 {
     TYPE_LAPIC                  = 0,
@@ -110,20 +110,20 @@ madt_info parse_madt(sdt_view view)
         entry_cursor += header->length;
     }
 
-    g_cached_madt_info = info;
-    g_madt_parsed      = true;
+    m_cached_madt_info = info;
+    m_madt_parsed      = true;
     return info;
 }
 
 const madt_info &get_madt_info()
 {
-    if (!g_madt_parsed) {
+    if (!m_madt_parsed) {
         sdt_view view = find_table("APIC");
         if (view.valid()) {
             parse_madt(view);
         }
     }
-    return g_cached_madt_info;
+    return m_cached_madt_info;
 }
 
 }  // namespace kernel::acpi

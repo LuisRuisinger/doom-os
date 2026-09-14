@@ -10,8 +10,8 @@ namespace kernel::boot::boot_info {
 
 namespace {
 
-kernel::boot::handoff g_handoff{};
-kernel::boot::info    g_info{};
+kernel::boot::handoff m_handoff{};
+kernel::boot::info    m_info{};
 
 }  // namespace
 
@@ -21,8 +21,8 @@ kernel::boot::info    g_info{};
 
 void set_handoff(kernel::boot::handoff source)
 {
-    g_handoff = source;
-    g_info.reset();
+    m_handoff = source;
+    m_info.reset();
 }
 
 void set_handoff(u64 magic, paddr_t address)
@@ -35,7 +35,7 @@ void set_handoff(u64 magic, paddr_t address)
 
 const kernel::boot::handoff &current_handoff()
 {
-    return g_handoff;
+    return m_handoff;
 }
 
 // =================================================================================================
@@ -44,12 +44,12 @@ const kernel::boot::handoff &current_handoff()
 
 const kernel::boot::info &current()
 {
-    return g_info;
+    return m_info;
 }
 
 bool available()
 {
-    return g_info.valid;
+    return m_info.valid;
 }
 
 // =================================================================================================
@@ -61,12 +61,12 @@ bool available()
 
 kernel::init::init_result component::parse()
 {
-    g_info.reset();
+    m_info.reset();
 
-    auto outcome = kernel::boot::active_boot_protocol::parse(g_handoff, g_info);
+    auto outcome = kernel::boot::active_boot_protocol::parse(m_handoff, m_info);
 
     if (outcome.is_err()) {
-        g_info.reset();
+        m_info.reset();
         return outcome;
     }
 
@@ -74,12 +74,12 @@ kernel::init::init_result component::parse()
     // translation. A machine with more regions than the tables hold is a machine we cannot
     // describe, and a partial description is indistinguishable from a complete one once
     // valid is set.
-    if (g_info.truncated()) {
-        g_info.reset();
+    if (m_info.truncated()) {
+        m_info.reset();
         return kernel::core::Err(kernel::init::init_error::CAPACITY_EXCEEDED);
     }
 
-    g_info.valid = true;
+    m_info.valid = true;
     return kernel::core::Ok();
 }
 

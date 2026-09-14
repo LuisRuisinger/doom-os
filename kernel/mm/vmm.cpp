@@ -21,7 +21,7 @@ struct mmio_allocator {
     vaddr_t                cursor{MMIO_MAP_BASE};
 };
 
-mmio_allocator g_mmio{};
+mmio_allocator m_mmio{};
 
 }  // namespace
 
@@ -79,13 +79,13 @@ Result<vaddr_t, vmm_error> map_mmio(paddr_t physical_address, usize bytes)
     vaddr_t virt_start = 0;
 
     {
-        kernel::sync::spinlock_guard guard(g_mmio.lock);
+        kernel::sync::spinlock_guard guard(m_mmio.lock);
 
-        if (length > (MMIO_MAP_BASE + MMIO_MAP_SIZE) - g_mmio.cursor)
+        if (length > (MMIO_MAP_BASE + MMIO_MAP_SIZE) - m_mmio.cursor)
             return kernel::core::Err(vmm_error::OUT_OF_ADDRESS_SPACE);
 
-        virt_start = g_mmio.cursor;
-        g_mmio.cursor += length;
+        virt_start = m_mmio.cursor;
+        m_mmio.cursor += length;
     }
 
     return map_range(virt_start, phys_base, length, page_size::SIZE_4K, flags_mmio()).map([&] {

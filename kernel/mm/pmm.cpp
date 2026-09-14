@@ -131,7 +131,7 @@ struct allocator_state {
     kernel::sync::spinlock lock{};
 };
 
-allocator_state g_allocator{};
+allocator_state m_allocator{};
 
 // Both symbols carry physical addresses: the image spans the identity mapped boot sections
 // through the end of the higher-half image.
@@ -150,42 +150,42 @@ extern "C" char kernel_physical_end[];
     if (free_count == 0)
         return nullptr;
 
-    return free_count == FRAMES_PER_2M ? &g_allocator.whole_head : &g_allocator.broken_head;
+    return free_count == FRAMES_PER_2M ? &m_allocator.whole_head : &m_allocator.broken_head;
 }
 
 void list_insert(u16 &head, block_id block)
 {
-    g_allocator.prev[block.raw] = NIL;
-    g_allocator.next[block.raw] = head;
+    m_allocator.prev[block.raw] = NIL;
+    m_allocator.next[block.raw] = head;
 
     if (head != NIL)
-        g_allocator.prev[head] = static_cast<u16>(block.raw);
+        m_allocator.prev[head] = static_cast<u16>(block.raw);
 
     head = static_cast<u16>(block.raw);
 }
 
 void list_remove(u16 &head, block_id block)
 {
-    const u16 next = g_allocator.next[block.raw];
-    const u16 prev = g_allocator.prev[block.raw];
+    const u16 next = m_allocator.next[block.raw];
+    const u16 prev = m_allocator.prev[block.raw];
 
     if (prev == NIL)
         head = next;
     else
-        g_allocator.next[prev] = next;
+        m_allocator.next[prev] = next;
 
     if (next != NIL)
-        g_allocator.prev[next] = prev;
+        m_allocator.prev[next] = prev;
 
-    g_allocator.next[block.raw] = NIL;
-    g_allocator.prev[block.raw] = NIL;
+    m_allocator.next[block.raw] = NIL;
+    m_allocator.prev[block.raw] = NIL;
 }
 
 // The one place a block's free count changes, and therefore the one place it moves between
 // lists. Everything else calls this and stays out of the links.
 void set_free_count(block_id block, usize now)
 {
-    const usize before = g_allocator.free_in[block.raw];
+    const usize before = m_allocator.free_in[block.raw];
 
     if (before == now)
         return;
@@ -201,7 +201,7 @@ void set_free_count(block_id block, usize now)
             list_insert(*to, block);
     }
 
-    g_allocator.free_in[block.raw] = static_cast<u16>(now);
+    m_allocator.free_in[block.raw] = static_cast<u16>(now);
 }
 
 // =================================================================================================
@@ -217,7 +217,7 @@ void set_free_count(block_id block, usize now)
 
     while (taken < count) {
         const u16 head =
-            g_allocator.broken_head != NIL ? g_allocator.broken_head : g_allocator.whole_head;
+            m_allocator.broken_head != NIL ? m_allocator.broken_head : m_allocator.whole_head;
 
         if (head == NIL)
             break;
@@ -228,7 +228,7 @@ void set_free_count(block_id block, usize now)
         usize from_block = 0;
 
         for (usize i = 0; i < WORDS_PER_BLOCK && taken < count; ++i) {
-            u64 &word = g_allocator.frames.word(base_word + i);
+            u64 &word = m_allocator.frames.word(base_word + i);
             u64  bits = word;
 
             if (bits == 0)
@@ -251,8 +251,8 @@ void set_free_count(block_id block, usize now)
         if (from_block == 0)
             KPANIC("pmm: block {} is listed as free but holds nothing", block.raw);
 
-        g_allocator.free_frames -= from_block;
-        set_free_count(block, g_allocator.free_in[block.raw] - from_block);
+        m_allocator.free_frames -= from_block;
+        set_free_count(block, m_allocator.free_in[block.raw] - from_block);
     }
 
     return taken;
@@ -260,14 +260,14 @@ void set_free_count(block_id block, usize now)
 
 [[nodiscard]] paddr_t take_2m_locked()
 {
-    if (g_allocator.whole_head == NIL)
+    if (m_allocator.whole_head == NIL)
         return INVALID_PHYSICAL_ADDRESS;
 
-    const block_id block{g_allocator.whole_head};
+    const block_id block{m_allocator.whole_head};
     const frame_id first = first_frame_of(block);
 
-    g_allocator.frames.clear(first.raw, FRAMES_PER_2M);
-    g_allocator.free_frames -= FRAMES_PER_2M;
+    m_allocator.frames.clear(first.raw, FRAMES_PER_2M);
+    m_allocator.free_frames -= FRAMES_PER_2M;
     set_free_count(block, 0);
 
     return address_of(first);
@@ -284,7 +284,7 @@ void set_free_count(block_id block, usize now)
         usize whole = 0;
 
         while (whole < BLOCKS_PER_1G &&
-               g_allocator.free_in[first_block.raw + whole] == FRAMES_PER_2M)
+               m_allocator.free_in[first_block.raw + whole] == FRAMES_PER_2M)
             ++whole;
 
         if (whole != BLOCKS_PER_1G)
@@ -292,8 +292,8 @@ void set_free_count(block_id block, usize now)
 
         const frame_id first = first_frame_of(first_block);
 
-        g_allocator.frames.clear(first.raw, FRAMES_PER_1G);
-        g_allocator.free_frames -= FRAMES_PER_1G;
+        m_allocator.frames.clear(first.raw, FRAMES_PER_1G);
+        m_allocator.free_frames -= FRAMES_PER_1G;
 
         for (usize i = 0; i < BLOCKS_PER_1G; ++i)
             set_free_count(first_block + i, 0);
@@ -308,7 +308,7 @@ void set_free_count(block_id block, usize now)
 // condition, so it panics instead of reporting.
 void release_locked(page_size size, paddr_t base)
 {
-    if (!g_allocator.initialized)
+    if (!m_allocator.initialized)
         KPANIC("pmm: release of {:#018X} before the allocator is initialised", base);
 
     if (!is_aligned<paddr_t>(base, bytes_in(size)))
@@ -317,24 +317,24 @@ void release_locked(page_size size, paddr_t base)
     const usize    count = frames_in(size);
     const frame_id first = frame_at(base);
 
-    if (first.raw >= g_allocator.managed_frames || count > g_allocator.managed_frames - first.raw)
+    if (first.raw >= m_allocator.managed_frames || count > m_allocator.managed_frames - first.raw)
         KPANIC("pmm: release of {} frames at {:#018X} leaves the managed range", count, base);
 
     // A frame in the range that is already free means the caller is handing back something it
     // does not hold.
-    const usize already_free = g_allocator.frames.find_set_in(first.raw, count);
+    const usize already_free = m_allocator.frames.find_set_in(first.raw, count);
 
     if (already_free != NPOS)
         KPANIC("pmm: double free of frame {:#018X} in a {} frame release at {:#018X}",
                address_of(frame_id{already_free}), count, base);
 
-    g_allocator.frames.set(first.raw, count);
-    g_allocator.free_frames += count;
+    m_allocator.frames.set(first.raw, count);
+    m_allocator.free_frames += count;
 
     const block_id block = block_of(first);
 
     if (count < FRAMES_PER_2M) {
-        set_free_count(block, g_allocator.free_in[block.raw] + count);
+        set_free_count(block, m_allocator.free_in[block.raw] + count);
         return;
     }
 
@@ -351,17 +351,17 @@ void release_locked(page_size size, paddr_t base)
 
 void reset_state()
 {
-    g_allocator.frames.reset();
+    m_allocator.frames.reset();
 
     for (usize block = 0; block < BLOCK_COUNT; ++block) {
-        g_allocator.free_in[block] = 0;
-        g_allocator.next[block] = NIL;
-        g_allocator.prev[block] = NIL;
+        m_allocator.free_in[block] = 0;
+        m_allocator.next[block] = NIL;
+        m_allocator.prev[block] = NIL;
     }
 
-    g_allocator.whole_head = NIL;
-    g_allocator.broken_head = NIL;
-    g_allocator.free_frames = 0;
+    m_allocator.whole_head = NIL;
+    m_allocator.broken_head = NIL;
+    m_allocator.free_frames = 0;
 }
 
 [[nodiscard]] paddr_t range_end(paddr_t base, u64 length)
@@ -398,9 +398,9 @@ void mark_range(paddr_t base, u64 length, paddr_t limit, bool usable)
     const usize count = static_cast<usize>((end - first) >> FRAME_SHIFT);
 
     if (usable)
-        g_allocator.frames.set(frame_at(first).raw, count);
+        m_allocator.frames.set(frame_at(first).raw, count);
     else
-        g_allocator.frames.clear(frame_at(first).raw, count);
+        m_allocator.frames.clear(frame_at(first).raw, count);
 }
 
 void ingest(const kernel::boot::info &boot, paddr_t limit)
@@ -440,10 +440,10 @@ void build_lists()
 {
     for (usize i = 0; i < BLOCK_COUNT; ++i) {
         const block_id block{i};
-        const usize    free = g_allocator.frames.count_set(i * WORDS_PER_BLOCK, WORDS_PER_BLOCK);
+        const usize    free = m_allocator.frames.count_set(i * WORDS_PER_BLOCK, WORDS_PER_BLOCK);
 
         set_free_count(block, free);
-        g_allocator.free_frames += free;
+        m_allocator.free_frames += free;
     }
 }
 
@@ -480,12 +480,12 @@ Result<void, pmm_error> alloc_pages(page_size size, usize count, paddr_t *out)
     if (out == nullptr)
         return kernel::core::Err(pmm_error::INVALID_ARGUMENT);
 
-    kernel::sync::spinlock_guard guard(g_allocator.lock);
+    kernel::sync::spinlock_guard guard(m_allocator.lock);
 
-    if (!g_allocator.initialized)
+    if (!m_allocator.initialized)
         return kernel::core::Err(pmm_error::NOT_INITIALIZED);
 
-    if (count * frames_in(size) > g_allocator.free_frames)
+    if (count * frames_in(size) > m_allocator.free_frames)
         return kernel::core::Err(pmm_error::OUT_OF_MEMORY);
 
     if (size == page_size::SIZE_4K) {
@@ -523,7 +523,7 @@ void free_pages(page_size size, usize count, const paddr_t *pages)
     if (pages == nullptr)
         KPANIC("pmm: release of {} pages of {} bytes from a null array", count, bytes_in(size));
 
-    kernel::sync::spinlock_guard guard(g_allocator.lock);
+    kernel::sync::spinlock_guard guard(m_allocator.lock);
 
     for (usize i = 0; i < count; ++i)
         release_locked(size, pages[i]);
@@ -559,19 +559,19 @@ kernel::init::init_result component::init_allocator()
     if (limit == 0)
         return kernel::core::Err(init_error::NO_USABLE_MEMORY);
 
-    kernel::sync::spinlock_guard guard(g_allocator.lock);
+    kernel::sync::spinlock_guard guard(m_allocator.lock);
 
-    g_allocator.initialized = false;
-    g_allocator.managed_frames = static_cast<usize>(limit >> FRAME_SHIFT);
+    m_allocator.initialized = false;
+    m_allocator.managed_frames = static_cast<usize>(limit >> FRAME_SHIFT);
 
     reset_state();
     ingest(boot, limit);
     build_lists();
 
-    if (g_allocator.free_frames == 0)
+    if (m_allocator.free_frames == 0)
         return kernel::core::Err(init_error::NO_USABLE_MEMORY);
 
-    g_allocator.initialized = true;
+    m_allocator.initialized = true;
 
     return kernel::core::Ok();
 }

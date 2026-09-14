@@ -13,8 +13,8 @@ namespace kernel::arch::x86_64::lapic {
 
 namespace {
 
-vaddr_t g_lapic_base_vaddr{};
-paddr_t g_lapic_base_paddr{};
+vaddr_t m_lapic_base_vaddr{};
+paddr_t m_lapic_base_paddr{};
 
 inline constexpr u8 SPURIOUS_INTERRUPT_VECTOR = 0xFF;
 
@@ -45,7 +45,7 @@ kernel::init::init_result component::init_lapic()
 
 bool is_ready()
 {
-    return g_lapic_base_vaddr != 0;
+    return m_lapic_base_vaddr != 0;
 }
 
 kernel::init::init_result init(paddr_t lapic_base_address)
@@ -53,8 +53,8 @@ kernel::init::init_result init(paddr_t lapic_base_address)
     if (lapic_base_address == 0)
         return kernel::core::Err(kernel::init::init_error::INVALID_BOOT_DATA);
 
-    if (g_lapic_base_vaddr != 0) {
-        if (g_lapic_base_paddr == lapic_base_address)
+    if (m_lapic_base_vaddr != 0) {
+        if (m_lapic_base_paddr == lapic_base_address)
             return kernel::core::Ok();
 
         return kernel::core::Err(kernel::init::init_error::INVALID_BOOT_DATA);
@@ -64,15 +64,15 @@ kernel::init::init_result init(paddr_t lapic_base_address)
     if (mapping.is_err())
         return kernel::core::Err(kernel::init::init_error::NO_USABLE_MEMORY);
 
-    g_lapic_base_paddr = lapic_base_address;
-    g_lapic_base_vaddr = mapping.unwrap_ref();
+    m_lapic_base_paddr = lapic_base_address;
+    m_lapic_base_vaddr = mapping.unwrap_ref();
 
     return kernel::core::Ok();
 }
 
 kernel::init::init_result init_core()
 {
-    if (g_lapic_base_vaddr == 0)
+    if (m_lapic_base_vaddr == 0)
         return kernel::core::Err(kernel::init::init_error::DEPENDENCY_UNAVAILABLE);
 
     // Clear Task Priority Register: accept all interrupt classes
@@ -112,7 +112,7 @@ u32 read(reg r)
 {
     barrier();
     const auto *address = reinterpret_cast<const volatile u32 *>(
-        g_lapic_base_vaddr + static_cast<u32>(r)
+        m_lapic_base_vaddr + static_cast<u32>(r)
     );
     const u32 value = *address;
     barrier();
@@ -123,7 +123,7 @@ void write(reg r, u32 value)
 {
     barrier();
     auto *address = reinterpret_cast<volatile u32 *>(
-        g_lapic_base_vaddr + static_cast<u32>(r)
+        m_lapic_base_vaddr + static_cast<u32>(r)
     );
     *address = value;
     barrier();

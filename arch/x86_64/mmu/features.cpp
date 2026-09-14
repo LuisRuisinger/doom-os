@@ -18,9 +18,9 @@ inline constexpr u32 EDX_PAGE_GLOBAL_ENABLE = u32{1} << 13;
 inline constexpr u32 EDX_NO_EXECUTE         = u32{1} << 20;
 inline constexpr u32 EDX_GIB_PAGES          = u32{1} << 26;
 
-bool g_nx_enabled{};
-bool g_global_pages_enabled{};
-bool g_gib_pages_supported{};
+bool m_nx_enabled{};
+bool m_global_pages_enabled{};
+bool m_gib_pages_supported{};
 
 }  // namespace
 
@@ -37,30 +37,30 @@ void enable_paging_features()
 
     if (nx_supported) {
         regs::write_msr(MSR_EFER, regs::read_msr(MSR_EFER) | EFER_NO_EXECUTE_ENABLE);
-        g_nx_enabled = true;
+        m_nx_enabled = true;
     }
 
     if (global_pages_supported) {
         regs::write_cr4(regs::read_cr4() | CR4_PAGE_GLOBAL_ENABLE);
-        g_global_pages_enabled = true;
+        m_global_pages_enabled = true;
     }
 
-    g_gib_pages_supported = (extended_edx & EDX_GIB_PAGES) != 0;
+    m_gib_pages_supported = (extended_edx & EDX_GIB_PAGES) != 0;
 }
 
 bool nx_enabled()
 {
-    return g_nx_enabled;
+    return m_nx_enabled;
 }
 
 bool global_pages_enabled()
 {
-    return g_global_pages_enabled;
+    return m_global_pages_enabled;
 }
 
 bool gib_pages_supported()
 {
-    return g_gib_pages_supported;
+    return m_gib_pages_supported;
 }
 
 }  // namespace kernel::arch::x86_64::mmu

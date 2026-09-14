@@ -67,10 +67,10 @@ extern "C" [[noreturn]] void _exit(int status)
 
 namespace {
 
-char *g_empty_environment[] = {nullptr};
+char *m_empty_environment[] = {nullptr};
 
 }  // namespace
 
 extern "C" {
-char **environ = g_empty_environment;
+char **environ = m_empty_environment;
 }

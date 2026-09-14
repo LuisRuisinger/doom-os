@@ -43,8 +43,8 @@ static_assert(FRAME_BYTES == kernel::mm::PAGE_SIZE_2M,
 
 constexpr usize NATURAL_ALIGNMENT = 2 * sizeof(void *);
 
-constinit bool g_heap_ready = false;
-constinit u8  *g_break = nullptr;
+constinit bool m_heap_ready = false;
+constinit u8  *m_break = nullptr;
 
 void *morecore_failure()
 {
@@ -78,7 +78,7 @@ u8 *claim_frame()
 extern "C" void *doom_os_kheap_morecore(ptrdiff_t increment)
 {
     if (increment == 0)
-        return g_break;
+        return m_break;
 
     if (increment < 0 || static_cast<usize>(increment) > FRAME_BYTES)
         return morecore_failure();
@@ -88,7 +88,7 @@ extern "C" void *doom_os_kheap_morecore(ptrdiff_t increment)
     if (frame == nullptr)
         return morecore_failure();
 
-    g_break = frame + FRAME_BYTES;
+    m_break = frame + FRAME_BYTES;
 
     return frame;
 }
@@ -106,7 +106,7 @@ namespace kernel::mm::kheap {
 
 void *alloc(usize bytes, usize alignment)
 {
-    if (!g_heap_ready)
+    if (!m_heap_ready)
         KPANIC("kernel heap used before KHEAP init");
 
     if (bytes == 0)
@@ -123,7 +123,7 @@ void free(void *ptr)
     if (ptr == nullptr)
         return;
 
-    if (!g_heap_ready)
+    if (!m_heap_ready)
         KPANIC("kernel heap freed before KHEAP init");
 
     dlfree(ptr);
@@ -135,7 +135,7 @@ void free(void *ptr)
 
 kernel::init::init_result component::init_heap()
 {
-    g_heap_ready = true;
+    m_heap_ready = true;
     return kernel::core::Ok();
 }
 

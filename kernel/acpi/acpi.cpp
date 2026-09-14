@@ -11,10 +11,10 @@ namespace kernel::acpi {
 
 namespace {
 
-paddr_t g_rsdp_phys{};
-paddr_t g_sdt_root_phys{};
-bool    g_is_xsdt{false};
-bool    g_initialized{false};
+paddr_t m_rsdp_phys{};
+paddr_t m_sdt_root_phys{};
+bool    m_is_xsdt{false};
+bool    m_initialized{false};
 
 [[nodiscard]] bool signature_match(const char a[4], const char b[4])
 {
@@ -38,16 +38,16 @@ bool validate_checksum(const void *pointer, usize length)
 
 void init(paddr_t rsdp_address)
 {
-    g_rsdp_phys = rsdp_address;
-    g_sdt_root_phys = 0;
-    g_is_xsdt = false;
-    g_initialized = false;
+    m_rsdp_phys = rsdp_address;
+    m_sdt_root_phys = 0;
+    m_is_xsdt = false;
+    m_initialized = false;
 
-    if (g_rsdp_phys == 0)
+    if (m_rsdp_phys == 0)
         return;
 
     const auto *rsdp = static_cast<const wire::rsdp_descriptor *>(
-        kernel::mm::vmm::phy_to_vrt(g_rsdp_phys)
+        kernel::mm::vmm::phy_to_vrt(m_rsdp_phys)
     );
 
     if (!rsdp)
@@ -64,28 +64,28 @@ void init(paddr_t rsdp_address)
     if (rsdp->revision >= 2 && rsdp->xsdt_address != 0) {
         if (!validate_checksum(rsdp, rsdp->length))
             return;
-        g_sdt_root_phys = static_cast<paddr_t>(rsdp->xsdt_address);
-        g_is_xsdt = true;
+        m_sdt_root_phys = static_cast<paddr_t>(rsdp->xsdt_address);
+        m_is_xsdt = true;
     } else {
-        g_sdt_root_phys = static_cast<paddr_t>(rsdp->rsdt_address);
-        g_is_xsdt = false;
+        m_sdt_root_phys = static_cast<paddr_t>(rsdp->rsdt_address);
+        m_is_xsdt = false;
     }
 
-    g_initialized = (g_sdt_root_phys != 0);
+    m_initialized = (m_sdt_root_phys != 0);
 }
 
 bool is_ready()
 {
-    return g_initialized;
+    return m_initialized;
 }
 
 sdt_view find_table(const char signature[4])
 {
-    if (!g_initialized)
+    if (!m_initialized)
         return {};
 
     const auto *root_header = static_cast<const wire::sdt_header *>(
-        kernel::mm::vmm::phy_to_vrt(g_sdt_root_phys)
+        kernel::mm::vmm::phy_to_vrt(m_sdt_root_phys)
     );
 
     if (!root_header || !validate_checksum(root_header, root_header->length))
@@ -98,7 +98,7 @@ sdt_view find_table(const char signature[4])
     const usize entries_bytes = root_header->length - header_size;
     const auto *entries_base = reinterpret_cast<const u8 *>(root_header) + header_size;
 
-    if (g_is_xsdt) {
+    if (m_is_xsdt) {
         const usize entry_count = entries_bytes / sizeof(u64);
         const auto *ptrs = reinterpret_cast<const u64 *>(entries_base);
 

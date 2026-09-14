@@ -30,8 +30,8 @@ using kernel::core::usize;
 // handed out.
 // =================================================================================================
 
-u8 *g_break_base = nullptr;
-u64 g_break_used = 0;
+u8 *m_break_base = nullptr;
+u64 m_break_used = 0;
 
 constexpr u64 BREAK_SIZE = 2 * 1024 * 1024;
 constexpr u64 PAGE_SIZE = 4096;
@@ -46,16 +46,16 @@ bool ensure_break()
     namespace pmm = kernel::mm::pmm;
     namespace mmu = kernel::arch::x86_64::mmu;
 
-    if (g_break_base != nullptr) {
+    if (m_break_base != nullptr) {
         return true;
     }
 
-    g_break_base =
+    m_break_base =
         pmm::alloc_page(kernel::mm::page_size::SIZE_2M)
             .map([](paddr_t page) { return static_cast<u8 *>(mmu::phy_to_vrt(page)); })
             .unwrap_or(static_cast<u8 *>(nullptr));
 
-    return g_break_base != nullptr;
+    return m_break_base != nullptr;
 }
 
 void zero_bytes(void *buffer, u64 length)
@@ -80,13 +80,13 @@ extern "C" void *sbrk(ptrdiff_t increment)
         return reinterpret_cast<void *>(-1);
     }
 
-    if (increment < 0 || g_break_used + static_cast<u64>(increment) > BREAK_SIZE) {
+    if (increment < 0 || m_break_used + static_cast<u64>(increment) > BREAK_SIZE) {
         errno = ENOMEM;
         return reinterpret_cast<void *>(-1);
     }
 
-    u8 *previous = g_break_base + g_break_used;
-    g_break_used += static_cast<u64>(increment);
+    u8 *previous = m_break_base + m_break_used;
+    m_break_used += static_cast<u64>(increment);
 
     return previous;
 }

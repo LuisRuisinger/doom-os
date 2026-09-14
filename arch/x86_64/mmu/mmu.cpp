@@ -63,22 +63,22 @@ extern "C" char __data_rel_ro_start[];
 // and the PMM cannot hand out a frame that is reachable that early. Being inside the image is
 // what makes them addressable through KERNEL_BASE while they are being filled in.
 //
-// g_identity_pd is load-bearing and cannot be dropped as a boot leftover: longmode.S leaves RSP
+// m_identity_pd is load-bearing and cannot be dropped as a boot leftover: longmode.S leaves RSP
 // on boot_stack_top in .boot.bss, a low physical address, and nothing ever moves it. The running
 // kernel stack is reachable only through the identity map. Removing it triple-faults on the next
 // push, with no diagnostic.
 // =================================================================================================
 
-page_table g_bootstrap_pml4{};
-page_table g_identity_pdpt{};
-page_table g_identity_pd{};
-page_table g_kernel_pdpt{};
-page_table g_kernel_pd{};
-page_table g_direct_pdpt{};
-page_table g_direct_pds[DIRECT_PD_COUNT]{};
+page_table m_bootstrap_pml4{};
+page_table m_identity_pdpt{};
+page_table m_identity_pd{};
+page_table m_kernel_pdpt{};
+page_table m_kernel_pd{};
+page_table m_direct_pdpt{};
+page_table m_direct_pds[DIRECT_PD_COUNT]{};
 
-address_space          g_kernel_space{};
-kernel::sync::spinlock g_kernel_space_lock{};
+address_space          m_kernel_space{};
+kernel::sync::spinlock m_kernel_space_lock{};
 
 void enable_write_protect()
 {
@@ -110,12 +110,12 @@ void enable_write_protect()
         return false;
 
     for (u64 offset = 0; offset < length; offset += step)
-        if (!g_kernel_space.map(virtual_address + offset, physical_address + offset, size, flags)) {
+        if (!m_kernel_space.map(virtual_address + offset, physical_address + offset, size, flags)) {
             // Removes what this call added, so a failure does not leave a half-mapped range
             // behind. It does not restore mappings that were replaced on the way through -
             // recording those to put them back is a bigger contract than any caller here wants.
             for (u64 done = 0; done < offset; done += step)
-                (void)g_kernel_space.unmap(virtual_address + done, size);
+                (void)m_kernel_space.unmap(virtual_address + done, size);
 
             return false;
         }
@@ -128,7 +128,7 @@ void enable_write_protect()
     const u64 step = bytes_in(size);
 
     for (u64 offset = 0; offset < length; offset += step)
-        if (!g_kernel_space.unmap(virtual_address + offset, size))
+        if (!m_kernel_space.unmap(virtual_address + offset, size))
             return false;
 
     return true;
@@ -144,32 +144,32 @@ void enable_write_protect()
 
 void clear_bootstrap_tables()
 {
-    g_bootstrap_pml4.clear();
-    g_identity_pdpt.clear();
-    g_identity_pd.clear();
-    g_kernel_pdpt.clear();
-    g_kernel_pd.clear();
-    g_direct_pdpt.clear();
+    m_bootstrap_pml4.clear();
+    m_identity_pdpt.clear();
+    m_identity_pd.clear();
+    m_kernel_pdpt.clear();
+    m_kernel_pd.clear();
+    m_direct_pdpt.clear();
 
     for (usize i = 0; i < DIRECT_PD_COUNT; ++i)
-        g_direct_pds[i].clear();
+        m_direct_pds[i].clear();
 }
 
 void link_bootstrap_tables()
 {
-    g_bootstrap_pml4[0] = table_entry(kernel_physical_address(&g_identity_pdpt), false);
-    g_identity_pdpt[0] = table_entry(kernel_physical_address(&g_identity_pd), false);
+    m_bootstrap_pml4[0] = table_entry(kernel_physical_address(&m_identity_pdpt), false);
+    m_identity_pdpt[0] = table_entry(kernel_physical_address(&m_identity_pd), false);
 
-    g_bootstrap_pml4[pml4_index(KERNEL_BASE)] =
-        table_entry(kernel_physical_address(&g_kernel_pdpt), false);
-    g_kernel_pdpt[pdpt_index(KERNEL_BASE)] =
-        table_entry(kernel_physical_address(&g_kernel_pd), false);
+    m_bootstrap_pml4[pml4_index(KERNEL_BASE)] =
+        table_entry(kernel_physical_address(&m_kernel_pdpt), false);
+    m_kernel_pdpt[pdpt_index(KERNEL_BASE)] =
+        table_entry(kernel_physical_address(&m_kernel_pd), false);
 
-    g_bootstrap_pml4[pml4_index(DIRECT_MAP_BASE)] =
-        table_entry(kernel_physical_address(&g_direct_pdpt), false);
+    m_bootstrap_pml4[pml4_index(DIRECT_MAP_BASE)] =
+        table_entry(kernel_physical_address(&m_direct_pdpt), false);
 
     for (usize i = 0; i < DIRECT_PD_COUNT; ++i)
-        g_direct_pdpt[i] = table_entry(kernel_physical_address(&g_direct_pds[i]), false);
+        m_direct_pdpt[i] = table_entry(kernel_physical_address(&m_direct_pds[i]), false);
 }
 
 // How much of the higher half the bootstrap covers. Only the kernel image is linked there, so
@@ -223,7 +223,7 @@ void link_bootstrap_tables()
     clear_bootstrap_tables();
     link_bootstrap_tables();
 
-    g_kernel_space.set_root(kernel_physical_address(&g_bootstrap_pml4));
+    m_kernel_space.set_root(kernel_physical_address(&m_bootstrap_pml4));
 
     if (!map_range_no_flush(0, 0, EARLY_MAP_SIZE, page_size::SIZE_2M, identity_flags))
         return false;
@@ -246,7 +246,7 @@ void link_bootstrap_tables()
     // arithmetic used to: this window maps physical 0 at KERNEL_BASE. Unlike that subtraction
     // the walk can come back empty, and re-mapping the kernel image onto physical 0 is not a
     // failure worth surviving.
-    const mapping resolved = g_kernel_space.translate(start);
+    const mapping resolved = m_kernel_space.translate(start);
 
     if (!resolved.present)
         return false;
@@ -300,7 +300,7 @@ void link_bootstrap_tables()
 
 address_space &kernel_address_space()
 {
-    return g_kernel_space;
+    return m_kernel_space;
 }
 
 init_result init_kernel_address_space()
@@ -323,7 +323,7 @@ init_result init_kernel_address_space()
     if (!build_bootstrap_tables(boot))
         return kernel::core::Err(init_error::UNSPECIFIED);
 
-    regs::write_cr3(g_kernel_space.root());
+    regs::write_cr3(m_kernel_space.root());
     mark_direct_map_ready();
 
     // These split 2 MiB leaves into page tables, which is the first thing here that needs frames
@@ -339,9 +339,9 @@ init_result init_kernel_address_space()
 
 bool map(vaddr_t virtual_address, paddr_t physical_address, page_size size, page_flags flags)
 {
-    kernel::sync::spinlock_guard guard(g_kernel_space_lock);
+    kernel::sync::spinlock_guard guard(m_kernel_space_lock);
 
-    if (!g_kernel_space.map(virtual_address, physical_address, size, flags))
+    if (!m_kernel_space.map(virtual_address, physical_address, size, flags))
         return false;
 
     tlb::flush(virtual_address);
@@ -351,7 +351,7 @@ bool map(vaddr_t virtual_address, paddr_t physical_address, page_size size, page
 bool map_range(vaddr_t virtual_address, paddr_t physical_address, u64 length, page_size size,
                page_flags flags)
 {
-    kernel::sync::spinlock_guard guard(g_kernel_space_lock);
+    kernel::sync::spinlock_guard guard(m_kernel_space_lock);
 
     if (!map_range_no_flush(virtual_address, physical_address, length, size, flags))
         return false;
@@ -366,9 +366,9 @@ bool map_range(vaddr_t virtual_address, paddr_t physical_address, u64 length, pa
 
 bool unmap(vaddr_t virtual_address, page_size size)
 {
-    kernel::sync::spinlock_guard guard(g_kernel_space_lock);
+    kernel::sync::spinlock_guard guard(m_kernel_space_lock);
 
-    if (!g_kernel_space.unmap(virtual_address, size))
+    if (!m_kernel_space.unmap(virtual_address, size))
         return false;
 
     tlb::flush(virtual_address);
@@ -377,9 +377,9 @@ bool unmap(vaddr_t virtual_address, page_size size)
 
 mapping vrt_to_phy(vaddr_t virtual_address)
 {
-    kernel::sync::spinlock_guard guard(g_kernel_space_lock);
+    kernel::sync::spinlock_guard guard(m_kernel_space_lock);
 
-    return g_kernel_space.translate(virtual_address);
+    return m_kernel_space.translate(virtual_address);
 }
 
 }  // namespace kernel::arch::x86_64::mmu

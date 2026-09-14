@@ -8,7 +8,7 @@ namespace kernel::debug {
 
 namespace {
 
-console_sink g_sink = nullptr;
+console_sink m_sink = nullptr;
 
 }  // namespace
 
@@ -18,25 +18,25 @@ console_sink g_sink = nullptr;
 
 void set_console_sink(console_sink sink)
 {
-    g_sink = sink;
+    m_sink = sink;
 }
 
 console_sink current_console_sink()
 {
-    return g_sink;
+    return m_sink;
 }
 
 bool console_ready()
 {
-    return g_sink != nullptr;
+    return m_sink != nullptr;
 }
 
 void console_write(const char *bytes, usize length)
 {
-    if (g_sink == nullptr || bytes == nullptr || length == 0)
+    if (m_sink == nullptr || bytes == nullptr || length == 0)
         return;
 
-    g_sink(bytes, length);
+    m_sink(bytes, length);
 }
 
 }  // namespace kernel::debug

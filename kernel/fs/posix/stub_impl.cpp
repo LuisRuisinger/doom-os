@@ -38,7 +38,7 @@ struct descriptor {
     u64       offset{};
 };
 
-descriptor g_descriptors[MAX_DESCRIPTORS]{};
+descriptor m_descriptors[MAX_DESCRIPTORS]{};
 
 bool is_console(int fd)
 {
@@ -47,11 +47,11 @@ bool is_console(int fd)
 
 descriptor *file_descriptor(int fd)
 {
-    if (fd < FIRST_FILE_DESCRIPTOR || fd >= MAX_DESCRIPTORS || !g_descriptors[fd].open) {
+    if (fd < FIRST_FILE_DESCRIPTOR || fd >= MAX_DESCRIPTORS || !m_descriptors[fd].open) {
         return nullptr;
     }
 
-    return &g_descriptors[fd];
+    return &m_descriptors[fd];
 }
 
 bool same_string(const char *lhs, const char *rhs)
@@ -179,11 +179,11 @@ extern "C" int open(const char *path, int flags, ...)
         }
 
         for (int fd = FIRST_FILE_DESCRIPTOR; fd < MAX_DESCRIPTORS; ++fd) {
-            if (g_descriptors[fd].open) {
+            if (m_descriptors[fd].open) {
                 continue;
             }
 
-            g_descriptors[fd] = {true, static_cast<const u8 *>(window), module.range.length, 0};
+            m_descriptors[fd] = {true, static_cast<const u8 *>(window), module.range.length, 0};
             return fd;
         }
 
