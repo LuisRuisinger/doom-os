@@ -48,23 +48,23 @@ struct driver_node {
 };
 
 struct registered_capability {
-    const capability_key *key{};
-    const driver_id      *driver{};
-    const void           *api{};
+    const capability_key *key;
+    const driver_id      *driver;
+    const void           *api;
 };
 
 struct lifecycle_state {
-    driver_node nodes[MAX_DRIVERS]{};
-    usize       node_count{};
+    driver_node nodes[MAX_DRIVERS];
+    usize       node_count;
 
-    driver_node *initialized[MAX_DRIVERS]{};
-    usize        initialized_count{};
+    driver_node *initialized[MAX_DRIVERS];
+    usize        initialized_count;
 
-    registered_capability capabilities[MAX_REGISTERED_CAPABILITIES]{};
-    usize                 capability_count{};
+    registered_capability capabilities[MAX_REGISTERED_CAPABILITIES];
+    usize                 capability_count;
 
-    bool built{};
-    bool initialized_all{};
+    bool built;
+    bool initialized_all;
 };
 
 static lifecycle_state state_m{};

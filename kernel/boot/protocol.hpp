@@ -159,51 +159,51 @@ enum class memory_kind : u32 {
 };
 
 struct address_range {
-    paddr_t base{};
-    u64     length{};
+    paddr_t base;
+    u64     length;
 };
 
 struct memory_region {
-    paddr_t     base{};
-    u64         length{};
-    memory_kind kind{};
+    paddr_t     base;
+    u64         length;
+    memory_kind kind;
 };
 
 struct module_info {
-    address_range                                range{};
-    bounded_string<MAX_BOOT_MODULE_COMMAND_LINE> command_line{};
+    address_range                                range;
+    bounded_string<MAX_BOOT_MODULE_COMMAND_LINE> command_line;
 };
 
 struct framebuffer_info {
-    bool    present{};
-    paddr_t address{};
-    u32     pitch{};
-    u32     width{};
-    u32     height{};
-    u8      bits_per_pixel{};
+    bool    present;
+    paddr_t address;
+    u32     pitch;
+    u32     width;
+    u32     height;
+    u8      bits_per_pixel;
 };
 
 struct acpi_info {
-    bool    present{};
-    paddr_t rsdp{};
-    u8      revision{};
+    bool    present;
+    paddr_t rsdp;
+    u8      revision;
 };
 
 struct info {
-    bool valid{};
+    bool valid;
 
-    bounded_string<MAX_BOOT_STRING> command_line{};
-    bounded_string<MAX_BOOT_STRING> bootloader_name{};
+    bounded_string<MAX_BOOT_STRING> command_line;
+    bounded_string<MAX_BOOT_STRING> bootloader_name;
 
-    fixed_table<memory_region, MAX_BOOT_MEMORY_REGIONS> memory_map{};
-    fixed_table<module_info, MAX_BOOT_MODULES>          modules{};
+    fixed_table<memory_region, MAX_BOOT_MEMORY_REGIONS> memory_map;
+    fixed_table<module_info, MAX_BOOT_MODULES>          modules;
 
     // Physical ranges the boot protocol occupies with its own structures. Consumers reserve
     // these without needing to know what put them there.
-    fixed_table<address_range, MAX_BOOT_RESERVED_RANGES> reserved{};
+    fixed_table<address_range, MAX_BOOT_RESERVED_RANGES> reserved;
 
-    framebuffer_info framebuffer{};
-    acpi_info        acpi{};
+    framebuffer_info framebuffer;
+    acpi_info        acpi;
 
     // True if any table dropped an entry. A description that lost regions is not a
     // description of this machine, and silently allocating around the ones that survived
@@ -240,8 +240,8 @@ struct info {
 // =================================================================================================
 
 struct handoff {
-    u64     magic{};
-    paddr_t address{};
+    u64     magic;
+    paddr_t address;
 };
 
 // =================================================================================================

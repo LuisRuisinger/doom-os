@@ -43,9 +43,9 @@ using handler = void (*)();
 // =================================================================================================
 
 struct gate_spec {
-    handler entry_point{};
-    u8      type_attributes{};
-    u8      ist{};
+    handler entry_point;
+    u8      type_attributes;
+    u8      ist;
 };
 
 class gate_table {

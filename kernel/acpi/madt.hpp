@@ -72,14 +72,14 @@ struct [[gnu::packed]] madt_x2apic {
 struct processor_info {
     u32  apic_id{};
     u32  acpi_id{};
-    bool enabled{};
-    bool online_capable{};
+    bool enabled;
+    bool online_capable;
 };
 
 struct ioapic_record {
-    u8      id{};
-    paddr_t address{};
-    u32     gsi_base{};
+    u8      id;
+    paddr_t address;
+    u32     gsi_base;
 };
 
 struct iso_record {
@@ -91,20 +91,20 @@ struct iso_record {
 
 struct madt_info {
     paddr_t lapic_address{0xFEE00000};
-    u32     flags{};
+    u32     flags;
 
     static constexpr usize MAX_CPUS    = 64;
     static constexpr usize MAX_IOAPICS = 8;
     static constexpr usize MAX_ISOS    = 32;
 
-    processor_info cpus[MAX_CPUS]{};
-    usize          cpu_count{};
+    processor_info cpus[MAX_CPUS];
+    usize          cpu_count;
 
-    ioapic_record  ioapics[MAX_IOAPICS]{};
-    usize          ioapic_count{};
+    ioapic_record  ioapics[MAX_IOAPICS];
+    usize          ioapic_count;
 
-    iso_record     isos[MAX_ISOS]{};
-    usize          iso_count{};
+    iso_record     isos[MAX_ISOS];
+    usize          iso_count;
 };
 
 [[nodiscard]] madt_info parse_madt(sdt_view view);
