@@ -67,7 +67,7 @@ struct lifecycle_state {
     bool initialized_all;
 };
 
-static lifecycle_state state_m{};
+static lifecycle_state m_state{};
 
 bool string_equal(const char *lhs, const char *rhs)
 {
@@ -103,9 +103,9 @@ driver_node *find_node(const driver_id *id)
         return nullptr;
     }
 
-    for (usize i = 0; i < state_m.node_count; ++i) {
-        if (state_m.nodes[i].id == id || string_equal(state_m.nodes[i].id->name, id->name)) {
-            return &state_m.nodes[i];
+    for (usize i = 0; i < m_state.node_count; ++i) {
+        if (m_state.nodes[i].id == id || string_equal(m_state.nodes[i].id->name, id->name)) {
+            return &m_state.nodes[i];
         }
     }
 
@@ -118,9 +118,9 @@ driver_node *find_node(const char *name)
         return nullptr;
     }
 
-    for (usize i = 0; i < state_m.node_count; ++i) {
-        if (string_equal(state_m.nodes[i].id->name, name)) {
-            return &state_m.nodes[i];
+    for (usize i = 0; i < m_state.node_count; ++i) {
+        if (string_equal(m_state.nodes[i].id->name, name)) {
+            return &m_state.nodes[i];
         }
     }
 
@@ -137,12 +137,12 @@ init_result add_driver(const driver_id &id)
         return kernel::core::Err(error::DUPLICATE_DRIVER);
     }
 
-    if (state_m.node_count == MAX_DRIVERS) {
+    if (m_state.node_count == MAX_DRIVERS) {
         return kernel::core::Err(error::CAPACITY_EXCEEDED);
     }
 
-    state_m.nodes[state_m.node_count] = driver_node{.id = &id};
-    ++state_m.node_count;
+    m_state.nodes[m_state.node_count] = driver_node{.id = &id};
+    ++m_state.node_count;
 
     return kernel::core::Ok();
 }
@@ -279,11 +279,11 @@ init_result validate_provider_records()
 
 init_result build_registry()
 {
-    if (state_m.built) {
+    if (m_state.built) {
         return kernel::core::Ok();
     }
 
-    state_m = lifecycle_state{};
+    m_state = lifecycle_state{};
 
     for (const driver_id &id : registry::drivers()) {
         init_result outcome = add_driver(id);
@@ -317,7 +317,7 @@ init_result build_registry()
         return dependencies;
     }
 
-    state_m.built = true;
+    m_state.built = true;
 
     return kernel::core::Ok();
 }
@@ -335,16 +335,16 @@ init_result register_capabilities(driver_node &node)
             return kernel::core::Err(error::CAPABILITY_RESOLVE_FAILED);
         }
 
-        if (state_m.capability_count == MAX_REGISTERED_CAPABILITIES) {
+        if (m_state.capability_count == MAX_REGISTERED_CAPABILITIES) {
             return kernel::core::Err(error::CAPACITY_EXCEEDED);
         }
 
-        state_m.capabilities[state_m.capability_count] = registered_capability{
+        m_state.capabilities[m_state.capability_count] = registered_capability{
             .key = record.capability,
             .driver = node.id,
             .api = api,
         };
-        ++state_m.capability_count;
+        ++m_state.capability_count;
     }
 
     return kernel::core::Ok();
@@ -451,8 +451,8 @@ init_result run_driver(driver_node &node)
     }
 
     node.initialized = true;
-    state_m.initialized[state_m.initialized_count] = &node;
-    ++state_m.initialized_count;
+    m_state.initialized[m_state.initialized_count] = &node;
+    ++m_state.initialized_count;
 
     KPRINTLN("[driver] {}: OK", node.id->name);
 
@@ -533,7 +533,7 @@ const char *describe(error value)
 
 init_result init_all()
 {
-    if (state_m.initialized_all) {
+    if (m_state.initialized_all) {
         return kernel::core::Ok();
     }
 
@@ -544,23 +544,23 @@ init_result init_all()
         return registry;
     }
 
-    for (usize i = 0; i < state_m.node_count; ++i) {
-        init_result outcome = visit(state_m.nodes[i]);
+    for (usize i = 0; i < m_state.node_count; ++i) {
+        init_result outcome = visit(m_state.nodes[i]);
 
         if (outcome.is_err()) {
             return outcome;
         }
     }
 
-    state_m.initialized_all = true;
+    m_state.initialized_all = true;
 
     return kernel::core::Ok();
 }
 
 void exit_all()
 {
-    for (usize i = state_m.initialized_count; i > 0; --i) {
-        driver_node *node = state_m.initialized[i - 1];
+    for (usize i = m_state.initialized_count; i > 0; --i) {
+        driver_node *node = m_state.initialized[i - 1];
 
         if (node == nullptr || !node->initialized) {
             continue;
@@ -574,9 +574,9 @@ void exit_all()
         node->initialized = false;
     }
 
-    state_m.initialized_count = 0;
-    state_m.capability_count = 0;
-    state_m.initialized_all = false;
+    m_state.initialized_count = 0;
+    m_state.capability_count = 0;
+    m_state.initialized_all = false;
 }
 
 void init_all_or_halt()
@@ -592,10 +592,10 @@ void init_all_or_halt()
 
 const void *find_capability(const capability_key &key)
 {
-    for (usize i = 0; i < state_m.capability_count; ++i) {
-        if (state_m.capabilities[i].key != nullptr &&
-            same_capability(*state_m.capabilities[i].key, key)) {
-            return state_m.capabilities[i].api;
+    for (usize i = 0; i < m_state.capability_count; ++i) {
+        if (m_state.capabilities[i].key != nullptr &&
+            same_capability(*m_state.capabilities[i].key, key)) {
+            return m_state.capabilities[i].api;
         }
     }
 
