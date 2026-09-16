@@ -52,7 +52,7 @@ inline void emit_format(const Args &...args)
         constexpr usize run_length = literal_run_length<fmt, offset>();
 
         if constexpr (run_length > 0) {
-            emit_bytes(&fmt.data[offset], run_length);
+            emit_bytes(fmt.data() + offset, run_length);
             emit_format<fmt, offset + run_length, arg_index>(args...);
         } else {
             emit_char(format_char_at<fmt>(offset));
@@ -89,9 +89,9 @@ inline void kprintln_ct(const Args &...args)
 }  // namespace kernel::debug
 
 #define KPRINT(fmt__, ...) \
-    ::kernel::debug::kprint_ct<::kernel::debug::detail::fixed_string{fmt__}>(__VA_ARGS__)
+    ::kernel::debug::kprint_ct<::kernel::core::utils::fixed_string{fmt__}>(__VA_ARGS__)
 
 #define KPRINTLN(fmt__, ...) \
-    ::kernel::debug::kprintln_ct<::kernel::debug::detail::fixed_string{fmt__}>(__VA_ARGS__)
+    ::kernel::debug::kprintln_ct<::kernel::core::utils::fixed_string{fmt__}>(__VA_ARGS__)
 
 #endif  // DOOM_OS_KERNEL_DEBUG_KPRINT_HPP_

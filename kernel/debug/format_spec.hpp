@@ -4,6 +4,7 @@
 #include <utility>
 
 #include "kernel/core/cast.hpp"
+#include "kernel/core/string.hpp"
 #include "kernel/core/types.hpp"
 
 namespace kernel::debug {
@@ -15,40 +16,7 @@ using kernel::core::u64;
 using kernel::core::u8;
 using kernel::core::usize;
 
-template <usize N>
-struct fixed_string {
-    char data[N];
-
-    constexpr explicit fixed_string(const char (&value)[N])
-        : fixed_string(value, std::make_index_sequence<N>{})
-    {
-    }
-
-    static constexpr usize size()
-    {
-        return N;
-    }
-
-    static constexpr usize length()
-    {
-        return N == 0 ? 0 : N - 1;
-    }
-
-    constexpr char operator[](usize index) const
-    {
-        return data[index];
-    }
-
-private:
-    template <usize... Is>
-    constexpr fixed_string(const char (&value)[N], std::index_sequence<Is...>)
-        : data{value[Is]...}
-    {
-    }
-};
-
-template <usize N>
-fixed_string(const char (&)[N]) -> fixed_string<N>;
+using kernel::core::utils::fixed_string;
 
 inline constexpr usize MAX_FORMAT_WIDTH = 128;
 inline constexpr usize MAX_FLOAT_PRECISION = 18;
