@@ -1,8 +1,11 @@
 #include "kernel/mm/pmm.hpp"
 
+#include <concepts>
+
 #include "kernel/core/bitmap.hpp"
 #include "kernel/core/bits.hpp"
 #include "kernel/core/cast.hpp"
+#include "kernel/core/reflect.hpp"
 #include "kernel/debug/kpanic.hpp"
 #include "kernel/sync/spinlock.hpp"
 
@@ -13,6 +16,7 @@ namespace {
 using kernel::core::Err;
 using kernel::core::Ok;
 using kernel::core::u16;
+using kernel::core::u8;
 using kernel::core::uptr;
 using kernel::core::utils::align_down;
 using kernel::core::utils::align_up;
@@ -22,7 +26,6 @@ using kernel::core::utils::is_aligned;
 using frame_map = bitmap<MAX_FRAMES>;
 
 constexpr usize FRAMES_PER_BLOCK = frames_in(page_size::SIZE_2M);
-constexpr usize BLOCKS_PER_1G = frames_in(page_size::SIZE_1G) / FRAMES_PER_BLOCK;
 constexpr usize WORDS_PER_BLOCK = FRAMES_PER_BLOCK / frame_map::BITS_PER_STORAGE_TYPE_INSTANCE;
 constexpr usize BLOCK_COUNT = MAX_FRAMES / FRAMES_PER_BLOCK;
 constexpr u16   NIL = ~u16{0};
@@ -40,6 +43,8 @@ block     m_blocks[BLOCK_COUNT]{};
 u16       m_whole{NIL};
 u16       m_broken{NIL};
 
+// TODO
+// finer locking approach for more performance
 kernel::sync::spinlock m_lock{};
 
 extern "C" char boot_start[];
@@ -55,7 +60,10 @@ extern "C" char kernel_physical_end[];
     if (free == 0)
         return nullptr;
 
-    return free == FRAMES_PER_BLOCK ? &m_whole : &m_broken;
+    if (free == FRAMES_PER_BLOCK)
+        return &m_whole;
+
+    return &m_broken;
 }
 
 void push(u16 &head, usize index)
@@ -73,7 +81,10 @@ void unlink(u16 &head, usize index)
 {
     const block &b = m_blocks[index];
 
-    (b.prev == NIL ? head : m_blocks[b.prev].next) = b.next;
+    if (b.prev == NIL)
+        head = b.next;
+    else
+        m_blocks[b.prev].next = b.next;
 
     if (b.next != NIL)
         m_blocks[b.next].prev = b.prev;
@@ -144,8 +155,7 @@ template <page_size S>
         return Ok(address_of(frame));
     } else {
         constexpr usize BLOCKS = frames_in(S) / FRAMES_PER_BLOCK;
-
-        const usize first = find_whole_run<BLOCKS>();
+        const usize     first = find_whole_run<BLOCKS>();
 
         if (first == NIL)
             return Err(mm_error::OUT_OF_MEMORY);
@@ -174,27 +184,67 @@ void mark(paddr_t base, u64 length, bool usable)
         m_frames.clear(first >> FRAME_SHIFT, (last - first) >> FRAME_SHIFT);
 }
 
-void ingest(const kernel::boot::info &boot)
-{
-    for (const auto &region : boot.memory_map)
-        if (region.kind == kernel::boot::memory_kind::USABLE)
-            mark(region.base, region.length, true);
+enum class phase : u8 {
+    FREE,
+    RESERVE,
+};
 
-    const auto image_first = boot_start as(uptr);
-    const auto image_end = kernel_physical_end as(uptr);
+void claim(std::same_as<bool> auto, phase)
+{
+}
+
+template <usize N>
+void claim(const kernel::boot::bounded_string<N> &, phase)
+{
+}
+
+void claim(const kernel::boot::address_range &range, phase p)
+{
+    if (p == phase::RESERVE)
+        mark(range.base, range.length, false);
+}
+
+void claim(const kernel::boot::memory_region &region, phase p)
+{
+    const bool usable = region.kind == kernel::boot::memory_kind::USABLE;
+
+    if ((p == phase::FREE) == usable)
+        mark(region.base, region.length, usable);
+}
+
+void claim(const kernel::boot::framebuffer_info &framebuffer, phase p)
+{
+    if (p == phase::RESERVE && framebuffer.present)
+        mark(framebuffer.address, framebuffer.pitch as(u64) * framebuffer.height, false);
+}
+
+void claim(const kernel::boot::acpi_info &acpi, phase p)
+{
+    if (p == phase::RESERVE && acpi.present)
+        mark(acpi.rsdp, 36, false);
+}
+
+template <typename E, usize N>
+void claim(const kernel::boot::fixed_table<E, N> &table, phase p)
+{
+    for (const auto &entry : table)
+        claim(entry, p);
+}
+
+template <reflect::reflectable T>
+void claim(const T &aggregate, phase p)
+{
+    reflect::apply_fields(aggregate, [&](const auto &...fields) { (claim(fields, p), ...); });
+}
+
+void populate(const kernel::boot::info &boot)
+{
+    claim(boot, phase::FREE);
 
     mark(0, 1024 * 1024, false);
-    mark(image_first, image_end - image_first, false);
+    mark(boot_start as(uptr), kernel_physical_end as(uptr) - boot_start as(uptr), false);
 
-    for (const auto &range : boot.reserved)
-        mark(range.base, range.length, false);
-
-    for (const auto &module : boot.modules)
-        mark(module.range.base, module.range.length, false);
-
-    if (boot.framebuffer.present)
-        mark(boot.framebuffer.address, boot.framebuffer.pitch as(u64) * boot.framebuffer.height,
-             false);
+    claim(boot, phase::RESERVE);
 
     for (usize index = 0; index < BLOCK_COUNT; ++index)
         set_free(index, m_frames.count_set(index * WORDS_PER_BLOCK, WORDS_PER_BLOCK));
@@ -254,7 +304,7 @@ kernel::init::init_result component::init_allocator()
     if (!boot.valid)
         return Err(init_error::DEPENDENCY_UNAVAILABLE);
 
-    ingest(boot);
+    populate(boot);
 
     if (m_whole == NIL && m_broken == NIL)
         return Err(init_error::NO_USABLE_MEMORY);
