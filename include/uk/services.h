@@ -28,19 +28,19 @@ typedef void (*doom_os_irq_handler)(void *context);
 
 void doom_os_driver_log(const char *message);
 
-void    doom_os_driver_io_write8(uint16_t port, uint8_t value);
+void doom_os_driver_io_write8(uint16_t port, uint8_t value);
 uint8_t doom_os_driver_io_read8(uint16_t port);
 
 void *doom_os_driver_alloc(size_t bytes, size_t alignment);
-void  doom_os_driver_free(void *ptr);
+void doom_os_driver_free(void *ptr);
 
 volatile void *doom_os_driver_map_mmio(uint64_t physical_base, size_t size);
 
-int  doom_os_driver_register_irq(uint32_t vector, doom_os_irq_handler handler, void *context);
+int doom_os_driver_register_irq(uint32_t vector, doom_os_irq_handler handler, void *context);
 void doom_os_driver_unregister_irq(uint32_t vector, doom_os_irq_handler handler, void *context);
 
 #ifdef __cplusplus
-}  /* extern "C" */
+} /* extern "C" */
 #endif
 
-#endif  /* DOOM_OS_INCLUDE_UK_SERVICES_H_ */
+#endif /* DOOM_OS_INCLUDE_UK_SERVICES_H_ */

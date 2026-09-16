@@ -22,6 +22,7 @@
   // A bind mount with a missing source fails, so the neovim directories are created on the
   // host first; without a config there they stay empty and neovim starts bare.
   "initializeCommand": "mkdir -p ~/.config/nvim ~/.local/share/nvim ~/.local/state/nvim ~/.cache/nvim",
+  "postCreateCommand": "pre-commit install",
   "mounts": [
     "source=${localEnv:HOME}/.bashrc,target=/home/ubuntu/.bashrc,type=bind,readonly",
 

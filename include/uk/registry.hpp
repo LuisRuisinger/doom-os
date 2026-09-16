@@ -43,8 +43,8 @@ struct driver_id {
 };
 
 struct capability_key {
-    const char              *name;
-    capability_multiplicity  multiplicity;
+    const char             *name;
+    capability_multiplicity multiplicity;
 };
 
 enum class error : u8 {
@@ -65,7 +65,7 @@ enum class error : u8 {
 using init_result = Result<void, error>;
 using init_fn = init_result (*)();
 using exit_fn = void (*)();
-using capability_resolve_fn = const void *(*)();
+using capability_resolve_fn = auto (*)() -> const void *;
 
 struct init_record {
     const driver_id *driver;
@@ -78,9 +78,9 @@ struct exit_record {
 };
 
 struct provide_record {
-    const driver_id       *driver;
-    const capability_key  *capability;
-    capability_resolve_fn  resolve;
+    const driver_id      *driver;
+    const capability_key *capability;
+    capability_resolve_fn resolve;
 };
 
 struct require_driver_record {
@@ -106,8 +106,8 @@ class section_range {
 
 public:
     constexpr section_range(const T *begin, const T *end)
-        : begin_m(begin)
-        , end_m(end)
+        : begin_m(begin),
+          end_m(end)
     {
     }
 
@@ -139,35 +139,27 @@ public:
 
 extern "C" {
 
-extern const uk::driver_id __start_doom_os_driver_ids[]
-    __attribute__((weak));
-extern const uk::driver_id __stop_doom_os_driver_ids[]
-    __attribute__((weak));
+extern const uk::driver_id __start_doom_os_driver_ids[] __attribute__((weak));
+extern const uk::driver_id __stop_doom_os_driver_ids[] __attribute__((weak));
 
-extern const uk::init_record __start_doom_os_driver_init[]
-    __attribute__((weak));
-extern const uk::init_record __stop_doom_os_driver_init[]
-    __attribute__((weak));
+extern const uk::init_record __start_doom_os_driver_init[] __attribute__((weak));
+extern const uk::init_record __stop_doom_os_driver_init[] __attribute__((weak));
 
-extern const uk::exit_record __start_doom_os_driver_exit[]
-    __attribute__((weak));
-extern const uk::exit_record __stop_doom_os_driver_exit[]
-    __attribute__((weak));
+extern const uk::exit_record __start_doom_os_driver_exit[] __attribute__((weak));
+extern const uk::exit_record __stop_doom_os_driver_exit[] __attribute__((weak));
 
-extern const uk::provide_record __start_doom_os_driver_provides[]
-    __attribute__((weak));
-extern const uk::provide_record __stop_doom_os_driver_provides[]
-    __attribute__((weak));
+extern const uk::provide_record __start_doom_os_driver_provides[] __attribute__((weak));
+extern const uk::provide_record __stop_doom_os_driver_provides[] __attribute__((weak));
 
 extern const uk::require_driver_record __start_doom_os_driver_requires_driver[]
     __attribute__((weak));
 extern const uk::require_driver_record __stop_doom_os_driver_requires_driver[]
     __attribute__((weak));
 
-extern const uk::require_capability_record
-    __start_doom_os_driver_requires_capability[] __attribute__((weak));
-extern const uk::require_capability_record
-    __stop_doom_os_driver_requires_capability[] __attribute__((weak));
+extern const uk::require_capability_record __start_doom_os_driver_requires_capability[]
+    __attribute__((weak));
+extern const uk::require_capability_record __stop_doom_os_driver_requires_capability[]
+    __attribute__((weak));
 }
 
 namespace uk::registry {
@@ -201,9 +193,8 @@ inline section_range<require_driver_record> require_driver_records()
 
 inline section_range<require_capability_record> require_capability_records()
 {
-    return section_range<require_capability_record>{
-        __start_doom_os_driver_requires_capability,
-        __stop_doom_os_driver_requires_capability};
+    return section_range<require_capability_record>{__start_doom_os_driver_requires_capability,
+                                                    __stop_doom_os_driver_requires_capability};
 }
 
 }  // namespace uk::registry

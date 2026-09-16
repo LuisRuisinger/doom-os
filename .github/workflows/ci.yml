@@ -2,7 +2,6 @@ name: ci
 
 on:
   push:
-  pull_request:
   workflow_dispatch:
 
 concurrency:
@@ -10,7 +9,19 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
-  build-and-boot:
+  style:
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - uses: pre-commit/action@v3.0.1
+
+  build:
     runs-on: ubuntu-latest
 
     permissions:
@@ -18,51 +29,20 @@ jobs:
       packages: read
 
     steps:
-      - name: Checkout
-        uses: actions/checkout@v4
+      - uses: actions/checkout@v4
 
-      - name: Log in to GHCR
-        uses: docker/login-action@v3
+      - uses: docker/login-action@v3
         with:
           registry: ghcr.io
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
-      # Published by toolchain.yml. Falling back to a local build keeps this workflow working
-      # before that has ever run, at the cost of compiling a cross GCC on a two-core runner.
-      - name: Fetch toolchain image
-        run: |
-          image="ghcr.io/$(echo '${{ github.repository_owner }}' | tr '[:upper:]' '[:lower:]')/doom-os-toolchain:latest"
-
-          if docker pull "$image"; then
-            docker tag "$image" doom-os-toolchain:ci
-          else
-            echo "::warning::$image not published yet - building the toolchain locally"
-            docker build -t doom-os-toolchain:ci .
-          fi
-
-      - name: Configure
-        run: |
-          docker run --rm \
-            -v "$PWD":/workspace/DoomOS -w /workspace/DoomOS \
-            --user "$(id -u):$(id -g)" \
-            doom-os-toolchain:ci \
-            cmake --preset default
-
-      # .clang-format needs clang-format 20; older releases reject the file outright rather
-      # than degrading, so this also catches the image drifting off the pinned version.
-      - name: Check formatting
-        run: |
-          docker run --rm \
-            -v "$PWD":/workspace/DoomOS -w /workspace/DoomOS \
-            --user "$(id -u):$(id -g)" \
-            doom-os-toolchain:ci \
-            cmake --build build --target format-check
-
       - name: Build kernel and ISO
         run: |
+          image="ghcr.io/${GITHUB_REPOSITORY_OWNER,,}/doom-os-toolchain:latest"
+          docker pull "$image"
           docker run --rm \
             -v "$PWD":/workspace/DoomOS -w /workspace/DoomOS \
             --user "$(id -u):$(id -g)" \
-            doom-os-toolchain:ci \
-            cmake --build build
+            "$image" \
+            sh -c 'cmake --preset default && cmake --build build'

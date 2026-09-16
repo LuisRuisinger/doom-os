@@ -79,6 +79,7 @@ ARG DEBIAN_FRONTEND=noninteractive
 ARG TARGET=x86_64-elf
 ARG PREFIX=/opt/cross
 ARG CLANG_FORMAT_VERSION=20
+ARG PRE_COMMIT_VERSION=4.6.2
 ARG NEOVIM_VERSION=0.11.6
 ARG RUST_TOOLCHAIN=stable
 ARG RUST_TARGET=x86_64-unknown-linux-musl
@@ -110,8 +111,10 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     qemu-system-gui \
     ripgrep \
     fd-find \
+    pipx \
   && rm -rf /var/lib/apt/lists/* \
-  && ln -s /usr/bin/fdfind /usr/local/bin/fd
+  && ln -s /usr/bin/fdfind /usr/local/bin/fd \
+  && PIPX_HOME=/opt/pipx PIPX_BIN_DIR=/usr/local/bin pipx install "pre-commit==${PRE_COMMIT_VERSION}"
 
 # .clang-format uses AlignFunctionDeclarations, which needs clang-format >= 20; Ubuntu 24.04 ships 18.
 RUN wget -qO /usr/share/keyrings/llvm.asc https://apt.llvm.org/llvm-snapshot.gpg.key \
@@ -144,6 +147,7 @@ RUN "${TARGET}-g++" --version \
     && grub-mkrescue --version \
     && qemu-system-x86_64 --version \
     && clang-format --version \
+    && pre-commit --version \
     && nvim --version
 
 # uid 1000 matches the first host user, so bind-mounted files keep their owner.
