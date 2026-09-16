@@ -21,7 +21,51 @@ jobs:
 
       - uses: pre-commit/action@v3.0.1
 
+  toolchain:
+    runs-on: ubuntu-latest
+
+    permissions:
+      contents: read
+      packages: write
+
+    outputs:
+      image: ${{ steps.image.outputs.ref }}
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - id: image
+        run: |
+          echo "ref=ghcr.io/${GITHUB_REPOSITORY_OWNER,,}/doom-os-toolchain:${{ hashFiles('Dockerfile') }}" >> "$GITHUB_OUTPUT"
+
+      - id: published
+        run: |
+          if docker manifest inspect "${{ steps.image.outputs.ref }}" >/dev/null 2>&1; then
+            echo "yes=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "yes=false" >> "$GITHUB_OUTPUT"
+          fi
+
+      - if: steps.published.outputs.yes == 'false'
+        uses: docker/setup-buildx-action@v3
+
+      - if: steps.published.outputs.yes == 'false'
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          push: true
+          tags: ${{ steps.image.outputs.ref }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
   build:
+    needs: toolchain
     runs-on: ubuntu-latest
 
     permissions:
@@ -37,12 +81,10 @@ jobs:
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Build kernel and ISO
-        run: |
-          image="ghcr.io/${GITHUB_REPOSITORY_OWNER,,}/doom-os-toolchain:latest"
-          docker pull "$image"
+      - run: |
+          docker pull "${{ needs.toolchain.outputs.image }}"
           docker run --rm \
             -v "$PWD":/workspace/DoomOS -w /workspace/DoomOS \
             --user "$(id -u):$(id -g)" \
-            "$image" \
+            "${{ needs.toolchain.outputs.image }}" \
             sh -c 'cmake --preset default && cmake --build build'
