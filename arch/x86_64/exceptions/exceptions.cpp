@@ -149,7 +149,7 @@ static const cpu::stack &stack_for_exception_type(cpu::local_state &cpu)
 
 static void capture_ambient_registers(kernel::debug::panic_register_frame &out)
 {
-#define DOOM_OS_CAPTURE(name__, asm_name__) out.name__ = kernel::arch::x86_64::cpu::read_##name__();
+#define DOOM_OS_CAPTURE(name__) out.name__ = cpu::read_##name__();
 
     DOOM_OS_X86_SEGS(DOOM_OS_CAPTURE)
     DOOM_OS_X86_CRS(DOOM_OS_CAPTURE)

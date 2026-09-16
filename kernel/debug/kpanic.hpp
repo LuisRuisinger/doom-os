@@ -16,7 +16,7 @@ inline constexpr const char *PANIC_PREFIX = "\x1b[1;31m[panic]\x1b[0m";
 }  // namespace detail
 
 struct panic_register_frame {
-#define FIELD(name, asm_name) u64 name;
+#define FIELD(name) u64 name;
 
     DOOM_OS_X86_GPRS(FIELD)
 
@@ -47,20 +47,20 @@ template <detail::fixed_string FMT, typename... Args>
 
 }  // namespace kernel::debug
 
-#define DOOM_OS_KPANIC_GPR_LINE(name, asm_name) "mov %%" asm_name ", %[out_" #name "]\n"
+#define DOOM_OS_KPANIC_GPR_LINE(name) "mov %%" #name ", %[out_" #name "]\n"
 
-#define DOOM_OS_KPANIC_SEG_LINE(name, asm_name) \
-    "mov %%" asm_name                           \
-    ", %%ax\n"                                  \
-    "movzwq %%ax, %%rax\n"                      \
+#define DOOM_OS_KPANIC_SEG_LINE(name) \
+    "mov %%" #name                    \
+    ", %%ax\n"                        \
+    "movzwq %%ax, %%rax\n"            \
     "mov %%rax, %[out_" #name "]\n"
 
-#define DOOM_OS_KPANIC_CR_LINE(name, asm_name) \
-    "mov %%" asm_name                          \
-    ", %%rax\n"                                \
+#define DOOM_OS_KPANIC_CR_LINE(name) \
+    "mov %%" #name                   \
+    ", %%rax\n"                      \
     "mov %%rax, %[out_" #name "]\n"
 
-#define DOOM_OS_KPANIC_OUT(name, asm_name) , [out_##name] "=m"(__panic_frame.name)
+#define DOOM_OS_KPANIC_OUT(name) , [out_##name] "=m"(__panic_frame.name)
 
 #define DOOM_OS_KPANIC_CAPTURE() \
     asm volatile(                                   \
