@@ -189,52 +189,26 @@ enum class phase : u8 {
     RESERVE,
 };
 
-void claim(std::same_as<bool> auto, phase)
+template <typename T>
+void claim(const T &value, phase p)
 {
-}
+    if constexpr (std::same_as<T, kernel::boot::memory_region>) {
+        const bool usable = value.kind == kernel::boot::memory_kind::USABLE;
 
-template <usize N>
-void claim(const kernel::boot::bounded_string<N> &, phase)
-{
-}
-
-void claim(const kernel::boot::address_range &range, phase p)
-{
-    if (p == phase::RESERVE)
-        mark(range.base, range.length, false);
-}
-
-void claim(const kernel::boot::memory_region &region, phase p)
-{
-    const bool usable = region.kind == kernel::boot::memory_kind::USABLE;
-
-    if ((p == phase::FREE) == usable)
-        mark(region.base, region.length, usable);
-}
-
-void claim(const kernel::boot::framebuffer_info &framebuffer, phase p)
-{
-    if (p == phase::RESERVE && framebuffer.present)
-        mark(framebuffer.address, framebuffer.pitch as(u64) * framebuffer.height, false);
-}
-
-void claim(const kernel::boot::acpi_info &acpi, phase p)
-{
-    if (p == phase::RESERVE && acpi.present)
-        mark(acpi.rsdp, 36, false);
-}
-
-template <typename E, usize N>
-void claim(const kernel::boot::fixed_table<E, N> &table, phase p)
-{
-    for (const auto &entry : table)
-        claim(entry, p);
-}
-
-template <reflect::reflectable T>
-void claim(const T &aggregate, phase p)
-{
-    reflect::apply_fields(aggregate, [&](const auto &...fields) { (claim(fields, p), ...); });
+        if ((p == phase::FREE) == usable)
+            mark(value.base, value.length, usable);
+    } else if constexpr (std::same_as<T, kernel::boot::address_range>) {
+        if (p == phase::RESERVE)
+            mark(value.base, value.length, false);
+    } else if constexpr (requires {
+                             value.begin();
+                             value.end();
+                         }) {
+        for (const auto &entry : value)
+            claim(entry, p);
+    } else if constexpr (reflect::reflectable<T>) {
+        reflect::apply_fields(value, [&](const auto &...fields) { (claim(fields, p), ...); });
+    }
 }
 
 void populate(const kernel::boot::info &boot)

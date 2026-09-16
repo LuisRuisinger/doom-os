@@ -87,7 +87,7 @@ void translate_framebuffer(const framebuffer_tag &tag, kernel::boot::info &out)
 {
     out.framebuffer = kernel::boot::framebuffer_info{
         .present = true,
-        .address = tag.address,
+        .range = {tag.address, tag.pitch as(u64) * tag.height},
         .pitch = tag.pitch,
         .width = tag.width,
         .height = tag.height,
@@ -108,7 +108,7 @@ void translate_acpi(const tag_header &tag, kernel::core::u8 revision, kernel::bo
 
     out.acpi = kernel::boot::acpi_info{
         .present = true,
-        .rsdp = rsdp as(kernel::core::paddr_t),
+        .rsdp = {rsdp as(kernel::core::paddr_t), tag.size - sizeof(tag_header)},
         .revision = revision,
     };
 }

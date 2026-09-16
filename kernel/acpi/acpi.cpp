@@ -138,10 +138,10 @@ kernel::init::init_result component::init_acpi()
         return kernel::core::Err(kernel::init::init_error::DEPENDENCY_UNAVAILABLE);
 
     const auto &boot_info = kernel::boot::boot_info::current();
-    if (!boot_info.acpi.present || boot_info.acpi.rsdp == 0)
+    if (!boot_info.acpi.present || boot_info.acpi.rsdp.base == 0)
         return kernel::core::Err(kernel::init::init_error::INVALID_BOOT_DATA);
 
-    kernel::acpi::init(boot_info.acpi.rsdp);
+    kernel::acpi::init(boot_info.acpi.rsdp.base);
 
     if (!is_ready())
         return kernel::core::Err(kernel::init::init_error::INVALID_BOOT_DATA);

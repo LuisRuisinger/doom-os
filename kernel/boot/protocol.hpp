@@ -141,18 +141,18 @@ struct module_info {
 };
 
 struct framebuffer_info {
-    bool    present;
-    paddr_t address;
-    u32     pitch;
-    u32     width;
-    u32     height;
-    u8      bits_per_pixel;
+    bool          present;
+    address_range range;
+    u32           pitch;
+    u32           width;
+    u32           height;
+    u8            bits_per_pixel;
 };
 
 struct acpi_info {
-    bool    present;
-    paddr_t rsdp;
-    u8      revision;
+    bool          present;
+    address_range rsdp;
+    u8            revision;
 };
 
 struct info {
