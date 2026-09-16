@@ -3,6 +3,8 @@
 
 #include <concepts>
 
+#include "kernel/core/array.hpp"
+#include "kernel/core/string.hpp"
 #include "kernel/core/types.hpp"
 #include "kernel/debug/formatter.hpp"
 #include "kernel/init/component.hpp"
@@ -14,14 +16,16 @@ using kernel::core::u32;
 using kernel::core::u64;
 using kernel::core::u8;
 using kernel::core::usize;
+using kernel::core::utils::array;
+using kernel::core::utils::fixed_string;
 
 template <typename Entry, usize Capacity>
 struct fixed_table {
     static constexpr usize CAPACITY = Capacity;
 
-    Entry entries[Capacity]{};
-    usize count{};
-    bool  truncated{};
+    array<Entry, Capacity> entries{};
+    usize                  count{};
+    bool                   truncated{};
 
     [[nodiscard]] bool push(const Entry &entry)
     {
@@ -47,12 +51,12 @@ struct fixed_table {
 
     [[nodiscard]] const Entry *begin() const
     {
-        return entries;
+        return entries.data();
     }
 
     [[nodiscard]] const Entry *end() const
     {
-        return entries + count;
+        return entries.data() + count;
     }
 
     void clear()
@@ -63,53 +67,6 @@ struct fixed_table {
 };
 
 inline constexpr usize MAX_BOOT_STRING = 256;
-
-template <usize Capacity>
-class bounded_string {
-    char  storage_m[Capacity]{};
-    usize length_m{};
-    bool  truncated_m{};
-
-public:
-    void assign(const char *source)
-    {
-        length_m = 0;
-        truncated_m = false;
-
-        if (source == nullptr) {
-            storage_m[0] = '\0';
-            return;
-        }
-
-        while (source[length_m] != '\0' && length_m + 1 < Capacity) {
-            storage_m[length_m] = source[length_m];
-            ++length_m;
-        }
-
-        storage_m[length_m] = '\0';
-        truncated_m = source[length_m] != '\0';
-    }
-
-    [[nodiscard]] const char *c_str() const
-    {
-        return storage_m;
-    }
-
-    [[nodiscard]] usize length() const
-    {
-        return length_m;
-    }
-
-    [[nodiscard]] bool empty() const
-    {
-        return length_m == 0;
-    }
-
-    [[nodiscard]] bool truncated() const
-    {
-        return truncated_m;
-    }
-};
 
 inline constexpr usize MAX_BOOT_MEMORY_REGIONS = 128;
 inline constexpr usize MAX_BOOT_MODULES = 32;
@@ -136,8 +93,8 @@ struct memory_region {
 };
 
 struct module_info {
-    address_range                                range;
-    bounded_string<MAX_BOOT_MODULE_COMMAND_LINE> command_line;
+    address_range                              range;
+    fixed_string<MAX_BOOT_MODULE_COMMAND_LINE> command_line;
 };
 
 struct framebuffer_info {
@@ -158,8 +115,8 @@ struct acpi_info {
 struct info {
     bool valid;
 
-    bounded_string<MAX_BOOT_STRING> command_line;
-    bounded_string<MAX_BOOT_STRING> bootloader_name;
+    fixed_string<MAX_BOOT_STRING> command_line;
+    fixed_string<MAX_BOOT_STRING> bootloader_name;
 
     fixed_table<memory_region, MAX_BOOT_MEMORY_REGIONS> memory_map;
     fixed_table<module_info, MAX_BOOT_MODULES>          modules;
@@ -202,18 +159,5 @@ concept boot_protocol = requires(const handoff &source, info &out) {
 };
 
 }  // namespace kernel::boot
-
-namespace kernel::debug::detail {
-
-template <kernel::core::usize Capacity>
-struct formatter<kernel::boot::bounded_string<Capacity>> {
-    template <format_spec Spec>
-    static void emit(const kernel::boot::bounded_string<Capacity> &value)
-    {
-        emit_string_value<Spec>(value.c_str());
-    }
-};
-
-}  // namespace kernel::debug::detail
 
 #endif  // DOOM_OS_KERNEL_BOOT_PROTOCOL_HPP_

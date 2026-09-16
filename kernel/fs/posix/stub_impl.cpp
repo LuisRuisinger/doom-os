@@ -1,5 +1,6 @@
 
 #include "kernel/boot/boot_info.hpp"
+#include "kernel/core/array.hpp"
 #include "kernel/core/cast.hpp"
 #include "kernel/debug/emit.hpp"
 #include "kernel/mm/vmm.hpp"
@@ -23,7 +24,7 @@ struct descriptor {
     u64       offset{};
 };
 
-descriptor m_descriptors[MAX_DESCRIPTORS]{};
+kernel::core::utils::array<descriptor, MAX_DESCRIPTORS> m_descriptors{};
 
 bool is_console(int fd)
 {

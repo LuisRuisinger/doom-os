@@ -5,6 +5,7 @@
 #include <limits>
 #include <type_traits>
 
+#include "kernel/core/array.hpp"
 #include "kernel/core/bits.hpp"
 #include "kernel/core/cast.hpp"
 #include "kernel/core/types.hpp"
@@ -148,7 +149,7 @@ private:
         }
     }
 
-    StorageType m_words[STORAGE_TYPE_INSTANCE_COUNT]{};
+    array<StorageType, STORAGE_TYPE_INSTANCE_COUNT> m_words{};
 
 public:
     constexpr bitmap() = default;

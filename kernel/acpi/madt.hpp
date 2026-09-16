@@ -2,6 +2,7 @@
 #define DOOM_OS_KERNEL_ACPI_MADT_HPP_
 
 #include "kernel/acpi/acpi.hpp"
+#include "kernel/core/array.hpp"
 #include "kernel/core/types.hpp"
 
 namespace kernel::acpi {
@@ -93,14 +94,14 @@ struct madt_info {
     static constexpr usize MAX_IOAPICS = 8;
     static constexpr usize MAX_ISOS = 32;
 
-    processor_info cpus[MAX_CPUS];
-    usize          cpu_count;
+    kernel::core::utils::array<processor_info, MAX_CPUS> cpus;
+    usize                                                cpu_count;
 
-    ioapic_record ioapics[MAX_IOAPICS];
-    usize         ioapic_count;
+    kernel::core::utils::array<ioapic_record, MAX_IOAPICS> ioapics;
+    usize                                                  ioapic_count;
 
-    iso_record isos[MAX_ISOS];
-    usize      iso_count;
+    kernel::core::utils::array<iso_record, MAX_ISOS> isos;
+    usize                                            iso_count;
 };
 
 [[nodiscard]] madt_info parse_madt(sdt_view view);

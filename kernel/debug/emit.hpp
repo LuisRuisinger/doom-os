@@ -1,6 +1,7 @@
 #ifndef DOOM_OS_KERNEL_DEBUG_EMIT_HPP_
 #define DOOM_OS_KERNEL_DEBUG_EMIT_HPP_
 
+#include "kernel/core/array.hpp"
 #include "kernel/core/cast.hpp"
 #include "kernel/debug/format_spec.hpp"
 
@@ -12,6 +13,7 @@ using kernel::core::i64;
 using kernel::core::u64;
 using kernel::core::u8;
 using kernel::core::usize;
+using kernel::core::utils::array;
 
 void emit_char(char value);
 void emit_bytes(const char *value, usize length);
@@ -54,8 +56,8 @@ inline usize c_string_length(const char *value)
 
 inline usize format_u64_decimal(u64 value, char *buffer)
 {
-    char  reverse[20];
-    usize length = 0;
+    array<char, 20> reverse;
+    usize           length = 0;
 
     do {
         reverse[length] = ('0' + value % 10) as(char);
@@ -74,8 +76,8 @@ inline usize format_u64_hex(u64 value, char *buffer, bool uppercase)
 {
     const char *digits = uppercase ? HEX_DIGITS_UPPER : HEX_DIGITS_LOWER;
 
-    char  reverse[16];
-    usize length = 0;
+    array<char, 16> reverse;
+    usize           length = 0;
 
     do {
         reverse[length] = digits[value & 0xFULL];
@@ -149,11 +151,11 @@ inline void emit_unsigned_decimal(u64 value)
     static_assert(!Spec.has_precision, "precision is not supported for integer formats");
     static_assert(!Spec.alternate, "alternate form is not supported for decimal integers");
 
-    char        body[20];
-    const usize body_length = format_u64_decimal(value, body);
+    array<char, 20> body;
+    const usize     body_length = format_u64_decimal(value, body.data());
 
-    char  prefix_buffer[1];
-    usize prefix_length = 0;
+    array<char, 1> prefix_buffer;
+    usize          prefix_length = 0;
 
     if constexpr (Spec.sign == format_sign::PLUS) {
         prefix_buffer[0] = '+';
@@ -163,7 +165,7 @@ inline void emit_unsigned_decimal(u64 value)
         prefix_length = 1;
     }
 
-    emit_padded<Spec>(prefix_buffer, prefix_length, body, body_length, true);
+    emit_padded<Spec>(prefix_buffer.data(), prefix_length, body.data(), body_length, true);
 }
 
 template <format_spec Spec>
@@ -172,11 +174,11 @@ inline void emit_signed_decimal(i64 value)
     static_assert(!Spec.has_precision, "precision is not supported for integer formats");
     static_assert(!Spec.alternate, "alternate form is not supported for decimal integers");
 
-    char        body[20];
-    const usize body_length = format_u64_decimal(signed_magnitude_i64(value), body);
+    array<char, 20> body;
+    const usize     body_length = format_u64_decimal(signed_magnitude_i64(value), body.data());
 
-    char  prefix_buffer[1];
-    usize prefix_length = 0;
+    array<char, 1> prefix_buffer;
+    usize          prefix_length = 0;
 
     if (value < 0) {
         prefix_buffer[0] = '-';
@@ -189,7 +191,7 @@ inline void emit_signed_decimal(i64 value)
         prefix_length = 1;
     }
 
-    emit_padded<Spec>(prefix_buffer, prefix_length, body, body_length, true);
+    emit_padded<Spec>(prefix_buffer.data(), prefix_length, body.data(), body_length, true);
 }
 
 template <format_spec Spec>
@@ -199,11 +201,11 @@ inline void emit_hex_integer(u64 value)
 
     constexpr bool uppercase = Spec.presentation_value == presentation::HEX_UPPER;
 
-    char        body[16];
-    const usize body_length = format_u64_hex(value, body, uppercase);
+    array<char, 16> body;
+    const usize     body_length = format_u64_hex(value, body.data(), uppercase);
 
-    char  prefix_buffer[2];
-    usize prefix_length = 0;
+    array<char, 2> prefix_buffer;
+    usize          prefix_length = 0;
 
     if constexpr (Spec.alternate) {
         prefix_buffer[0] = '0';
@@ -211,7 +213,7 @@ inline void emit_hex_integer(u64 value)
         prefix_length = 2;
     }
 
-    emit_padded<Spec>(prefix_buffer, prefix_length, body, body_length, true);
+    emit_padded<Spec>(prefix_buffer.data(), prefix_length, body.data(), body_length, true);
 }
 
 template <format_spec Spec>
@@ -248,8 +250,8 @@ inline void emit_pointer_value(const volatile void *value)
 template <format_spec Spec>
 inline void emit_float_special(const char *body, usize body_length, bool negative)
 {
-    char  prefix_buffer[1];
-    usize prefix_length = 0;
+    array<char, 1> prefix_buffer;
+    usize          prefix_length = 0;
 
     if (negative) {
         prefix_buffer[0] = '-';
@@ -262,7 +264,7 @@ inline void emit_float_special(const char *body, usize body_length, bool negativ
         prefix_length = 1;
     }
 
-    emit_padded<Spec>(prefix_buffer, prefix_length, body, body_length, true);
+    emit_padded<Spec>(prefix_buffer.data(), prefix_length, body, body_length, true);
 }
 
 template <format_spec Spec>
@@ -308,13 +310,13 @@ inline void emit_fixed_float(long double value)
     const u64 integer_part = value as(u64);
     long double                    fractional_part = value - integer_part as(long double);
 
-    char        integer_buffer[20];
-    const usize integer_length = format_u64_decimal(integer_part, integer_buffer);
+    array<char, 20> integer_buffer;
+    const usize     integer_length = format_u64_decimal(integer_part, integer_buffer.data());
 
-    char  body[64];
-    usize body_length = 0;
+    array<char, 64> body;
+    usize           body_length = 0;
 
-    copy_bytes(body + body_length, integer_buffer, integer_length);
+    copy_bytes(body.data() + body_length, integer_buffer.data(), integer_length);
     body_length += integer_length;
 
     if constexpr (precision > 0 || Spec.alternate) {
@@ -332,8 +334,8 @@ inline void emit_fixed_float(long double value)
         fractional_part -= digit as(long double);
     }
 
-    char  prefix_buffer[1];
-    usize prefix_length = 0;
+    array<char, 1> prefix_buffer;
+    usize          prefix_length = 0;
 
     if (negative) {
         prefix_buffer[0] = '-';
@@ -346,7 +348,7 @@ inline void emit_fixed_float(long double value)
         prefix_length = 1;
     }
 
-    emit_padded<Spec>(prefix_buffer, prefix_length, body, body_length, true);
+    emit_padded<Spec>(prefix_buffer.data(), prefix_length, body.data(), body_length, true);
 }
 
 template <format_spec Spec>

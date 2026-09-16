@@ -2,6 +2,7 @@
 
 #include "arch/x86_64/cpu/registers.hpp"
 #include "kernel/boot/boot_info.hpp"
+#include "kernel/core/array.hpp"
 #include "kernel/core/bits.hpp"
 #include "kernel/core/cast.hpp"
 
@@ -14,6 +15,7 @@ using kernel::core::Ok;
 using kernel::core::uptr;
 using kernel::core::utils::align_down;
 using kernel::core::utils::align_up;
+using kernel::core::utils::array;
 using kernel::init::init_error;
 
 constexpr u64   PAGE_4K = bytes_in(page_size::SIZE_4K);
@@ -31,16 +33,16 @@ static_assert(MMIO_MAP_BASE >= DIRECT_MAP_BASE + PML4_SPAN);
 static_assert(paging::index(4, KERNEL_BASE) != paging::index(4, DIRECT_MAP_BASE));
 
 struct alignas(PAGE_4K) table {
-    u64 entries[paging::ENTRIES];
+    array<u64, paging::ENTRIES> entries;
 };
 
-table m_pml4{};
-table m_identity_pdpt{};
-table m_identity_pd{};
-table m_kernel_pdpt{};
-table m_kernel_pd{};
-table m_direct_pdpt{};
-table m_direct_pds[DIRECT_PD_COUNT]{};
+table                         m_pml4{};
+table                         m_identity_pdpt{};
+table                         m_identity_pd{};
+table                         m_kernel_pdpt{};
+table                         m_kernel_pd{};
+table                         m_direct_pdpt{};
+array<table, DIRECT_PD_COUNT> m_direct_pds{};
 
 address_space m_kernel_space{};
 

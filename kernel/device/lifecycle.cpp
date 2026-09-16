@@ -4,6 +4,7 @@
 #include <uk/capability.hpp>
 
 #include "arch/x86_64/cpu/cpu.hpp"
+#include "kernel/core/array.hpp"
 #include "kernel/debug/kprint.hpp"
 
 namespace uk {
@@ -26,6 +27,7 @@ namespace {
 
 using kernel::core::u8;
 using kernel::core::usize;
+using kernel::core::utils::array;
 
 static constexpr usize MAX_DRIVERS = 128;
 static constexpr usize MAX_REGISTERED_CAPABILITIES = 256;
@@ -51,14 +53,14 @@ struct registered_capability {
 };
 
 struct lifecycle_state {
-    driver_node nodes[MAX_DRIVERS];
-    usize       node_count;
+    array<driver_node, MAX_DRIVERS> nodes;
+    usize                           node_count;
 
-    driver_node *initialized[MAX_DRIVERS];
-    usize        initialized_count;
+    array<driver_node *, MAX_DRIVERS> initialized;
+    usize                             initialized_count;
 
-    registered_capability capabilities[MAX_REGISTERED_CAPABILITIES];
-    usize                 capability_count;
+    array<registered_capability, MAX_REGISTERED_CAPABILITIES> capabilities;
+    usize                                                     capability_count;
 
     bool built;
     bool initialized_all;

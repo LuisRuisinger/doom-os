@@ -2,6 +2,7 @@
 #define DOOM_OS_KERNEL_ARCH_X86_64_IDT_HPP_
 
 #include "arch/x86_64/gdt/gdt.hpp"
+#include "kernel/core/array.hpp"
 #include "kernel/core/types.hpp"
 #include "kernel/init/component.hpp"
 
@@ -33,7 +34,7 @@ struct gate_spec {
 };
 
 class gate_table {
-    gate_spec gates_m[ENTRY_COUNT]{};
+    kernel::core::utils::array<gate_spec, ENTRY_COUNT> gates_m{};
 
 public:
     void set_interrupt_gate(u8 vector, handler entry_point, u8 ist = 0);
@@ -62,7 +63,7 @@ struct [[gnu::packed]] pointer {
 };
 
 class table {
-    alignas(16) entry entries_m[ENTRY_COUNT]{};
+    alignas(16) kernel::core::utils::array<entry, ENTRY_COUNT> entries_m{};
     pointer ptr_m{};
 
 public:

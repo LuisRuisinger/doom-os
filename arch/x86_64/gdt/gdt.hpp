@@ -2,6 +2,7 @@
 #define DOOM_OS_KERNEL_ARCH_X86_64_GDT_HPP_
 
 #include "arch/x86_64/tss/tss.hpp"
+#include "kernel/core/array.hpp"
 #include "kernel/core/types.hpp"
 #include "kernel/init/component.hpp"
 
@@ -35,7 +36,7 @@ struct [[gnu::packed]] pointer {
 };
 
 class table {
-    alignas(8) descriptor entries_m[ENTRY_COUNT]{};
+    alignas(8) kernel::core::utils::array<descriptor, ENTRY_COUNT> entries_m{};
     pointer ptr_m{};
 
 public:

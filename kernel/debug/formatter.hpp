@@ -6,6 +6,7 @@
 
 #include "kernel/core/cast.hpp"
 #include "kernel/core/reflect.hpp"
+#include "kernel/core/string.hpp"
 #include "kernel/debug/emit.hpp"
 
 namespace kernel::debug {
@@ -205,6 +206,15 @@ concept enum_value = std::is_enum_v<T>;
 
 template <typename T>
 concept reflectable_value = reflect::reflectable<T>;
+
+template <usize N>
+struct formatter<kernel::core::utils::fixed_string<N>> {
+    template <format_spec Spec>
+    static void emit(const kernel::core::utils::fixed_string<N> &value)
+    {
+        emit_string_value<Spec>(value.c_str());
+    }
+};
 
 template <reflect_string_value T>
 struct formatter<T> {

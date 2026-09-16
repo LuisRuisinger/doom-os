@@ -1,6 +1,7 @@
 
 #include "kernel/debug/kprint.hpp"
 
+#include "kernel/core/array.hpp"
 #include "kernel/core/cast.hpp"
 #include "kernel/debug/console.hpp"
 
@@ -13,6 +14,7 @@ using kernel::core::i64;
 using kernel::core::u64;
 using kernel::core::u8;
 using kernel::core::usize;
+using kernel::core::utils::array;
 
 namespace {
 
@@ -47,8 +49,8 @@ void emit_c_string(const char *value)
 
 void emit_decimal_u64(u64 value)
 {
-    char  buffer[20];
-    usize index = 0;
+    array<char, 20> buffer;
+    usize           index = 0;
 
     if (value == 0) {
         emit_char('0');
@@ -84,13 +86,13 @@ void emit_hex_u64(u64 value)
 {
     static constexpr char DIGITS[] = "0123456789ABCDEF";
 
-    char  buffer[18] = {'0', 'x'};
-    usize index = 2;
+    array<char, 18> buffer{'0', 'x'};
+    usize           index = 2;
 
     for (i32 shift = 60; shift >= 0; shift -= 4)
         buffer[index++] = DIGITS[((value >> shift) & 0xFULL) as(u8)];
 
-    console_write(buffer, index);
+    console_write(buffer.data(), index);
 }
 
 void emit_pointer(const volatile void *value)

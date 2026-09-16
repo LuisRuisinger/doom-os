@@ -2,6 +2,7 @@
 
 #include <concepts>
 
+#include "kernel/core/array.hpp"
 #include "kernel/core/bitmap.hpp"
 #include "kernel/core/bits.hpp"
 #include "kernel/core/cast.hpp"
@@ -20,6 +21,7 @@ using kernel::core::u8;
 using kernel::core::uptr;
 using kernel::core::utils::align_down;
 using kernel::core::utils::align_up;
+using kernel::core::utils::array;
 using kernel::core::utils::bitmap;
 using kernel::core::utils::is_aligned;
 
@@ -38,10 +40,10 @@ struct block {
     u16 prev;
 };
 
-frame_map m_frames{};
-block     m_blocks[BLOCK_COUNT]{};
-u16       m_whole{NIL};
-u16       m_broken{NIL};
+frame_map                 m_frames{};
+array<block, BLOCK_COUNT> m_blocks{};
+u16                       m_whole{NIL};
+u16                       m_broken{NIL};
 
 // TODO
 // finer locking approach for more performance

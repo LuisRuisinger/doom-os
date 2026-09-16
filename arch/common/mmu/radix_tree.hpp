@@ -2,6 +2,7 @@
 #define DOOM_OS_ARCH_COMMON_MMU_RADIX_TREE_HPP_
 
 #include "arch/common/mmu/traits.hpp"
+#include "kernel/core/array.hpp"
 #include "kernel/core/result.hpp"
 #include "kernel/core/types.hpp"
 #include "kernel/mm/page.hpp"
@@ -18,9 +19,9 @@ class radix_tree {
     paddr_t m_root{};
 
     struct walk_path {
-        u64    *slots[F::LEVELS + 1];
-        paddr_t tables[F::LEVELS + 1];
-        usize   reached_level;
+        kernel::core::utils::array<u64 *, F::LEVELS + 1>   slots;
+        kernel::core::utils::array<paddr_t, F::LEVELS + 1> tables;
+        usize                                              reached_level;
     };
 
     [[nodiscard]] static page_size leaf_size(page_size size)

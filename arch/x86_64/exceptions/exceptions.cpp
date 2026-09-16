@@ -7,6 +7,7 @@
 #include "arch/x86_64/cpu/registers.hpp"
 #include "arch/x86_64/idt/idt.hpp"
 #include "arch/x86_64/tss/tss.hpp"
+#include "kernel/core/array.hpp"
 #include "kernel/core/cast.hpp"
 #include "kernel/debug/kpanic.hpp"
 #include "kernel/debug/kprint.hpp"
@@ -340,7 +341,7 @@ DOOM_OS_CPU_EXCEPTION_VECTORS(DOOM_OS_DEFINE_WEAK_EXCEPTION_HANDLER)
 #undef DOOM_OS_DEFINE_WEAK_EXCEPTION_HANDLER
 
 struct exception_handler_table {
-    exception_handler entries[CPU_EXCEPTION_COUNT]{};
+    kernel::core::utils::array<exception_handler, CPU_EXCEPTION_COUNT> entries{};
 
     constexpr exception_handler operator[](const usize vector) const
     {
