@@ -139,27 +139,25 @@ public:
 
 extern "C" {
 
-extern const uk::driver_id __start_doom_os_driver_ids[] __attribute__((weak));
-extern const uk::driver_id __stop_doom_os_driver_ids[] __attribute__((weak));
+[[gnu::weak]] extern const uk::driver_id __start_doom_os_driver_ids[];
+[[gnu::weak]] extern const uk::driver_id __stop_doom_os_driver_ids[];
 
-extern const uk::init_record __start_doom_os_driver_init[] __attribute__((weak));
-extern const uk::init_record __stop_doom_os_driver_init[] __attribute__((weak));
+[[gnu::weak]] extern const uk::init_record __start_doom_os_driver_init[];
+[[gnu::weak]] extern const uk::init_record __stop_doom_os_driver_init[];
 
-extern const uk::exit_record __start_doom_os_driver_exit[] __attribute__((weak));
-extern const uk::exit_record __stop_doom_os_driver_exit[] __attribute__((weak));
+[[gnu::weak]] extern const uk::exit_record __start_doom_os_driver_exit[];
+[[gnu::weak]] extern const uk::exit_record __stop_doom_os_driver_exit[];
 
-extern const uk::provide_record __start_doom_os_driver_provides[] __attribute__((weak));
-extern const uk::provide_record __stop_doom_os_driver_provides[] __attribute__((weak));
+[[gnu::weak]] extern const uk::provide_record __start_doom_os_driver_provides[];
+[[gnu::weak]] extern const uk::provide_record __stop_doom_os_driver_provides[];
 
-extern const uk::require_driver_record __start_doom_os_driver_requires_driver[]
-    __attribute__((weak));
-extern const uk::require_driver_record __stop_doom_os_driver_requires_driver[]
-    __attribute__((weak));
+[[gnu::weak]] extern const uk::require_driver_record __start_doom_os_driver_requires_driver[];
+[[gnu::weak]] extern const uk::require_driver_record __stop_doom_os_driver_requires_driver[];
 
-extern const uk::require_capability_record __start_doom_os_driver_requires_capability[]
-    __attribute__((weak));
-extern const uk::require_capability_record __stop_doom_os_driver_requires_capability[]
-    __attribute__((weak));
+[[gnu::weak]] extern const uk::require_capability_record
+    __start_doom_os_driver_requires_capability[];
+[[gnu::weak]] extern const uk::require_capability_record
+    __stop_doom_os_driver_requires_capability[];
 }
 
 namespace uk::registry {

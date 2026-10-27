@@ -24,7 +24,7 @@
 #define DOOM_OS_DRIVER_DETAIL_ID(name__) DOOM_OS_DRIVER_DETAIL_CONCAT(doom_os_driver_id_, name__)
 
 #define DOOM_OS_DRIVER_DETAIL_SECTION(section__) \
-    __attribute__((used, section(section__), aligned(8)))
+    [[gnu::used, gnu::section(section__), gnu::aligned(8)]]
 
 #define DOOM_OS_DRIVER(name__)                                              \
     static constinit const ::uk::driver_id DOOM_OS_DRIVER_DETAIL_ID(name__) \

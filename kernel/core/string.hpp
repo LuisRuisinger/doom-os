@@ -51,102 +51,102 @@ struct fixed_string {
         assign(other);
     }
 
-    [[nodiscard]] static constexpr __attribute__((always_inline)) usize capacity()
+    [[nodiscard, gnu::always_inline]] static constexpr usize capacity()
     {
         return N;
     }
 
-    [[nodiscard]] static constexpr __attribute__((always_inline)) usize max_size()
+    [[nodiscard, gnu::always_inline]] static constexpr usize max_size()
     {
         return N;
     }
 
-    [[nodiscard]] constexpr __attribute__((always_inline)) usize size() const
+    [[nodiscard, gnu::always_inline]] constexpr usize size() const
     {
         return m_size;
     }
 
-    [[nodiscard]] constexpr __attribute__((always_inline)) usize length() const
+    [[nodiscard, gnu::always_inline]] constexpr usize length() const
     {
         return m_size;
     }
 
-    [[nodiscard]] constexpr __attribute__((always_inline)) bool empty() const
+    [[nodiscard, gnu::always_inline]] constexpr bool empty() const
     {
         return m_size == 0;
     }
 
-    [[nodiscard]] constexpr __attribute__((always_inline)) bool full() const
+    [[nodiscard, gnu::always_inline]] constexpr bool full() const
     {
         return m_size == N;
     }
 
-    [[nodiscard]] constexpr __attribute__((always_inline)) char *data()
+    [[nodiscard, gnu::always_inline]] constexpr char *data()
     {
         return m_data;
     }
 
-    [[nodiscard]] constexpr __attribute__((always_inline)) const char *data() const
+    [[nodiscard, gnu::always_inline]] constexpr const char *data() const
     {
         return m_data;
     }
 
-    [[nodiscard]] constexpr __attribute__((always_inline)) const char *c_str() const
+    [[nodiscard, gnu::always_inline]] constexpr const char *c_str() const
     {
         return m_data;
     }
 
-    [[nodiscard]] constexpr __attribute__((always_inline)) char &operator[](usize index)
+    [[nodiscard, gnu::always_inline]] constexpr char &operator[](usize index)
     {
         return m_data[index];
     }
 
-    [[nodiscard]] constexpr __attribute__((always_inline)) const char &operator[](usize index) const
+    [[nodiscard, gnu::always_inline]] constexpr const char &operator[](usize index) const
     {
         return m_data[index];
     }
 
-    [[nodiscard]] constexpr __attribute__((always_inline)) char &front()
+    [[nodiscard, gnu::always_inline]] constexpr char &front()
     {
         return m_data[0];
     }
 
-    [[nodiscard]] constexpr __attribute__((always_inline)) const char &front() const
+    [[nodiscard, gnu::always_inline]] constexpr const char &front() const
     {
         return m_data[0];
     }
 
-    [[nodiscard]] constexpr __attribute__((always_inline)) char &back()
+    [[nodiscard, gnu::always_inline]] constexpr char &back()
     {
         return m_data[m_size - 1];
     }
 
-    [[nodiscard]] constexpr __attribute__((always_inline)) const char &back() const
+    [[nodiscard, gnu::always_inline]] constexpr const char &back() const
     {
         return m_data[m_size - 1];
     }
 
-    [[nodiscard]] constexpr __attribute__((always_inline)) char *begin()
+    [[nodiscard, gnu::always_inline]] constexpr char *begin()
     {
         return m_data;
     }
 
-    [[nodiscard]] constexpr __attribute__((always_inline)) const char *begin() const
+    [[nodiscard, gnu::always_inline]] constexpr const char *begin() const
     {
         return m_data;
     }
 
-    [[nodiscard]] constexpr __attribute__((always_inline)) char *end()
+    [[nodiscard, gnu::always_inline]] constexpr char *end()
     {
         return m_data + m_size;
     }
 
-    [[nodiscard]] constexpr __attribute__((always_inline)) const char *end() const
+    [[nodiscard, gnu::always_inline]] constexpr const char *end() const
     {
         return m_data + m_size;
     }
 
-    constexpr __attribute__((always_inline)) void clear()
+    [[gnu::always_inline]] constexpr void clear()
     {
         m_size = 0;
         m_data[0] = '\0';
@@ -159,13 +159,13 @@ struct fixed_string {
         return append(text, count);
     }
 
-    constexpr __attribute__((always_inline)) fixed_string &assign(const char *text)
+    [[gnu::always_inline]] constexpr fixed_string &assign(const char *text)
     {
         return assign(text, text == nullptr ? 0 : NPOS);
     }
 
     template <usize M>
-    constexpr __attribute__((always_inline)) fixed_string &assign(const fixed_string<M> &other)
+    [[gnu::always_inline]] constexpr fixed_string &assign(const fixed_string<M> &other)
     {
         return assign(other.data(), other.size());
     }
@@ -180,44 +180,44 @@ struct fixed_string {
         return *this;
     }
 
-    constexpr __attribute__((always_inline)) fixed_string &append(const char *text)
+    [[gnu::always_inline]] constexpr fixed_string &append(const char *text)
     {
         return append(text, text == nullptr ? 0 : NPOS);
     }
 
     template <usize M>
-    constexpr __attribute__((always_inline)) fixed_string &append(const fixed_string<M> &other)
+    [[gnu::always_inline]] constexpr fixed_string &append(const fixed_string<M> &other)
     {
         return append(other.data(), other.size());
     }
 
-    constexpr __attribute__((always_inline)) fixed_string &append(char c)
+    [[gnu::always_inline]] constexpr fixed_string &append(char c)
     {
         return append(&c, 1);
     }
 
-    constexpr __attribute__((always_inline)) void push_back(char c)
+    [[gnu::always_inline]] constexpr void push_back(char c)
     {
         append(c);
     }
 
-    constexpr __attribute__((always_inline)) void pop_back()
+    [[gnu::always_inline]] constexpr void pop_back()
     {
         m_data[--m_size] = '\0';
     }
 
-    constexpr __attribute__((always_inline)) fixed_string &operator+=(const char *text)
+    [[gnu::always_inline]] constexpr fixed_string &operator+=(const char *text)
     {
         return append(text);
     }
 
-    constexpr __attribute__((always_inline)) fixed_string &operator+=(char c)
+    [[gnu::always_inline]] constexpr fixed_string &operator+=(char c)
     {
         return append(c);
     }
 
     template <usize M>
-    constexpr __attribute__((always_inline)) fixed_string &operator+=(const fixed_string<M> &other)
+    [[gnu::always_inline]] constexpr fixed_string &operator+=(const fixed_string<M> &other)
     {
         return append(other);
     }
@@ -237,20 +237,18 @@ struct fixed_string {
     }
 
     template <usize M>
-    [[nodiscard]] constexpr __attribute__((always_inline)) int compare(
-        const fixed_string<M> &other) const
+    [[nodiscard, gnu::always_inline]] constexpr int compare(const fixed_string<M> &other) const
     {
         return compare(other.c_str());
     }
 
-    [[nodiscard]] constexpr __attribute__((always_inline)) bool operator==(const char *text) const
+    [[nodiscard, gnu::always_inline]] constexpr bool operator==(const char *text) const
     {
         return compare(text) == 0;
     }
 
     template <usize M>
-    [[nodiscard]] constexpr __attribute__((always_inline)) bool operator==(
-        const fixed_string<M> &other) const
+    [[nodiscard, gnu::always_inline]] constexpr bool operator==(const fixed_string<M> &other) const
     {
         return m_size == other.size() && compare(other) == 0;
     }
