@@ -3,13 +3,13 @@ cmake_minimum_required(VERSION 3.22)
 # ==================================================================================================
 # DoomOS
 #
-# cmake -B build -G Ninja -DCMAKE_TOOLCHAIN_FILE=cmake/toolchains/x86_64-elf.cmake
+# cmake --preset default
 # cmake --build build
 # ==================================================================================================
 
-if(NOT CMAKE_TOOLCHAIN_FILE AND NOT CMAKE_CROSSCOMPILING)
-    message(FATAL_ERROR
-            "Configure with -DCMAKE_TOOLCHAIN_FILE=cmake/toolchains/x86_64-elf.cmake")
+if(NOT CMAKE_TOOLCHAIN_FILE)
+    set(CMAKE_TOOLCHAIN_FILE ${CMAKE_CURRENT_SOURCE_DIR}/cmake/toolchains/x86_64-elf.cmake
+        CACHE FILEPATH "Cross toolchain")
 endif()
 
 project(DoomOS
@@ -18,27 +18,11 @@ project(DoomOS
         LANGUAGES C CXX ASM)
 
 set(DOOM_OS_ROOT ${CMAKE_CURRENT_SOURCE_DIR} CACHE INTERNAL "DoomOS source root")
-set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_CXX_EXTENSIONS OFF)
 
 include(cmake/DoomOSConfig.cmake)
-
-# Copying compilation database to project root
-# Probably a bad fix given we please with that certain IDEs
-if(PROJECT_IS_TOP_LEVEL AND NOT DOOM_OS_ROOT STREQUAL CMAKE_BINARY_DIR)
-    file(CREATE_LINK
-            ${CMAKE_BINARY_DIR}/compile_commands.json
-            ${DOOM_OS_ROOT}/compile_commands.json
-            SYMBOLIC RESULT DOOM_OS_COMPILE_COMMANDS_LINK)
-
-    if(NOT DOOM_OS_COMPILE_COMMANDS_LINK EQUAL 0)
-        message(WARNING
-                "Could not link compile_commands.json into the project root: "
-                "${DOOM_OS_COMPILE_COMMANDS_LINK}")
-    endif()
-endif()
 
 # ==================================================================================================
 # Sources
