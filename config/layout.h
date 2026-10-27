@@ -48,6 +48,14 @@
 #define DOOM_OS_MMIO_MAP_SIZE 0x8000000000
 
 /*
+ * Kernel virtual allocations. vmm::alloc hands out ranges from here, each backed by frames taken
+ * from the PMM one at a time, so an allocation is contiguous in this window but never needs to be
+ * contiguous physically. 512 GiB aligned so a single PML4 slot owns it.
+ */
+#define DOOM_OS_VMALLOC_BASE 0xffffc00000000000
+#define DOOM_OS_VMALLOC_SIZE 0x8000000000
+
+/*
  * How much the early page tables cover, from DOOM_OS_KERNEL_VMA and from 0. One page directory
  * of 2 MiB entries, so this caps at 1 GiB. The linker script asserts the kernel image fits.
  */

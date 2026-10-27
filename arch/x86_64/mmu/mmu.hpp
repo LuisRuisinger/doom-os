@@ -21,12 +21,12 @@ using kernel::core::Result;
 using kernel::core::uptr;
 using kernel::mm::mm_error;
 
-inline constexpr vaddr_t KERNEL_BASE = DOOM_OS_KERNEL_VMA;
 inline constexpr vaddr_t DIRECT_MAP_BASE = DOOM_OS_DIRECT_MAP_BASE;
 inline constexpr u64     DIRECT_MAP_SIZE = DOOM_OS_MAX_PHYSICAL_MEMORY;
-inline constexpr u64     EARLY_MAP_SIZE = DOOM_OS_EARLY_MAP_SIZE;
 inline constexpr vaddr_t MMIO_MAP_BASE = DOOM_OS_MMIO_MAP_BASE;
 inline constexpr u64     MMIO_MAP_SIZE = DOOM_OS_MMIO_MAP_SIZE;
+inline constexpr vaddr_t VMALLOC_BASE = DOOM_OS_VMALLOC_BASE;
+inline constexpr u64     VMALLOC_SIZE = DOOM_OS_VMALLOC_SIZE;
 
 [[nodiscard]] inline void *phy_to_vrt(paddr_t phys)
 {

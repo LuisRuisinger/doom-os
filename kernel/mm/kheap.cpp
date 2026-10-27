@@ -5,57 +5,31 @@
 #include "kernel/core/cast.hpp"
 #include "kernel/debug/kpanic.hpp"
 #include "kernel/mm/page.hpp"
-#include "kernel/mm/pmm.hpp"
 #include "kernel/mm/vmm.hpp"
 #include "kernel/runtime/memory.hpp"
+#include "kernel/sync/spinlock.hpp"
 
 namespace {
 
-using kernel::core::paddr_t;
-using kernel::core::u8;
 using kernel::core::uptr;
 using kernel::core::usize;
-using kernel::mm::page_size;
+using kernel::mm::page_prot;
 
-namespace pmm = kernel::mm::pmm;
 namespace vmm = kernel::mm::vmm;
 
-constexpr usize FRAME_BYTES = kernel::mm::bytes_in(page_size::SIZE_2M);
 constexpr usize NATURAL_ALIGNMENT = 2 * sizeof(void *);
 
-constinit bool m_heap_ready = false;
-constinit u8  *m_break = nullptr;
+constinit bool         m_heap_ready = false;
+kernel::sync::spinlock m_lock{};
 
-u8 *claim_frame()
+void *heap_mmap(usize bytes)
 {
-    return pmm::alloc(page_size::SIZE_2M)
-        .map([](paddr_t frame) -> u8 * {
-            void *window = vmm::phy_to_vrt(frame);
-
-            if (window == nullptr)
-                pmm::free(page_size::SIZE_2M, frame);
-
-            return window as(u8 *);
-        })
-        .unwrap_or(nullptr);
+    return vmm::alloc(bytes, page_prot::KERNEL_DATA).unwrap_or((~uptr{0}) as(void *));
 }
 
-void *morecore(ptrdiff_t increment)
+int heap_munmap(void *ptr, usize bytes)
 {
-    if (increment == 0)
-        return m_break;
-
-    if (increment < 0 || increment as(usize) > FRAME_BYTES)
-        return (~uptr{0}) as(void *);
-
-    u8 *frame = claim_frame();
-
-    if (frame == nullptr)
-        return (~uptr{0}) as(void *);
-
-    m_break = frame + FRAME_BYTES;
-
-    return frame;
+    return vmm::free(ptr, bytes).is_ok() ? 0 : -1;
 }
 
 [[noreturn]] void corrupted()
@@ -65,17 +39,19 @@ void *morecore(ptrdiff_t increment)
 
 }  // namespace
 
-#define DLMALLOC_EXPORT      static
-#define USE_DL_PREFIX        1
-#define HAVE_MORECORE        1
-#define MORECORE             morecore
-#define MORECORE_CONTIGUOUS  0
-#define MORECORE_CANNOT_TRIM 1
-#define HAVE_MMAP            0
-#define HAVE_MREMAP          0
-#define DEFAULT_GRANULARITY  (2U * 1024U * 1024U)
-#define USE_LOCKS            0
-#define NO_MALLOC_STATS      1
+#define DLMALLOC_EXPORT        static
+#define USE_DL_PREFIX          1
+#define HAVE_MORECORE          0
+#define HAVE_MMAP              1
+#define MMAP(s)                heap_mmap(s)
+#define DIRECT_MMAP(s)         heap_mmap(s)
+#define MUNMAP(a, s)           heap_munmap((a), (s))
+#define MMAP_CLEARS            0
+#define HAVE_MREMAP            0
+#define DEFAULT_GRANULARITY    (2U * 1024U * 1024U)
+#define DEFAULT_MMAP_THRESHOLD (256U * 1024U)
+#define USE_LOCKS              0
+#define NO_MALLOC_STATS        1
 #define MALLOC_FAILURE_ACTION
 #define ABORT              corrupted()
 #define malloc_getpagesize 4096U
@@ -101,6 +77,7 @@ static size_t dlmalloc_usable_size(void *);
 #pragma GCC diagnostic push
 #pragma GCC diagnostic ignored "-Wunused-function"
 #pragma GCC diagnostic ignored "-Wunused-but-set-variable"
+#pragma GCC diagnostic ignored "-Wunused-variable"
 #if defined(__clang__)
 #    pragma clang diagnostic ignored "-Wgnu-null-pointer-arithmetic"
 #endif
@@ -117,6 +94,8 @@ void *alloc(usize bytes, usize alignment)
     if (bytes == 0)
         return nullptr;
 
+    kernel::sync::spinlock_guard guard(m_lock);
+
     if (alignment <= NATURAL_ALIGNMENT)
         return dlmalloc(bytes);
 
@@ -130,6 +109,8 @@ void free(void *ptr)
 
     if (!m_heap_ready)
         KPANIC("kernel heap freed before KHEAP init");
+
+    kernel::sync::spinlock_guard guard(m_lock);
 
     dlfree(ptr);
 }

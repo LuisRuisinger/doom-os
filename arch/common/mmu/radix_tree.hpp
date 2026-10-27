@@ -18,6 +18,12 @@ template <page_format F, page_env E>
 class radix_tree {
     paddr_t m_root{};
 
+    struct ignore_removed {
+        void operator()(const mapping &) const
+        {
+        }
+    };
+
     struct walk_path {
         kernel::core::utils::array<u64 *, F::LEVELS + 1>   slots;
         kernel::core::utils::array<paddr_t, F::LEVELS + 1> tables;
@@ -142,15 +148,39 @@ class radix_tree {
         return Ok();
     }
 
-    [[nodiscard]] Result<void, mm_error> unmap_leaf(vaddr_t va, page_size size) const
+    [[nodiscard]] Result<void, mm_error> split_at(vaddr_t boundary, usize target) const
     {
-        const usize     target = KTRY(validate(va, size));
-        const walk_path path = KTRY(walk_to_leaf(va, target));
+        const auto path = walk(boundary, target, false);
 
-        E::replace(*path.slots[target], 0, va);
-        prune(path, target, va);
+        if (path.is_err())
+            return Ok();
+
+        const usize level = path.unwrap_ref().reached_level;
+
+        if (level > target && (boundary & (bytes_in(F::size_at(level)) - 1)) != 0)
+            KTRY(walk(boundary, target, true));
 
         return Ok();
+    }
+
+    [[nodiscard]] Result<mapping, mm_error> remove_leaf(vaddr_t va) const
+    {
+        if (!F::valid(va))
+            return Err(mm_error::INVALID_ADDRESS);
+
+        const walk_path path = KTRY(walk(va, 1, false));
+        const usize     level = path.reached_level;
+        u64            &slot = *path.slots[level];
+
+        if (!F::present(slot))
+            return Err(mm_error::NOT_MAPPED);
+
+        const mapping removed{F::address(slot), 0, F::size_at(level), F::prot(slot)};
+
+        E::replace(slot, 0, va);
+        prune(path, level, va);
+
+        return Ok(removed);
     }
 
     template <class Fn>
@@ -183,23 +213,12 @@ public:
         return m_root;
     }
 
-    [[nodiscard]] Result<void, mm_error> map(vaddr_t va, paddr_t pa, page_size size,
-                                             page_prot prot) const
-    {
-        return map_range(va, pa, bytes_in(size), size, prot);
-    }
-
     [[nodiscard]] Result<void, mm_error> map_range(vaddr_t va, paddr_t pa, u64 length,
                                                    page_size size, page_prot prot) const
     {
         return for_each_leaf(va, length, size, [&](vaddr_t leaf, u64 offset, page_size leaf_sz) {
             return map_leaf(leaf, pa + offset, leaf_sz, prot);
         });
-    }
-
-    [[nodiscard]] Result<void, mm_error> protect(vaddr_t va, page_size size, page_prot prot) const
-    {
-        return protect_range(va, bytes_in(size), size, prot);
     }
 
     [[nodiscard]] Result<void, mm_error> protect_range(vaddr_t va, u64 length, page_size size,
@@ -210,16 +229,31 @@ public:
         });
     }
 
-    [[nodiscard]] Result<void, mm_error> unmap(vaddr_t va, page_size size) const
+    template <class Fn = ignore_removed>
+    [[nodiscard]] Result<void, mm_error> unmap_range(vaddr_t va, u64 length, page_size size,
+                                                     Fn on_removed = {}) const
     {
-        return unmap_range(va, bytes_in(size), size);
-    }
+        size = leaf_size(size);
 
-    [[nodiscard]] Result<void, mm_error> unmap_range(vaddr_t va, u64 length, page_size size) const
-    {
-        return for_each_leaf(va, length, size, [&](vaddr_t leaf, u64, page_size leaf_sz) {
-            return unmap_leaf(leaf, leaf_sz);
-        });
+        const usize   target = KTRY(validate(va, size));
+        const vaddr_t end = va + length;
+
+        if (length == 0 || length % bytes_in(size) != 0 || end - 1 < va || !F::valid(end - 1))
+            return Err(mm_error::INVALID_ADDRESS);
+
+        KTRY(split_at(va, target));
+
+        if (end > va && F::valid(end))
+            KTRY(split_at(end, target));
+
+        for (u64 offset = 0; offset < length;) {
+            const mapping removed = KTRY(remove_leaf(va + offset));
+
+            on_removed(removed);
+            offset += bytes_in(removed.size);
+        }
+
+        return Ok();
     }
 
     [[nodiscard]] Result<mapping, mm_error> translate(vaddr_t va) const

@@ -18,6 +18,9 @@ using kernel::core::utils::align_up;
 using kernel::core::utils::array;
 using kernel::init::init_error;
 
+constexpr vaddr_t KERNEL_BASE = DOOM_OS_KERNEL_VMA;
+constexpr u64     EARLY_MAP_SIZE = DOOM_OS_EARLY_MAP_SIZE;
+
 constexpr u64   PAGE_4K = bytes_in(page_size::SIZE_4K);
 constexpr u64   PAGE_2M = bytes_in(page_size::SIZE_2M);
 constexpr u64   PAGE_1G = bytes_in(page_size::SIZE_1G);
@@ -30,6 +33,9 @@ static_assert(DIRECT_MAP_BASE % PML4_SPAN == 0 && DIRECT_MAP_SIZE % PAGE_1G == 0
 static_assert(DIRECT_PD_COUNT <= paging::ENTRIES);
 static_assert(MMIO_MAP_BASE % PML4_SPAN == 0 && MMIO_MAP_SIZE <= PML4_SPAN);
 static_assert(MMIO_MAP_BASE >= DIRECT_MAP_BASE + PML4_SPAN);
+static_assert(VMALLOC_BASE % PML4_SPAN == 0 && VMALLOC_SIZE <= PML4_SPAN);
+static_assert(VMALLOC_BASE >= MMIO_MAP_BASE + PML4_SPAN);
+static_assert(paging::index(4, KERNEL_BASE) != paging::index(4, VMALLOC_BASE));
 static_assert(paging::index(4, KERNEL_BASE) != paging::index(4, DIRECT_MAP_BASE));
 
 struct alignas(PAGE_4K) table {

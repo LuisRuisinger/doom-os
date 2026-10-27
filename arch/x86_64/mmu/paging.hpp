@@ -21,12 +21,14 @@ struct paging : kernel::arch::common::mmu::radix9<4> {
     static constexpr u64 PRESENT = u64{1} << 0;
     static constexpr u64 WRITABLE = u64{1} << 1;
     static constexpr u64 USER = u64{1} << 2;
+    static constexpr u64 WRITE_THROUGH = u64{1} << 3;
     static constexpr u64 CACHE_DISABLE = u64{1} << 4;
     static constexpr u64 LARGE = u64{1} << 7;
     static constexpr u64 GLOBAL = u64{1} << 8;
     static constexpr u64 NO_EXECUTE = u64{1} << 63;
     static constexpr u64 ADDRESS_MASK = 0x000FFFFFFFFFF000;
-    static constexpr u64 PROT_MASK = WRITABLE | USER | CACHE_DISABLE | GLOBAL | NO_EXECUTE;
+    static constexpr u64 PROT_MASK =
+        WRITABLE | USER | WRITE_THROUGH | CACHE_DISABLE | GLOBAL | NO_EXECUTE;
 
     [[nodiscard]] static constexpr bool valid(vaddr_t va)
     {
@@ -87,7 +89,7 @@ struct paging : kernel::arch::common::mmu::radix9<4> {
         if (has(prot, page_prot::USER))
             entry |= USER;
         if (has(prot, page_prot::UNCACHED))
-            entry |= CACHE_DISABLE;
+            entry |= CACHE_DISABLE | WRITE_THROUGH;
         if (has(prot, page_prot::GLOBAL) && global_pages_enabled())
             entry |= GLOBAL;
         if (!has(prot, page_prot::EXEC) && nx_enabled())

@@ -2,6 +2,7 @@
 
 #include <concepts>
 
+#include "config/layout.h"
 #include "kernel/core/array.hpp"
 #include "kernel/core/bitmap.hpp"
 #include "kernel/core/bits.hpp"
@@ -24,6 +25,11 @@ using kernel::core::utils::align_up;
 using kernel::core::utils::array;
 using kernel::core::utils::bitmap;
 using kernel::core::utils::is_aligned;
+
+constexpr u64   MAX_PHYSICAL_MEMORY = DOOM_OS_MAX_PHYSICAL_MEMORY;
+constexpr usize MAX_FRAMES = MAX_PHYSICAL_MEMORY / FRAME_SIZE;
+
+static_assert(MAX_PHYSICAL_MEMORY % bytes_in(page_size::SIZE_1G) == 0);
 
 using frame_map = bitmap<MAX_FRAMES>;
 
