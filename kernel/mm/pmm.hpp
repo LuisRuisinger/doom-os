@@ -1,7 +1,6 @@
 #ifndef DOOM_OS_KERNEL_MM_PMM_HPP_
 #define DOOM_OS_KERNEL_MM_PMM_HPP_
 
-#include "config/layout.h"
 #include "kernel/boot/boot_info.hpp"
 #include "kernel/core/result.hpp"
 #include "kernel/core/types.hpp"
@@ -12,13 +11,6 @@ namespace kernel::mm::pmm {
 
 using kernel::core::paddr_t;
 using kernel::core::Result;
-using kernel::core::u64;
-using kernel::core::usize;
-
-inline constexpr u64   MAX_PHYSICAL_MEMORY = DOOM_OS_MAX_PHYSICAL_MEMORY;
-inline constexpr usize MAX_FRAMES = MAX_PHYSICAL_MEMORY / FRAME_SIZE;
-
-static_assert(MAX_PHYSICAL_MEMORY % bytes_in(page_size::SIZE_1G) == 0);
 
 [[nodiscard]] Result<paddr_t, mm_error> alloc(page_size size = page_size::SIZE_4K);
 void free(page_size size, paddr_t base);

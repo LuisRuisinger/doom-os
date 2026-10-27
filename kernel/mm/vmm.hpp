@@ -11,18 +11,13 @@ namespace kernel::mm::vmm {
 
 using kernel::core::paddr_t;
 using kernel::core::Result;
-using kernel::core::u64;
 using kernel::core::usize;
 using kernel::core::vaddr_t;
 
-[[nodiscard]] Result<void, mm_error> map(vaddr_t va, paddr_t pa, page_size size, page_prot prot);
-[[nodiscard]] Result<void, mm_error> map_range(vaddr_t va, paddr_t pa, u64 length, page_size size,
-                                               page_prot prot);
-[[nodiscard]] Result<void, mm_error> protect(vaddr_t va, page_size size, page_prot prot);
-[[nodiscard]] Result<void, mm_error> protect_range(vaddr_t va, u64 length, page_size size,
-                                                   page_prot prot);
-[[nodiscard]] Result<void, mm_error> unmap(vaddr_t va, page_size size);
-[[nodiscard]] Result<void, mm_error> unmap_range(vaddr_t va, u64 length, page_size size);
+[[nodiscard]] Result<void *, mm_error> alloc(usize bytes, page_prot prot);
+[[nodiscard]] Result<void, mm_error> free(void *ptr, usize bytes);
+[[nodiscard]] Result<void, mm_error> protect(void *ptr, usize bytes, page_prot prot);
+
 [[nodiscard]] Result<mapping, mm_error> vrt_to_phy(vaddr_t va);
 
 [[nodiscard]] inline void *phy_to_vrt(paddr_t pa)
