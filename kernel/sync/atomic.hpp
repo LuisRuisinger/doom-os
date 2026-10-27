@@ -13,6 +13,7 @@ using kernel::core::u16;
 using kernel::core::u32;
 using kernel::core::u64;
 using kernel::core::u8;
+using kernel::core::usize;
 
 enum class memory_order : u8 {
     RELAXED = __ATOMIC_RELAXED,
@@ -232,6 +233,10 @@ constexpr T sub_atomic_values(T lhs, T rhs)
 
 }  // namespace detail
 
+// =================================================================================================
+// Misc
+// =================================================================================================
+
 inline void compiler_barrier()
 {
     asm volatile("" ::: "memory");
@@ -247,6 +252,10 @@ inline void signal_fence(memory_order order = memory_order::SEQ_CST)
     __atomic_signal_fence(detail::to_builtin_order(order));
 }
 
+// =================================================================================================
+// Atomic
+// =================================================================================================
+
 template <typename T>
 class atomic {
     static_assert(detail::supports_atomic_object_ops_v<T>,
@@ -257,19 +266,19 @@ class atomic {
     static_assert(__atomic_always_lock_free(sizeof(storage_type), nullptr),
                   "kernel::sync::atomic<T> requires always-lock-free inline storage");
 
-    alignas(storage_type) storage_type value_m;
+    alignas(storage_type) storage_type m_storage;
 
 public:
     using value_type = T;
 
     template <typename U = T, std::enable_if_t<std::is_default_constructible_v<U>, i32> = 0>
     constexpr atomic()
-        : value_m(detail::encode_atomic_value(T{}))
+        : m_storage(detail::encode_atomic_value(T{}))
     {
     }
 
     constexpr atomic(T value)
-        : value_m(detail::encode_atomic_value(value))
+        : m_storage(detail::encode_atomic_value(value))
     {
     }
 
@@ -292,7 +301,7 @@ public:
 
     T load(memory_order order = memory_order::SEQ_CST) const
     {
-        const storage_type storage = __atomic_load_n(&value_m, detail::to_load_order(order));
+        const storage_type storage = __atomic_load_n(&m_storage, detail::to_load_order(order));
 
         return detail::decode_atomic_value<T>(storage);
     }
@@ -301,14 +310,14 @@ public:
     {
         const storage_type storage = detail::encode_atomic_value(value);
 
-        __atomic_store_n(&value_m, storage, detail::to_store_order(order));
+        __atomic_store_n(&m_storage, storage, detail::to_store_order(order));
     }
 
     T exchange(T value, memory_order order = memory_order::SEQ_CST)
     {
         const storage_type desired = detail::encode_atomic_value(value);
         const storage_type old =
-            __atomic_exchange_n(&value_m, desired, detail::to_builtin_order(order));
+            __atomic_exchange_n(&m_storage, desired, detail::to_builtin_order(order));
 
         return detail::decode_atomic_value<T>(old);
     }
@@ -327,7 +336,7 @@ public:
         const storage_type desired_storage = detail::encode_atomic_value(desired);
 
         const bool exchanged = __atomic_compare_exchange_n(
-            &value_m, &expected_storage, desired_storage, false,
+            &m_storage, &expected_storage, desired_storage, false,
             detail::to_builtin_order(success_order), detail::to_failure_order(failure_order));
 
         if (!exchanged)
@@ -350,7 +359,7 @@ public:
         const storage_type desired_storage = detail::encode_atomic_value(desired);
 
         const bool exchanged = __atomic_compare_exchange_n(
-            &value_m, &expected_storage, desired_storage, true,
+            &m_storage, &expected_storage, desired_storage, true,
             detail::to_builtin_order(success_order), detail::to_failure_order(failure_order));
 
         if (!exchanged)
@@ -364,7 +373,7 @@ public:
     {
         const storage_type encoded_value = detail::encode_atomic_value(value);
         const storage_type old =
-            __atomic_fetch_add(&value_m, encoded_value, detail::to_builtin_order(order));
+            __atomic_fetch_add(&m_storage, encoded_value, detail::to_builtin_order(order));
 
         return detail::decode_atomic_value<T>(old);
     }
@@ -374,7 +383,7 @@ public:
     {
         const storage_type encoded_value = detail::encode_atomic_value(value);
         const storage_type old =
-            __atomic_fetch_sub(&value_m, encoded_value, detail::to_builtin_order(order));
+            __atomic_fetch_sub(&m_storage, encoded_value, detail::to_builtin_order(order));
 
         return detail::decode_atomic_value<T>(old);
     }
@@ -384,7 +393,7 @@ public:
     {
         const storage_type encoded_value = detail::encode_atomic_value(value);
         const storage_type old =
-            __atomic_fetch_and(&value_m, encoded_value, detail::to_builtin_order(order));
+            __atomic_fetch_and(&m_storage, encoded_value, detail::to_builtin_order(order));
 
         return detail::decode_atomic_value<T>(old);
     }
@@ -394,7 +403,7 @@ public:
     {
         const storage_type encoded_value = detail::encode_atomic_value(value);
         const storage_type old =
-            __atomic_fetch_or(&value_m, encoded_value, detail::to_builtin_order(order));
+            __atomic_fetch_or(&m_storage, encoded_value, detail::to_builtin_order(order));
 
         return detail::decode_atomic_value<T>(old);
     }
@@ -404,7 +413,7 @@ public:
     {
         const storage_type encoded_value = detail::encode_atomic_value(value);
         const storage_type old =
-            __atomic_fetch_xor(&value_m, encoded_value, detail::to_builtin_order(order));
+            __atomic_fetch_xor(&m_storage, encoded_value, detail::to_builtin_order(order));
 
         return detail::decode_atomic_value<T>(old);
     }
@@ -467,6 +476,110 @@ public:
         return detail::decode_atomic_value<T>(
             (detail::encode_atomic_value(fetch_xor(value)) ^ detail::encode_atomic_value(value))
                 as(storage_type));
+    }
+};
+
+// =================================================================================================
+// Atomic reference
+// =================================================================================================
+
+template <typename T>
+class atomic_ref {
+    static_assert((std::is_integral_v<T> || std::is_pointer_v<T>) && !std::is_const_v<T> &&
+                      !std::is_volatile_v<T>,
+                  "kernel::sync::atomic_ref<T> currently requires a non-cv integral or pointer T");
+
+    static_assert(__atomic_always_lock_free(sizeof(T), nullptr),
+                  "kernel::sync::atomic_ref<T> requires always-lock-free T");
+
+    T &object_m;
+
+public:
+    using value_type = T;
+
+    static constexpr usize required_alignment = sizeof(T);
+
+    explicit atomic_ref(T &object)
+        : object_m(object)
+    {
+    }
+
+    atomic_ref(const atomic_ref &) = default;
+    atomic_ref &operator=(const atomic_ref &) = delete;
+
+    T load(memory_order order = memory_order::SEQ_CST) const
+    {
+        return __atomic_load_n(&object_m, detail::to_load_order(order));
+    }
+
+    void store(T value, memory_order order = memory_order::SEQ_CST) const
+    {
+        __atomic_store_n(&object_m, value, detail::to_store_order(order));
+    }
+
+    T exchange(T value, memory_order order = memory_order::SEQ_CST) const
+    {
+        return __atomic_exchange_n(&object_m, value, detail::to_builtin_order(order));
+    }
+
+    bool compare_exchange(T &expected, T desired,
+                          memory_order success_order = memory_order::SEQ_CST) const
+    {
+        return compare_exchange(expected, desired, success_order,
+                                detail::default_failure_order(success_order));
+    }
+
+    bool compare_exchange(T &expected, T desired, memory_order success_order,
+                          memory_order failure_order) const
+    {
+        return __atomic_compare_exchange_n(&object_m, &expected, desired, false,
+                                           detail::to_builtin_order(success_order),
+                                           detail::to_failure_order(failure_order));
+    }
+
+    bool compare_exchange_weak(T &expected, T desired,
+                               memory_order success_order = memory_order::SEQ_CST) const
+    {
+        return compare_exchange_weak(expected, desired, success_order,
+                                     detail::default_failure_order(success_order));
+    }
+
+    bool compare_exchange_weak(T &expected, T desired, memory_order success_order,
+                               memory_order failure_order) const
+    {
+        return __atomic_compare_exchange_n(&object_m, &expected, desired, true,
+                                           detail::to_builtin_order(success_order),
+                                           detail::to_failure_order(failure_order));
+    }
+
+    template <typename U = T, std::enable_if_t<detail::supports_arithmetic_ops_v<U>, i32> = 0>
+    T fetch_add(T value, memory_order order = memory_order::SEQ_CST) const
+    {
+        return __atomic_fetch_add(&object_m, value, detail::to_builtin_order(order));
+    }
+
+    template <typename U = T, std::enable_if_t<detail::supports_arithmetic_ops_v<U>, i32> = 0>
+    T fetch_sub(T value, memory_order order = memory_order::SEQ_CST) const
+    {
+        return __atomic_fetch_sub(&object_m, value, detail::to_builtin_order(order));
+    }
+
+    template <typename U = T, std::enable_if_t<detail::supports_arithmetic_ops_v<U>, i32> = 0>
+    T fetch_and(T value, memory_order order = memory_order::SEQ_CST) const
+    {
+        return __atomic_fetch_and(&object_m, value, detail::to_builtin_order(order));
+    }
+
+    template <typename U = T, std::enable_if_t<detail::supports_arithmetic_ops_v<U>, i32> = 0>
+    T fetch_or(T value, memory_order order = memory_order::SEQ_CST) const
+    {
+        return __atomic_fetch_or(&object_m, value, detail::to_builtin_order(order));
+    }
+
+    template <typename U = T, std::enable_if_t<detail::supports_arithmetic_ops_v<U>, i32> = 0>
+    T fetch_xor(T value, memory_order order = memory_order::SEQ_CST) const
+    {
+        return __atomic_fetch_xor(&object_m, value, detail::to_builtin_order(order));
     }
 };
 

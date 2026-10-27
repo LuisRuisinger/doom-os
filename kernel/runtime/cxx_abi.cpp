@@ -1,11 +1,22 @@
-
+#include "arch/x86_64/cpu/cpu.hpp"
 #include "kernel/core/types.hpp"
 #include "kernel/debug/kpanic.hpp"
+#include "kernel/sync/atomic.hpp"
 
 #define DOOM_OS_WEAK __attribute__((weak))
 
-extern "C" {
+namespace {
 
+using kernel::core::u64;
+using kernel::sync::atomic_ref;
+using kernel::sync::memory_order;
+
+constexpr u64 INITIALIZED = u64{1} << 0;
+constexpr u64 IN_USE = u64{1} << 8;
+
+}  // namespace
+
+extern "C" {
 [[noreturn]] DOOM_OS_WEAK void __cxa_pure_virtual() noexcept
 {
     KPANIC("pure virtual function called");
@@ -16,37 +27,34 @@ extern "C" {
     KPANIC("deleted virtual function called");
 }
 
-}  // extern "C"
-
-extern "C" DOOM_OS_WEAK int __cxa_guard_acquire(kernel::core::u64 *guard) noexcept
+DOOM_OS_WEAK int __cxa_guard_acquire(u64 *guard) noexcept
 {
-    static constexpr kernel::core::u64 INITIALIZED = 1ull << 0;
-    static constexpr kernel::core::u64 IN_USE = 1ull << 1;
-
-    if (__atomic_load_n(guard, __ATOMIC_ACQUIRE) & INITIALIZED)
+    const atomic_ref state(*guard);
+    if ((state.load(memory_order::ACQUIRE) & INITIALIZED) != 0)
         return 0;
 
     for (;;) {
-        kernel::core::u64 expected = 0;
-        if (__atomic_compare_exchange_n(guard, &expected, IN_USE, false, __ATOMIC_ACQ_REL,
-                                        __ATOMIC_ACQUIRE))
+        u64 expected = 0;
+        if (state.compare_exchange(expected, IN_USE, memory_order::ACQ_REL, memory_order::ACQUIRE))
             return 1;
 
-        if (expected & INITIALIZED)
+        if ((expected & INITIALIZED) != 0)
             return 0;
 
-        asm volatile("" ::: "memory");
+        kernel::arch::x86_64::cpu::relax();
     }
 }
 
-extern "C" DOOM_OS_WEAK void __cxa_guard_release(kernel::core::u64 *guard) noexcept
+DOOM_OS_WEAK void __cxa_guard_release(u64 *guard) noexcept
 {
-    __atomic_store_n(guard, 1ull << 0, __ATOMIC_RELEASE);
+    atomic_ref(*guard).store(INITIALIZED, memory_order::RELEASE);
 }
 
-extern "C" DOOM_OS_WEAK void __cxa_guard_abort(kernel::core::u64 *guard) noexcept
+DOOM_OS_WEAK void __cxa_guard_abort(u64 *guard) noexcept
 {
-    __atomic_store_n(guard, 0, __ATOMIC_RELEASE);
+    atomic_ref(*guard).store(0, memory_order::RELEASE);
 }
+
+}  // extern "C"
 
 #undef DOOM_OS_WEAK
