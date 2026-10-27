@@ -7,67 +7,67 @@
 namespace kernel::core::utils {
 
 template <typename T>
-constexpr __attribute__((always_inline)) u32 bit_width()
+[[gnu::always_inline]] constexpr u32 bit_width()
 {
     return (sizeof(T) * __CHAR_BIT__) as(u32);
 }
 
 template <typename T>
-constexpr __attribute__((always_inline)) T all_bits()
+[[gnu::always_inline]] constexpr T all_bits()
 {
     return (~T{0}) as(T);
 }
 
 template <typename T = u32>
-constexpr __attribute__((always_inline)) T bit(u32 index)
+[[gnu::always_inline]] constexpr T bit(u32 index)
 {
     return index >= bit_width<T>() ? T{0} : (T{1} << index) as(T);
 }
 
 template <typename T>
-constexpr __attribute__((always_inline)) bool test_bit(T value, u32 index)
+[[gnu::always_inline]] constexpr bool test_bit(T value, u32 index)
 {
     return index < bit_width<T>() && (value & bit<T>(index)) != T{0};
 }
 
 template <typename T>
-constexpr __attribute__((always_inline)) T set_bit(T value, u32 index)
+[[gnu::always_inline]] constexpr T set_bit(T value, u32 index)
 {
     return index >= bit_width<T>() ? value : (value | bit<T>(index)) as(T);
 }
 
 template <typename T>
-constexpr __attribute__((always_inline)) T clear_bit(T value, u32 index)
+[[gnu::always_inline]] constexpr T clear_bit(T value, u32 index)
 {
     return index >= bit_width<T>() ? value : (value & ~bit<T>(index)) as(T);
 }
 
 template <typename T = u32>
-constexpr __attribute__((always_inline)) T mask(u32 bit_count)
+[[gnu::always_inline]] constexpr T mask(u32 bit_count)
 {
     return bit_count >= bit_width<T>() ? all_bits<T>() : (bit<T>(bit_count) - T{1}) as(T);
 }
 
 template <typename T = usize>
-constexpr __attribute__((always_inline)) bool is_power_of_two(T value)
+[[gnu::always_inline]] constexpr bool is_power_of_two(T value)
 {
     return value != T{0} && (value & (value - T{1}) as(T)) == T{0};
 }
 
 template <typename T = usize>
-constexpr __attribute__((always_inline)) T align_down(T value, T alignment)
+[[gnu::always_inline]] constexpr T align_down(T value, T alignment)
 {
     return (value & ~(alignment - T{1})) as(T);
 }
 
 template <typename T = usize>
-constexpr __attribute__((always_inline)) T align_up(T value, T alignment)
+[[gnu::always_inline]] constexpr T align_up(T value, T alignment)
 {
     return align_down<T>((value + alignment - T{1}) as(T), alignment);
 }
 
 template <typename T = usize>
-constexpr __attribute__((always_inline)) bool is_aligned(T value, T alignment)
+[[gnu::always_inline]] constexpr bool is_aligned(T value, T alignment)
 {
     return (value & (alignment - T{1}) as(T)) == T{0};
 }

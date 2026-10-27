@@ -326,14 +326,14 @@ DOOM_OS_CPU_EXCEPTION_VECTORS(DOOM_OS_DECLARE_EXCEPTION_DESCRIPTOR)
 
 #undef DOOM_OS_DECLARE_EXCEPTION_DESCRIPTOR
 
-#define DOOM_OS_DEFINE_WEAK_EXCEPTION_HANDLER(vector_id, exception_type)        \
-    extern "C" void DOOM_OS_EXCEPTION_HANDLER_SYMBOL(vector_id)(                \
-        cpu::local_state & cpu, exception_frame & frame) __attribute__((weak)); \
-                                                                                \
-    extern "C" void DOOM_OS_EXCEPTION_HANDLER_SYMBOL(vector_id)(                \
-        cpu::local_state & cpu [[maybe_unused]], exception_frame & frame)       \
-    {                                                                           \
-        exception_descriptor_for_vector<vector_id>::handle(cpu, frame);         \
+#define DOOM_OS_DEFINE_WEAK_EXCEPTION_HANDLER(vector_id, exception_type)       \
+    extern "C" [[gnu::weak]] void DOOM_OS_EXCEPTION_HANDLER_SYMBOL(vector_id)( \
+        cpu::local_state & cpu, exception_frame & frame);                      \
+                                                                               \
+    extern "C" void DOOM_OS_EXCEPTION_HANDLER_SYMBOL(vector_id)(               \
+        cpu::local_state & cpu [[maybe_unused]], exception_frame & frame)      \
+    {                                                                          \
+        exception_descriptor_for_vector<vector_id>::handle(cpu, frame);        \
     }
 
 DOOM_OS_CPU_EXCEPTION_VECTORS(DOOM_OS_DEFINE_WEAK_EXCEPTION_HANDLER)

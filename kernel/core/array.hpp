@@ -22,88 +22,88 @@ struct array {
 
     T m_items[N];
 
-    [[nodiscard]] static constexpr __attribute__((always_inline)) usize size()
+    [[nodiscard, gnu::always_inline]] static constexpr usize size()
     {
         return N;
     }
 
-    [[nodiscard]] static constexpr __attribute__((always_inline)) usize max_size()
+    [[nodiscard, gnu::always_inline]] static constexpr usize max_size()
     {
         return N;
     }
 
-    [[nodiscard]] static constexpr __attribute__((always_inline)) bool empty()
+    [[nodiscard, gnu::always_inline]] static constexpr bool empty()
     {
         return false;
     }
 
-    [[nodiscard]] constexpr __attribute__((always_inline)) T *data()
+    [[nodiscard, gnu::always_inline]] constexpr T *data()
     {
         return m_items;
     }
 
-    [[nodiscard]] constexpr __attribute__((always_inline)) const T *data() const
+    [[nodiscard, gnu::always_inline]] constexpr const T *data() const
     {
         return m_items;
     }
 
-    [[nodiscard]] constexpr __attribute__((always_inline)) T &operator[](usize index)
+    [[nodiscard, gnu::always_inline]] constexpr T &operator[](usize index)
     {
         return m_items[index];
     }
 
-    [[nodiscard]] constexpr __attribute__((always_inline)) const T &operator[](usize index) const
+    [[nodiscard, gnu::always_inline]] constexpr const T &operator[](usize index) const
     {
         return m_items[index];
     }
 
-    [[nodiscard]] constexpr __attribute__((always_inline)) T &front()
+    [[nodiscard, gnu::always_inline]] constexpr T &front()
     {
         return m_items[0];
     }
 
-    [[nodiscard]] constexpr __attribute__((always_inline)) const T &front() const
+    [[nodiscard, gnu::always_inline]] constexpr const T &front() const
     {
         return m_items[0];
     }
 
-    [[nodiscard]] constexpr __attribute__((always_inline)) T &back()
+    [[nodiscard, gnu::always_inline]] constexpr T &back()
     {
         return m_items[N - 1];
     }
 
-    [[nodiscard]] constexpr __attribute__((always_inline)) const T &back() const
+    [[nodiscard, gnu::always_inline]] constexpr const T &back() const
     {
         return m_items[N - 1];
     }
 
-    [[nodiscard]] constexpr __attribute__((always_inline)) T *begin()
+    [[nodiscard, gnu::always_inline]] constexpr T *begin()
     {
         return m_items;
     }
 
-    [[nodiscard]] constexpr __attribute__((always_inline)) const T *begin() const
+    [[nodiscard, gnu::always_inline]] constexpr const T *begin() const
     {
         return m_items;
     }
 
-    [[nodiscard]] constexpr __attribute__((always_inline)) T *end()
+    [[nodiscard, gnu::always_inline]] constexpr T *end()
     {
         return m_items + N;
     }
 
-    [[nodiscard]] constexpr __attribute__((always_inline)) const T *end() const
+    [[nodiscard, gnu::always_inline]] constexpr const T *end() const
     {
         return m_items + N;
     }
 
-    constexpr __attribute__((always_inline)) void fill(const T &value)
+    [[gnu::always_inline]] constexpr void fill(const T &value)
     {
         for (T &item : m_items)
             item = value;
     }
 
-    [[nodiscard]] constexpr __attribute__((always_inline)) bool operator==(const array &other) const
+    [[nodiscard, gnu::always_inline]] constexpr bool operator==(const array &other) const
     {
         for (usize i = 0; i < N; ++i)
             if (!(m_items[i] == other.m_items[i]))

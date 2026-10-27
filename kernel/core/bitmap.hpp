@@ -23,43 +23,42 @@ public:
     static constexpr usize NPOS = std::numeric_limits<usize>::max();
 
 private:
-    [[nodiscard]] static constexpr __attribute__((always_inline)) usize word_of(usize index)
+    [[nodiscard, gnu::always_inline]] static constexpr usize word_of(usize index)
     {
         return index / BITS_PER_STORAGE_TYPE_INSTANCE;
     }
 
-    [[nodiscard]] static constexpr __attribute__((always_inline)) u32 offset_of(usize index)
+    [[nodiscard, gnu::always_inline]] static constexpr u32 offset_of(usize index)
     {
         return (index % BITS_PER_STORAGE_TYPE_INSTANCE) as(u32);
     }
 
-    [[nodiscard]] static constexpr __attribute__((always_inline)) StorageType bit_of(usize index)
+    [[nodiscard, gnu::always_inline]] static constexpr StorageType bit_of(usize index)
     {
         return StorageType{1} << offset_of(index);
     }
 
-    [[nodiscard]] static constexpr __attribute__((always_inline)) StorageType mask_from(usize first)
+    [[nodiscard, gnu::always_inline]] static constexpr StorageType mask_from(usize first)
     {
         return ~mask<StorageType>(offset_of(first));
     }
 
-    [[nodiscard]] static constexpr __attribute__((always_inline)) StorageType mask_upto(usize last)
+    [[nodiscard, gnu::always_inline]] static constexpr StorageType mask_upto(usize last)
     {
         return mask<StorageType>(offset_of(last) + 1);
     }
 
-    [[nodiscard]] static constexpr __attribute__((always_inline)) auto countr_zero(
-        StorageType value)
+    [[nodiscard, gnu::always_inline]] static constexpr auto countr_zero(StorageType value)
     {
         return std::countr_zero(value);
     }
 
-    [[nodiscard]] static constexpr __attribute__((always_inline)) auto popcount(StorageType value)
+    [[nodiscard, gnu::always_inline]] static constexpr auto popcount(StorageType value)
     {
         return std::popcount(value);
     }
 
-    constexpr __attribute__((always_inline)) void apply(usize first, usize count, bool value)
+    [[gnu::always_inline]] constexpr void apply(usize first, usize count, bool value)
     {
         if (count == 0)
             return;
@@ -81,8 +80,7 @@ private:
         apply_word(last_word, mask_upto(last), value);
     }
 
-    constexpr __attribute__((always_inline)) void apply_word(usize word, StorageType selected,
-                                                             bool value)
+    [[gnu::always_inline]] constexpr void apply_word(usize word, StorageType selected, bool value)
     {
         if (value) {
             m_words[word] |= selected;
@@ -154,19 +152,19 @@ private:
 public:
     constexpr bitmap() = default;
 
-    constexpr __attribute__((always_inline)) void reset()
+    [[gnu::always_inline]] constexpr void reset()
     {
         for (usize word = 0; word < STORAGE_TYPE_INSTANCE_COUNT; ++word)
             m_words[word] = StorageType{0};
     }
 
-    constexpr __attribute__((always_inline)) void fill()
+    [[gnu::always_inline]] constexpr void fill()
     {
         for (usize word = 0; word < STORAGE_TYPE_INSTANCE_COUNT; ++word)
             m_words[word] = std::numeric_limits<StorageType>::max();
     }
 
-    [[nodiscard]] constexpr __attribute__((always_inline)) bool empty() const
+    [[nodiscard, gnu::always_inline]] constexpr bool empty() const
     {
         for (usize word = 0; word < STORAGE_TYPE_INSTANCE_COUNT; ++word) {
             if (m_words[word] != 0)
@@ -176,17 +174,17 @@ public:
         return true;
     }
 
-    [[nodiscard]] constexpr __attribute__((always_inline)) bool none() const
+    [[nodiscard, gnu::always_inline]] constexpr bool none() const
     {
         return empty();
     }
 
-    [[nodiscard]] constexpr __attribute__((always_inline)) bool any() const
+    [[nodiscard, gnu::always_inline]] constexpr bool any() const
     {
         return !empty();
     }
 
-    [[nodiscard]] constexpr __attribute__((always_inline)) bool all() const
+    [[nodiscard, gnu::always_inline]] constexpr bool all() const
     {
         for (usize word = 0; word < STORAGE_TYPE_INSTANCE_COUNT; ++word) {
             if (m_words[word] != std::numeric_limits<StorageType>::max())
@@ -196,48 +194,47 @@ public:
         return true;
     }
 
-    [[nodiscard]] constexpr __attribute__((always_inline)) bool test(usize index) const
+    [[nodiscard, gnu::always_inline]] constexpr bool test(usize index) const
     {
         return (m_words[word_of(index)] & bit_of(index)) != 0;
     }
 
-    [[nodiscard]] constexpr __attribute__((always_inline)) bool operator[](usize index) const
+    [[nodiscard, gnu::always_inline]] constexpr bool operator[](usize index) const
     {
         return test(index);
     }
 
-    constexpr void __attribute__((always_inline)) set(usize index)
+    [[gnu::always_inline]] constexpr void set(usize index)
     {
         m_words[word_of(index)] |= bit_of(index);
     }
 
-    constexpr void __attribute__((always_inline)) clear(usize index)
+    [[gnu::always_inline]] constexpr void clear(usize index)
     {
         m_words[word_of(index)] &= ~bit_of(index);
     }
 
-    constexpr void __attribute__((always_inline)) toggle(usize index)
+    [[gnu::always_inline]] constexpr void toggle(usize index)
     {
         m_words[word_of(index)] ^= bit_of(index);
     }
 
-    constexpr void __attribute__((always_inline)) assign(usize index, bool value)
+    [[gnu::always_inline]] constexpr void assign(usize index, bool value)
     {
         value ? set(index) : clear(index);
     }
 
-    constexpr void __attribute__((always_inline)) set(usize first, usize count)
+    [[gnu::always_inline]] constexpr void set(usize first, usize count)
     {
         apply(first, count, true);
     }
 
-    constexpr void __attribute__((always_inline)) clear(usize first, usize count)
+    [[gnu::always_inline]] constexpr void clear(usize first, usize count)
     {
         apply(first, count, false);
     }
 
-    [[nodiscard]] constexpr usize __attribute__((always_inline)) find_set(usize first_word,
-                                                                          usize words) const
+    [[nodiscard, gnu::always_inline]] constexpr usize find_set(usize first_word, usize words) const
     {
         for (usize i = 0; i < words; ++i) {
             const usize       word = first_word + i;
@@ -291,13 +288,12 @@ public:
         return NPOS;
     }
 
-    [[nodiscard]] constexpr __attribute__((always_inline)) usize count_set() const
+    [[nodiscard, gnu::always_inline]] constexpr usize count_set() const
     {
         return count_set(0, STORAGE_TYPE_INSTANCE_COUNT);
     }
 
-    [[nodiscard]] constexpr __attribute__((always_inline)) usize count_set(usize first_word,
-                                                                           usize words) const
+    [[nodiscard, gnu::always_inline]] constexpr usize count_set(usize first_word, usize words) const
     {
         usize total = 0;
 
@@ -307,8 +303,7 @@ public:
         return total;
     }
 
-    [[nodiscard]] constexpr __attribute__((always_inline)) usize count_set_in(usize first,
-                                                                              usize count) const
+    [[nodiscard, gnu::always_inline]] constexpr usize count_set_in(usize first, usize count) const
     {
         if (count == 0)
             return 0;
@@ -333,19 +328,19 @@ public:
         return total;
     }
 
-    [[nodiscard]] constexpr __attribute__((always_inline)) StorageType &word(usize index)
+    [[nodiscard, gnu::always_inline]] constexpr StorageType &word(usize index)
     {
         return m_words[index];
     }
 
-    [[nodiscard]] constexpr __attribute__((always_inline)) StorageType word(usize index) const
+    [[nodiscard, gnu::always_inline]] constexpr StorageType word(usize index) const
     {
         return m_words[index];
     }
 
     // clang-format off
 #define DOOM_BITMAP_DEFINE_BITWISE_OPERATOR(op)                                      \
-    constexpr __attribute__((always_inline)) bitmap &operator op## = (const bitmap &other)                          \
+    [[gnu::always_inline]] constexpr bitmap &operator op## = (const bitmap &other)                          \
     {                                                                                \
         for (usize word = 0; word < STORAGE_TYPE_INSTANCE_COUNT; ++word)             \
             m_words[word] op## = other.m_words[word];                                \
@@ -366,7 +361,7 @@ public:
 #undef DOOM_BITMAP_DEFINE_BITWISE_OPERATOR
     // clang-format on
 
-    [[nodiscard]] constexpr __attribute__((always_inline)) bitmap operator~() const
+    [[nodiscard, gnu::always_inline]] constexpr bitmap operator~() const
     {
         bitmap result;
 
@@ -378,7 +373,7 @@ public:
 
     // clang-format off
 #define DOOM_BITMAP_DEFINE_SHIFT_OPERATOR(op, function)                        \
-    constexpr __attribute__((always_inline)) bitmap &operator op## = (usize count)                            \
+    [[gnu::always_inline]] constexpr bitmap &operator op## = (usize count)                            \
     {                                                                          \
         function(count);                                                       \
         return *this;                                                          \
@@ -396,8 +391,7 @@ public:
 #undef DOOM_BITMAP_DEFINE_SHIFT_OPERATOR
     // clang-format on
 
-    [[nodiscard]] constexpr __attribute__((always_inline)) bool operator==(
-        const bitmap &other) const
+    [[nodiscard, gnu::always_inline]] constexpr bool operator==(const bitmap &other) const
     {
         for (usize word = 0; word < STORAGE_TYPE_INSTANCE_COUNT; ++word) {
             if (m_words[word] != other.m_words[word])
@@ -407,8 +401,7 @@ public:
         return true;
     }
 
-    [[nodiscard]] constexpr __attribute__((always_inline)) bool operator!=(
-        const bitmap &other) const
+    [[nodiscard, gnu::always_inline]] constexpr bool operator!=(const bitmap &other) const
     {
         return !(*this == other);
     }
