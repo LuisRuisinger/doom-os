@@ -7,6 +7,7 @@ namespace kernel::boot::multiboot2 {
 
 namespace {
 
+using kernel::core::u32;
 using kernel::core::u8;
 using kernel::core::uptr;
 using kernel::core::usize;
@@ -29,7 +30,7 @@ template <typename T>
     return (&tag) as(const T *);
 }
 
-[[nodiscard]] kernel::boot::memory_kind translate_memory_type(kernel::core::u32 type)
+[[nodiscard]] kernel::boot::memory_kind translate_memory_type(u32 type)
 {
     switch (type as(memory_type)) {
         case memory_type::AVAILABLE:

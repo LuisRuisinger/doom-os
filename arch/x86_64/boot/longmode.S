@@ -200,11 +200,9 @@ long_mode_entry:
     movw %ax, %gs
 
     /*
-     * Temporary low identity-mapped stack.
-     *
-     * Later your kernel can switch to a proper higher-half kernel stack.
+     * Higher-half stack: the kernel's own page tables do not keep the low identity map.
      */
-    leaq boot_stack_top(%rip), %rsp
+    movabsq $boot_stack_top, %rsp
 
     /*
      * SysV x86_64 calling convention:
@@ -280,6 +278,8 @@ pdpt_high:
 .align 4096
 pd_high:
     .skip 4096
+
+.section .bss, "aw", @nobits
 
 .align 16
 boot_stack_bottom:

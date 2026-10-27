@@ -19,7 +19,6 @@ using kernel::core::utils::array;
 using kernel::init::init_error;
 
 constexpr vaddr_t KERNEL_BASE = DOOM_OS_KERNEL_VMA;
-constexpr u64     EARLY_MAP_SIZE = DOOM_OS_EARLY_MAP_SIZE;
 
 constexpr u64   PAGE_4K = bytes_in(page_size::SIZE_4K);
 constexpr u64   PAGE_2M = bytes_in(page_size::SIZE_2M);
@@ -27,7 +26,6 @@ constexpr u64   PAGE_1G = bytes_in(page_size::SIZE_1G);
 constexpr u64   PML4_SPAN = u64{1} << 39;
 constexpr usize DIRECT_PD_COUNT = DIRECT_MAP_SIZE / PAGE_1G;
 
-static_assert(EARLY_MAP_SIZE % PAGE_2M == 0 && EARLY_MAP_SIZE <= PAGE_1G);
 static_assert(KERNEL_BASE % PAGE_1G == 0);
 static_assert(DIRECT_MAP_BASE % PML4_SPAN == 0 && DIRECT_MAP_SIZE % PAGE_1G == 0);
 static_assert(DIRECT_PD_COUNT <= paging::ENTRIES);
@@ -43,8 +41,6 @@ struct alignas(PAGE_4K) table {
 };
 
 table                         m_pml4{};
-table                         m_identity_pdpt{};
-table                         m_identity_pd{};
 table                         m_kernel_pdpt{};
 table                         m_kernel_pd{};
 table                         m_direct_pdpt{};
@@ -76,8 +72,7 @@ extern "C" char __data_rel_ro_start[];
 
 void link_tables()
 {
-    m_pml4.entries[0] = paging::table_entry(image_phys(&m_identity_pdpt));
-    m_identity_pdpt.entries[0] = paging::table_entry(image_phys(&m_identity_pd));
+    m_pml4.entries[0] = 0;
 
     m_pml4.entries[paging::index(4, KERNEL_BASE)] = paging::table_entry(image_phys(&m_kernel_pdpt));
     m_kernel_pdpt.entries[paging::index(3, KERNEL_BASE)] =
@@ -135,9 +130,14 @@ void fill_direct_map(const kernel::boot::info &boot)
     const vaddr_t image_last = align_up<vaddr_t>(symbol(kernel_end), PAGE_4K);
     const vaddr_t window_last = KERNEL_BASE + kernel_window_size();
 
-    KTRY(m_kernel_space.unmap_range(KERNEL_BASE, image_first - KERNEL_BASE, page_size::SIZE_4K));
+    if (image_first > KERNEL_BASE)
+        KTRY(
+            m_kernel_space.unmap_range(KERNEL_BASE, image_first - KERNEL_BASE, page_size::SIZE_4K));
 
-    return m_kernel_space.unmap_range(image_last, window_last - image_last, page_size::SIZE_4K);
+    if (window_last > image_last)
+        KTRY(m_kernel_space.unmap_range(image_last, window_last - image_last, page_size::SIZE_4K));
+
+    return Ok();
 }
 
 }  // namespace
@@ -159,7 +159,6 @@ kernel::init::init_result component::init_kernel_space()
     enable_paging_features();
     link_tables();
 
-    fill_2m(m_identity_pd, 0, 0, EARLY_MAP_SIZE, page_prot::WRITE);
     fill_2m(m_kernel_pd, KERNEL_BASE, 0, kernel_window_size(),
             page_prot::WRITE | page_prot::EXEC | page_prot::GLOBAL);
     fill_direct_map(boot);
