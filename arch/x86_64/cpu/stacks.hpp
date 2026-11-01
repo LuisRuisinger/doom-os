@@ -1,5 +1,5 @@
-#ifndef DOOM_OS_KERNEL_ARCH_X86_64_CPU_STACKS_HPP_
-#define DOOM_OS_KERNEL_ARCH_X86_64_CPU_STACKS_HPP_
+#ifndef DOOM_OS_ARCH_X86_64_CPU_STACKS_HPP_
+#define DOOM_OS_ARCH_X86_64_CPU_STACKS_HPP_
 
 #include "kernel/core/types.hpp"
 #include "kernel/init/component.hpp"
@@ -64,4 +64,4 @@ struct stacks_component : kernel::init::component<stacks_component, stack_set> {
 
 }  // namespace kernel::arch::x86_64::cpu
 
-#endif  // DOOM_OS_KERNEL_ARCH_X86_64_CPU_STACKS_HPP_
+#endif  // DOOM_OS_ARCH_X86_64_CPU_STACKS_HPP_

@@ -1,5 +1,5 @@
-#ifndef DOOM_OS_KERNEL_ARCH_X86_64_CPU_REGISTERS_HPP_
-#define DOOM_OS_KERNEL_ARCH_X86_64_CPU_REGISTERS_HPP_
+#ifndef DOOM_OS_ARCH_X86_64_CPU_REGISTERS_HPP_
+#define DOOM_OS_ARCH_X86_64_CPU_REGISTERS_HPP_
 
 #include "arch/common/cpu/registers.hpp"
 #include "kernel/core/cast.hpp"
@@ -106,4 +106,4 @@ struct cpuid_result {
 
 }  // namespace kernel::arch::x86_64::cpu
 
-#endif  // DOOM_OS_KERNEL_ARCH_X86_64_CPU_REGISTERS_HPP_
+#endif  // DOOM_OS_ARCH_X86_64_CPU_REGISTERS_HPP_

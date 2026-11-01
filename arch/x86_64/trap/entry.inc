@@ -1,5 +1,5 @@
-#ifndef DOOM_OS_KERNEL_ARCH_X86_64_TRAP_ENTRY_INC_
-#define DOOM_OS_KERNEL_ARCH_X86_64_TRAP_ENTRY_INC_
+#ifndef DOOM_OS_ARCH_X86_64_TRAP_ENTRY_INC_
+#define DOOM_OS_ARCH_X86_64_TRAP_ENTRY_INC_
 
 // =================================================================================================
 // Common trap entry
@@ -77,4 +77,4 @@
     iretq
 .endm
 
-#endif  // DOOM_OS_KERNEL_ARCH_X86_64_TRAP_ENTRY_INC_
+#endif  // DOOM_OS_ARCH_X86_64_TRAP_ENTRY_INC_

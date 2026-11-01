@@ -1,5 +1,5 @@
-#ifndef DOOM_OS_KERNEL_ARCH_X86_64_CPU_HPP_
-#define DOOM_OS_KERNEL_ARCH_X86_64_CPU_HPP_
+#ifndef DOOM_OS_ARCH_X86_64_CPU_CPU_HPP_
+#define DOOM_OS_ARCH_X86_64_CPU_CPU_HPP_
 
 #include "arch/x86_64/cpu/stacks.hpp"
 #include "arch/x86_64/gdt/gdt.hpp"
@@ -95,4 +95,4 @@ struct component : kernel::init::component<component, kernel::init::no_resource>
 
 }  // namespace kernel::arch::x86_64::cpu
 
-#endif  // DOOM_OS_KERNEL_ARCH_X86_64_CPU_HPP_
+#endif  // DOOM_OS_ARCH_X86_64_CPU_CPU_HPP_

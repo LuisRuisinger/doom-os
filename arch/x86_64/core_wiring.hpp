@@ -1,5 +1,5 @@
-#ifndef DOOM_OS_KERNEL_ARCH_X86_64_CORE_WIRING_HPP_
-#define DOOM_OS_KERNEL_ARCH_X86_64_CORE_WIRING_HPP_
+#ifndef DOOM_OS_ARCH_X86_64_CORE_WIRING_HPP_
+#define DOOM_OS_ARCH_X86_64_CORE_WIRING_HPP_
 
 #include "arch/x86_64/cpu/cpu.hpp"
 #include "arch/x86_64/cpu/fpu.hpp"
@@ -48,4 +48,4 @@ using core_roots = early_core_roots;
 
 }  // namespace kernel::arch::x86_64::core_wiring
 
-#endif  // DOOM_OS_KERNEL_ARCH_X86_64_CORE_WIRING_HPP_
+#endif  // DOOM_OS_ARCH_X86_64_CORE_WIRING_HPP_
