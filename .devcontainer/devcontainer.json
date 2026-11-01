@@ -22,7 +22,10 @@
   // A bind mount with a missing source fails, so the neovim directories are created on the
   // host first; without a config there they stay empty and neovim starts bare.
   "initializeCommand": "mkdir -p ~/.config/nvim ~/.local/share/nvim ~/.local/state/nvim ~/.cache/nvim",
-  "postCreateCommand": "pre-commit install",
+  "postCreateCommand": "pre-commit install && cmake --preset default",
+  "containerEnv": {
+    "SSH_AUTH_SOCK": "/run/ssh-agent.sock"
+  },
   "mounts": [
     "source=${localEnv:HOME}/.bashrc,target=/home/ubuntu/.bashrc,type=bind,readonly",
 
@@ -31,6 +34,11 @@
     "source=${localEnv:HOME}/.config/nvim,target=/home/ubuntu/.config/nvim,type=bind",
     "source=${localEnv:HOME}/.local/share/nvim,target=/home/ubuntu/.local/share/nvim,type=bind",
     "source=${localEnv:HOME}/.local/state/nvim,target=/home/ubuntu/.local/state/nvim,type=bind",
-    "source=${localEnv:HOME}/.cache/nvim,target=/home/ubuntu/.cache/nvim,type=bind"
+    "source=${localEnv:HOME}/.cache/nvim,target=/home/ubuntu/.cache/nvim,type=bind",
+
+    // git identity and the host's SSH agent; no credential is ever baked into the image
+    "source=${localEnv:HOME}/.gitconfig,target=/home/ubuntu/.gitconfig,type=bind,readonly",
+    "source=${localEnv:HOME}/.ssh/known_hosts,target=/home/ubuntu/.ssh/known_hosts,type=bind,readonly",
+    "source=${localEnv:SSH_AUTH_SOCK},target=/run/ssh-agent.sock,type=bind"
   ]
 }
