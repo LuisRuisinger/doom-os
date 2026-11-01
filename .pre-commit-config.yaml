@@ -1,3 +1,6 @@
+default_install_hook_types: [pre-commit, commit-msg]
+default_stages: [pre-commit]
+
 repos:
   - repo: https://github.com/pre-commit/mirrors-clang-format
     rev: v20.1.8
@@ -9,7 +12,43 @@ repos:
   - repo: https://github.com/pre-commit/pre-commit-hooks
     rev: v6.0.0
     hooks:
+      - id: no-commit-to-branch
+      - id: check-merge-conflict
+      - id: check-added-large-files
+      - id: check-case-conflict
+      - id: check-executables-have-shebangs
+      - id: check-shebang-scripts-are-executable
+      - id: check-json
+        exclude: ^\.devcontainer/devcontainer\.json$  # JSON with comments
+      - id: check-yaml
+      - id: detect-private-key
+      - id: mixed-line-ending
       - id: trailing-whitespace
       - id: end-of-file-fixer
-      - id: check-merge-conflict
-      - id: check-yaml
+
+  - repo: https://github.com/rhysd/actionlint
+    rev: v1.7.12
+    hooks:
+      - id: actionlint
+
+  - repo: local
+    hooks:
+      - id: clang-tidy
+        name: clang-tidy
+        entry: clang-tidy -p build --quiet --config-file=.clang-tidy
+        language: system
+        types_or: [c++, c]
+        exclude: ^(config|examples)/
+
+      - id: header-guard
+        name: header guard
+        entry: scripts/check-header-guard.py
+        language: script
+        files: \.(h|hpp|inc)$
+        exclude: ^(config|examples)/
+
+      - id: branch-prefix
+        name: branch prefix
+        entry: scripts/branch-prefix.sh
+        language: script
+        stages: [commit-msg]
