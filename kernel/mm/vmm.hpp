@@ -32,7 +32,7 @@ struct component : kernel::init::component<component, kernel::init::no_resource,
     static constexpr auto *name = "VMM";
 
     template <typename View>
-    static kernel::init::init_result init(View)
+    static kernel::init::init_result init(View /*unused*/)
     {
         return kernel::core::Ok();
     }

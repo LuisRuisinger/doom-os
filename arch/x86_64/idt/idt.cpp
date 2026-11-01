@@ -17,17 +17,20 @@ static_assert(sizeof(pointer) == 10);
 
 void gate_table::set_interrupt_gate(u8 vector, handler entry_point, u8 ist)
 {
-    gates_m[vector] = gate_spec{entry_point, GATE_TYPE_INTERRUPT, ist};
+    gates_m[vector] =
+        gate_spec{.entry_point = entry_point, .type_attributes = GATE_TYPE_INTERRUPT, .ist = ist};
 }
 
 void gate_table::set_trap_gate(u8 vector, handler entry_point, u8 ist)
 {
-    gates_m[vector] = gate_spec{entry_point, GATE_TYPE_TRAP, ist};
+    gates_m[vector] =
+        gate_spec{.entry_point = entry_point, .type_attributes = GATE_TYPE_TRAP, .ist = ist};
 }
 
 void gate_table::set_user_trap_gate(u8 vector, handler entry_point, u8 ist)
 {
-    gates_m[vector] = gate_spec{entry_point, GATE_TYPE_USER_TRAP, ist};
+    gates_m[vector] =
+        gate_spec{.entry_point = entry_point, .type_attributes = GATE_TYPE_USER_TRAP, .ist = ist};
 }
 
 static entry make_entry(const gate_spec &spec, u16 code_selector)
@@ -57,7 +60,7 @@ void table::init(const gate_table &gates, u16 code_selector)
 
     ptr_m = pointer{
         .limit = (sizeof(entries_m) - 1) as(u16),
-        .base = (&entries_m[0]) as(u64),
+        .base = (entries_m.data()) as(u64),
     };
 }
 

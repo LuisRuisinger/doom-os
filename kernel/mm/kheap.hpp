@@ -19,7 +19,7 @@ struct component
     static kernel::init::init_result init_heap();
 
     template <typename View>
-    static kernel::init::init_result init(View)
+    static kernel::init::init_result init(View /*unused*/)
     {
         return init_heap();
     }

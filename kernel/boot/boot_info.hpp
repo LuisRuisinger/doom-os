@@ -24,7 +24,7 @@ struct component : kernel::init::component<component, kernel::init::no_resource>
     static kernel::init::init_result parse();
 
     template <typename View>
-    static kernel::init::init_result init(View)
+    static kernel::init::init_result init(View /*unused*/)
     {
         return parse();
     }

@@ -9,6 +9,7 @@
 
 namespace kernel::init {
 
+// NOLINTBEGIN(bugprone-macro-parentheses): member is a member name
 #define DOOM_OS_BIND_CORE_RESOURCE(component_type, resource_type, member)             \
     template <>                                                                       \
     struct resource_binding<component_type, kernel::arch::x86_64::cpu::local_state> { \
@@ -17,6 +18,7 @@ namespace kernel::init {
             return state.member;                                                      \
         }                                                                             \
     }
+// NOLINTEND(bugprone-macro-parentheses)
 
 DOOM_OS_BIND_CORE_RESOURCE(kernel::arch::x86_64::cpu::stacks_component,
                            kernel::arch::x86_64::cpu::stack_set, stacks_m);

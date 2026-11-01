@@ -44,7 +44,7 @@ class resource_view {
     friend struct component;
 
     template <typename Component>
-    auto &bind() const
+    [[nodiscard]] [[nodiscard]] [[nodiscard]] [[nodiscard]] [[nodiscard]] auto &bind() const
     {
         return resource_binding<Component, Backing>::get(backing_m);
     }
@@ -58,6 +58,10 @@ public:
 
 template <typename Self, typename Resource, typename... Deps>
 struct component {
+private:
+    component() = default;
+
+public:
     using self = Self;
     using resource = Resource;
     using deps = type_list<Deps...>;
@@ -81,6 +85,7 @@ protected:
 
         return view.template bind<Dep>();
     }
+    friend Self;
 };
 
 }  // namespace kernel::init

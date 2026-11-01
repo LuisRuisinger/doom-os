@@ -19,7 +19,7 @@ struct component : kernel::init::component<component, kernel::init::no_resource>
     static constexpr const char *name = "SERIAL";
 
     template <typename View>
-    static kernel::init::init_result init(View)
+    static kernel::init::init_result init(View /*unused*/)
     {
         kernel::arch::x86_64::serial::init();
         kernel::arch::x86_64::serial::attach_console();

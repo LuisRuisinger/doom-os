@@ -9,12 +9,14 @@ void state::clear()
 {
     layout_m.reserved0 = 0;
 
+    // NOLINTNEXTLINE(modernize-loop-convert): a reference into a packed field cannot bind
     for (u8 i = 0; i < PRIVILEGE_STACK_COUNT; ++i) {
         layout_m.rsp[i] = 0;
     }
 
     layout_m.reserved1 = 0;
 
+    // NOLINTNEXTLINE(modernize-loop-convert)
     for (u8 i = 0; i < INTERRUPT_STACK_COUNT; ++i) {
         layout_m.ist[i] = 0;
     }

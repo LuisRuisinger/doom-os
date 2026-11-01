@@ -1,6 +1,8 @@
 #ifndef DOOM_OS_ARCH_X86_64_CPU_STACKS_HPP_
 #define DOOM_OS_ARCH_X86_64_CPU_STACKS_HPP_
 
+#include <cstddef>
+
 #include "kernel/core/types.hpp"
 #include "kernel/init/component.hpp"
 
@@ -10,7 +12,7 @@ using kernel::core::u64;
 using kernel::core::u8;
 using kernel::core::usize;
 
-static constexpr usize CORE_STACK_SIZE = 16 * 1024;
+static constexpr usize CORE_STACK_SIZE = static_cast<const usize>(16 * 1024);
 static constexpr usize STACK_BYTE_ALIGNMENT = 16;
 
 struct stack {

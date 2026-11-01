@@ -11,7 +11,7 @@ struct fpu_component : kernel::init::component<fpu_component, kernel::init::no_r
     static constexpr auto *name = "FPU";
 
     template <typename View>
-    static kernel::init::init_result init(View)
+    static kernel::init::init_result init(View /*unused*/)
     {
         enable_sse();
 

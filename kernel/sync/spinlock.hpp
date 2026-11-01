@@ -47,7 +47,7 @@ public:
         m_state.store(SPINLOCK_UNLOCKED, memory_order::RELEASE);
     }
 
-    bool is_locked() const
+    [[nodiscard]] bool is_locked() const
     {
         return m_state.load(memory_order::RELAXED) == SPINLOCK_LOCKED;
     }

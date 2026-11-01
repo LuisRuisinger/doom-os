@@ -16,7 +16,7 @@ struct component : kernel::init::component<component, kernel::init::no_resource,
     static constexpr auto *name = "CORE_INIT";
 
     template <typename View>
-    static kernel::init::init_result init(View)
+    static kernel::init::init_result init(View /*unused*/)
     {
         if (!init_bsp()) {
             return kernel::core::Err(kernel::init::init_error::UNSPECIFIED);

@@ -43,7 +43,7 @@ public:
     void init(const kernel::arch::x86_64::tss::state &task_state_segment);
     void load() const;
 
-    [[nodiscard]] u16 kernel_code_selector() const;
+    [[nodiscard]] static u16 kernel_code_selector();
 };
 
 void load_task_register(u16 selector);

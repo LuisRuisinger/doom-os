@@ -32,12 +32,12 @@ struct radix9 {
 
     [[nodiscard]] static constexpr usize level_of(page_size size)
     {
-        return ((shift_of(size) - 12) / 9 + 1) as(usize);
+        return (((shift_of(size) - 12) / 9) + 1) as(usize);
     }
 
     [[nodiscard]] static constexpr page_size size_at(usize level)
     {
-        return (12 + 9 * (level - 1)) as(page_size);
+        return (12 + (9 * (level - 1))) as(page_size);
     }
 };
 

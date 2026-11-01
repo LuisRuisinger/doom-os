@@ -17,14 +17,14 @@
  * plain function pointer plus an opaque context word, which is the one shape every FFI agrees on.
  * ============================================================================================== */
 
-#include <stddef.h>
-#include <stdint.h>
+#include <stddef.h>  // NOLINT(modernize-deprecated-headers): C header
+#include <stdint.h>  // NOLINT(modernize-deprecated-headers): C header
 
 #ifdef __cplusplus
 extern "C" {
 #endif
 
-typedef void (*doom_os_irq_handler)(void *context);
+using doom_os_irq_handler = void (*)(void *context);
 
 void doom_os_driver_log(const char *message);
 

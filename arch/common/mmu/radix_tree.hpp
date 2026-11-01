@@ -19,7 +19,7 @@ class radix_tree {
     paddr_t m_root{};
 
     struct ignore_removed {
-        void operator()(const mapping &) const
+        void operator()(const mapping & /*unused*/) const
         {
         }
     };

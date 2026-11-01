@@ -1,7 +1,7 @@
 #ifndef DOOM_OS_ARCH_X86_64_SERIAL_IO_HPP_
 #define DOOM_OS_ARCH_X86_64_SERIAL_IO_HPP_
 
-#include <stdint.h>
+#include <cstdint>
 
 #include "kernel/core/types.hpp"
 

@@ -32,11 +32,11 @@ static void dump_panic_registers(const panic_register_frame &r)
 {
     asm volatile("cli" ::: "memory");
 
-    if (message)
+    if (message != nullptr)
         KPRINTLN("{} {}", detail::PANIC_PREFIX, message);
 
     KPRINTLN("{} at {}:{} in {}", detail::PANIC_PREFIX, file, line, function);
-    if (frame)
+    if (frame != nullptr)
         dump_panic_registers(*(frame as(const panic_register_frame *)));
 
     KPRINTLN("{} halt", detail::PANIC_PREFIX);

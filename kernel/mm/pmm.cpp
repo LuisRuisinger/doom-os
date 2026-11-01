@@ -1,6 +1,7 @@
 #include "kernel/mm/pmm.hpp"
 
 #include <concepts>
+#include <cstddef>
 
 #include "config/layout.h"
 #include "kernel/core/array.hpp"
@@ -223,7 +224,7 @@ void populate(const kernel::boot::info &boot)
 {
     claim(boot, phase::FREE);
 
-    mark(0, 1024 * 1024, false);
+    mark(0, static_cast<u64>(1024 * 1024), false);
     mark(boot_start as(uptr), kernel_physical_end as(uptr) - boot_start as(uptr), false);
 
     claim(boot, phase::RESERVE);
@@ -236,7 +237,7 @@ void populate(const kernel::boot::info &boot)
 
 Result<paddr_t, mm_error> alloc(page_size size)
 {
-    kernel::sync::spinlock_guard guard(m_lock);
+    kernel::sync::spinlock_guard const guard(m_lock);
 
     switch (size) {
         case page_size::SIZE_4K:
@@ -259,7 +260,7 @@ void free(page_size size, paddr_t base)
         count > MAX_FRAMES - first)
         KPANIC("pmm: invalid release of {} frames at {:#018X}", count, base);
 
-    kernel::sync::spinlock_guard guard(m_lock);
+    kernel::sync::spinlock_guard const guard(m_lock);
 
     if (m_frames.find_set_in(first, count) != frame_map::NPOS)
         KPANIC("pmm: double free of {} frames at {:#018X}", count, base);

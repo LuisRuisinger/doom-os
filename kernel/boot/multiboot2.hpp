@@ -138,7 +138,7 @@ inline usize memory_map_entry_count(const memory_map_tag &tag)
 
 inline const memory_map_entry *memory_map_entry_at(const memory_map_tag &tag, usize index)
 {
-    return ((&tag) as(const u8 *) + sizeof(memory_map_tag) + index * tag.entry_size)
+    return ((&tag) as(const u8 *) + sizeof(memory_map_tag) + (index * tag.entry_size))
         as(const memory_map_entry *);
 }
 

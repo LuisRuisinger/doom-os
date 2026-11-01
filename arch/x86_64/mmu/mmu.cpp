@@ -102,8 +102,8 @@ void fill_direct_map(const kernel::boot::info &boot)
         const paddr_t end = region.length > DIRECT_MAP_SIZE - region.base
                                 ? DIRECT_MAP_SIZE
                                 : region.base + region.length;
-        const paddr_t first = align_down<paddr_t>(region.base, PAGE_2M);
-        const paddr_t last = align_up<paddr_t>(end, PAGE_2M);
+        const auto    first = align_down<paddr_t>(region.base, PAGE_2M);
+        const auto    last = align_up<paddr_t>(end, PAGE_2M);
 
         for (paddr_t pa = first; pa < last; pa += PAGE_2M)
             fill_2m(m_direct_pds[pa / PAGE_1G], DIRECT_MAP_BASE + pa, pa, PAGE_2M,
@@ -114,8 +114,8 @@ void fill_direct_map(const kernel::boot::info &boot)
 [[nodiscard]] Result<void, mm_error> protect_region(const char *first, const char *last,
                                                     page_prot prot)
 {
-    const vaddr_t start = align_down<vaddr_t>(symbol(first), PAGE_4K);
-    const vaddr_t end = align_up<vaddr_t>(symbol(last), PAGE_4K);
+    const auto start = align_down<vaddr_t>(symbol(first), PAGE_4K);
+    const auto end = align_up<vaddr_t>(symbol(last), PAGE_4K);
 
     return m_kernel_space.protect_range(start, end - start, page_size::SIZE_4K, prot);
 }
@@ -126,8 +126,8 @@ void fill_direct_map(const kernel::boot::info &boot)
     KTRY(protect_region(__rodata_start, __rodata_end, page_prot::KERNEL_RODATA));
     KTRY(protect_region(__text_start, __text_end, page_prot::KERNEL_TEXT));
 
-    const vaddr_t image_first = align_down<vaddr_t>(symbol(__text_start), PAGE_4K);
-    const vaddr_t image_last = align_up<vaddr_t>(symbol(kernel_end), PAGE_4K);
+    const auto    image_first = align_down<vaddr_t>(symbol(__text_start), PAGE_4K);
+    const auto    image_last = align_up<vaddr_t>(symbol(kernel_end), PAGE_4K);
     const vaddr_t window_last = KERNEL_BASE + kernel_window_size();
 
     if (image_first > KERNEL_BASE)

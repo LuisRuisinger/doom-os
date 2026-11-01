@@ -1,6 +1,8 @@
 #ifndef DOOM_OS_ARCH_COMMON_CPU_REGISTERS_HPP_
 #define DOOM_OS_ARCH_COMMON_CPU_REGISTERS_HPP_
 
+// asm__ is the asm template and must stay a bare string literal; value is an asm output.
+// NOLINTBEGIN(bugprone-macro-parentheses,misc-const-correctness)
 #define DOOM_OS_REGISTER_READ(type__, name__, asm__) \
     [[nodiscard]] inline type__ read_##name__()      \
     {                                                \
@@ -14,5 +16,6 @@
     {                                                  \
         asm volatile(asm__ : : "r"(value) : "memory"); \
     }
+// NOLINTEND(bugprone-macro-parentheses,misc-const-correctness)
 
 #endif  // DOOM_OS_ARCH_COMMON_CPU_REGISTERS_HPP_

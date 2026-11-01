@@ -76,7 +76,8 @@ inline constexpr u64 EFER_NO_EXECUTE_ENABLE = u64{1} << 11;
 
 [[nodiscard]] inline u64 read_msr(u32 msr)
 {
-    u32 low, high;
+    u32 low;
+    u32 high;
     asm volatile("rdmsr" : "=a"(low), "=d"(high) : "c"(msr));
 
     return (u64{high} << 32) | low;

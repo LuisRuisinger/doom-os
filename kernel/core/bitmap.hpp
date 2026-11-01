@@ -241,7 +241,7 @@ public:
             const StorageType value = m_words[word];
 
             if (value != 0)
-                return word * BITS_PER_STORAGE_TYPE_INSTANCE + countr_zero(value);
+                return (word * BITS_PER_STORAGE_TYPE_INSTANCE) + countr_zero(value);
         }
 
         return NPOS;
@@ -260,7 +260,7 @@ public:
             const StorageType selected = m_words[first_word] & mask_from(first) & mask_upto(last);
 
             return selected != 0
-                       ? first_word * BITS_PER_STORAGE_TYPE_INSTANCE + countr_zero(selected)
+                       ? (first_word * BITS_PER_STORAGE_TYPE_INSTANCE) + countr_zero(selected)
                        : NPOS;
         }
 
@@ -268,21 +268,21 @@ public:
             const StorageType selected = m_words[first_word] & mask_from(first);
 
             if (selected != 0)
-                return first_word * BITS_PER_STORAGE_TYPE_INSTANCE + countr_zero(selected);
+                return (first_word * BITS_PER_STORAGE_TYPE_INSTANCE) + countr_zero(selected);
         }
 
         for (usize word = first_word + 1; word < last_word; ++word) {
             const StorageType value = m_words[word];
 
             if (value != 0)
-                return word * BITS_PER_STORAGE_TYPE_INSTANCE + countr_zero(value);
+                return (word * BITS_PER_STORAGE_TYPE_INSTANCE) + countr_zero(value);
         }
 
         {
             const StorageType selected = m_words[last_word] & mask_upto(last);
 
             if (selected != 0)
-                return last_word * BITS_PER_STORAGE_TYPE_INSTANCE + countr_zero(selected);
+                return (last_word * BITS_PER_STORAGE_TYPE_INSTANCE) + countr_zero(selected);
         }
 
         return NPOS;
@@ -372,6 +372,7 @@ public:
     }
 
     // clang-format off
+    // NOLINTBEGIN(bugprone-macro-parentheses): op is an operator token
 #define DOOM_BITMAP_DEFINE_SHIFT_OPERATOR(op, function)                        \
     [[gnu::always_inline]] constexpr bitmap &operator op## = (usize count)                            \
     {                                                                          \
@@ -384,6 +385,7 @@ public:
         lhs op## = count;                                                      \
         return lhs;                                                            \
     }
+    // NOLINTEND(bugprone-macro-parentheses)
 
     DOOM_BITMAP_DEFINE_SHIFT_OPERATOR(<<, shift_left)
     DOOM_BITMAP_DEFINE_SHIFT_OPERATOR(>>, shift_right)

@@ -7,9 +7,7 @@
 #include "kernel/core/string.hpp"
 #include "kernel/core/types.hpp"
 
-namespace kernel::debug {
-
-namespace detail {
+namespace kernel::debug::detail {
 
 using kernel::core::i64;
 using kernel::core::u64;
@@ -137,6 +135,7 @@ consteval char format_char_at(usize index)
 }
 
 template <fixed_string FMT>
+// NOLINTNEXTLINE(readability-function-cognitive-complexity)
 consteval format_field parse_field_at(usize offset)
 {
     if (offset + 1 >= FMT.length() || FMT[offset] != '{') {
@@ -324,8 +323,6 @@ consteval usize literal_run_length()
     return index - I;
 }
 
-}  // namespace detail
-
-}  // namespace kernel::debug
+}  // namespace kernel::debug::detail
 
 #endif  // DOOM_OS_KERNEL_DEBUG_FORMAT_SPEC_HPP_
