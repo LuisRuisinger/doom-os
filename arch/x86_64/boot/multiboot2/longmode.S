@@ -213,11 +213,11 @@ long_mode_entry:
     movl boot_mb2_info(%rip), %esi
 
     /*
-     * kernel_main64 is linked in the higher half.
+     * kernel_multiboot2_entry (kernel::boot::multiboot2::entry) is linked in the higher half.
      *
      * Use movabs because the target is a high canonical address.
      */
-    movabsq $kernel_main64, %rax
+    movabsq $kernel_multiboot2_entry, %rax
     call *%rax
 
 .hang:

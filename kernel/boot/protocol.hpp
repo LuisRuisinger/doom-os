@@ -93,8 +93,18 @@ struct info {
 template <typename T>
 concept boot_protocol = requires(info &out) {
     { T::name } -> std::convertible_to<const char *>;
+    { T::well_formed() } -> std::same_as<bool>;
     { T::parse(out) } -> std::same_as<kernel::init::init_result>;
 };
+
+// Defined by the boot protocol selected with DOOM_OS_BOOT_PROTOCOL.
+namespace active {
+
+[[nodiscard]] bool well_formed();
+
+kernel::init::init_result parse(info &out);
+
+}  // namespace active
 
 }  // namespace kernel::boot
 

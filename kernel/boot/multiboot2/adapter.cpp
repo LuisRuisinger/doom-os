@@ -1,33 +1,25 @@
 #include "kernel/boot/multiboot2/adapter.hpp"
 
+// =================================================================================================
+// Kernel files
+// =================================================================================================
+
+#include "kernel/boot/multiboot2/iterator.hpp"
 #include "kernel/core/cast.hpp"
 
 namespace kernel::boot::multiboot2 {
 
-namespace {
-
 using kernel::core::paddr_t;
 using kernel::core::u32;
 using kernel::core::u8;
-using kernel::core::uptr;
-using kernel::core::usize;
 
 u64     m_magic{};
 paddr_t m_info_address{};
 
 template <typename T>
-[[nodiscard]] const T *as_tag(const tag_header &tag, const u8 *buffer_end)
+[[nodiscard]] const T *as_tag(const tag_header &tag)
 {
-    const auto *begin = (&tag) as(const u8 *);
-
     if (tag.size < sizeof(T))
-        return nullptr;
-
-    if (begin > buffer_end)
-        return nullptr;
-
-    const auto remaining = (buffer_end - begin) as(usize);
-    if (tag.size > remaining)
         return nullptr;
 
     return (&tag) as(const T *);
@@ -48,7 +40,7 @@ template <typename T>
             break;
     }
 
-    // Anything a future revision adds is treated as untouchable rather than usable.
+    // Placeholder for any future tag to be handled
     return kernel::boot::memory_kind::RESERVED;
 }
 
@@ -57,17 +49,9 @@ template <typename T>
     if (tag.entry_size < sizeof(memory_map_entry))
         return false;
 
-    const usize count = memory_map_entry_count(tag);
-
-    for (usize i = 0; i < count; ++i) {
-        const auto *entry = memory_map_entry_at(tag, i);
-
-        out.memory_map.push_back(kernel::boot::memory_region{
-            .base = entry->base_addr,
-            .length = entry->length,
-            .kind = translate_memory_type(entry->type),
-        });
-    }
+    for (const memory_map_entry &entry : entries(tag))
+        out.memory_map.emplace_back(entry.base_addr, entry.length,
+                                    translate_memory_type(entry.type));
 
     return true;
 }
@@ -77,101 +61,96 @@ template <typename T>
     if (tag.mod_end <= tag.mod_start)
         return true;
 
-    kernel::boot::module_info entry{};
+    auto &entry = out.modules.emplace_back(
+        kernel::boot::address_range(tag.mod_start, tag.mod_end - tag.mod_start));
 
-    entry.range.base = tag.mod_start;
-    entry.range.length = tag.mod_end - tag.mod_start;
-    entry.command_line.assign(module_command_line(tag));
+    const std::string_view command_line = tag.command_line();
 
-    out.modules.push_back(entry);
+    entry.command_line.assign(command_line.data(), command_line.size());
     return true;
 }
 
 void translate_framebuffer(const framebuffer_tag &tag, kernel::boot::info &out)
 {
-    out.framebuffer = kernel::boot::framebuffer_info{
-        .present = true,
-        .range = {tag.address, tag.pitch as(u64) * tag.height},
-        .pitch = tag.pitch,
-        .width = tag.width,
-        .height = tag.height,
-        .bits_per_pixel = tag.bits_per_pixel,
-    };
+    const kernel::boot::address_range range(tag.address, tag.pitch as(u64) * tag.height);
+    out.framebuffer = kernel::boot::framebuffer_info(true, range, tag.pitch, tag.width, tag.height,
+                                                     tag.bits_per_pixel);
 }
 
-void translate_acpi(const tag_header &tag, kernel::core::u8 revision, kernel::boot::info &out)
+[[nodiscard]] bool translate_acpi(const acpi_tag &tag, u8 revision, kernel::boot::info &out)
 {
-    const auto *rsdp = acpi_rsdp(tag);
-
-    if (rsdp == nullptr)
-        return;
-
-    // A newer revision already recorded wins: the XSDT supersedes the RSDT.
     if (out.acpi.present && out.acpi.revision >= revision)
-        return;
+        return true;
 
-    out.acpi = kernel::boot::acpi_info{
-        .present = true,
-        .rsdp = {rsdp as(kernel::core::paddr_t), tag.size - sizeof(tag_header)},
-        .revision = revision,
-    };
+    const kernel::boot::address_range rsdp((&tag.rsdp) as(paddr_t),
+                                           tag.header.size - sizeof(tag_header));
+    out.acpi = kernel::boot::acpi_info(true, rsdp, revision);
+
+    return true;
 }
 
-[[nodiscard]] bool translate_tag(const tag_header &tag, const u8 *buffer_end,
-                                 kernel::boot::info &out)
+[[nodiscard]] bool translate_tag(const tag_header &tag, kernel::boot::info &out)
 {
     using enum tag_type;
 
     switch (tag.type as(tag_type)) {
         case COMMAND_LINE: {
-            const auto *value = as_tag<string_tag>(tag, buffer_end);
+            const auto *value = as_tag<string_tag>(tag);
 
-            if (!value)
+            if (value == nullptr)
                 return false;
 
-            out.command_line.assign(string_payload(*value));
+            const std::string_view text = value->value();
+
+            out.command_line.assign(text.data(), text.size());
             return true;
         }
 
         case BOOTLOADER_NAME: {
-            const auto *value = as_tag<string_tag>(tag, buffer_end);
+            const auto *value = as_tag<string_tag>(tag);
 
-            if (!value)
+            if (value == nullptr)
                 return false;
 
-            out.bootloader_name.assign(string_payload(*value));
+            const std::string_view text = value->value();
+
+            out.bootloader_name.assign(text.data(), text.size());
             return true;
         }
 
         case MODULE: {
-            const auto *value = as_tag<module_tag>(tag, buffer_end);
+            const auto *value = as_tag<module_tag>(tag);
 
-            return value && translate_module(*value, out);
+            return value != nullptr && translate_module(*value, out);
         }
 
         case MEMORY_MAP: {
-            const auto *value = as_tag<memory_map_tag>(tag, buffer_end);
+            const auto *value = as_tag<memory_map_tag>(tag);
 
-            return value && translate_memory_map(*value, out);
+            return value != nullptr && translate_memory_map(*value, out);
         }
 
         case FRAMEBUFFER: {
-            const auto *value = as_tag<framebuffer_tag>(tag, buffer_end);
+            const auto *value = as_tag<framebuffer_tag>(tag);
 
-            if (!value)
+            if (value == nullptr)
                 return false;
 
             translate_framebuffer(*value, out);
             return true;
         }
 
-        case ACPI_OLD:
-            translate_acpi(tag, 1, out);
-            return true;
+        case ACPI_OLD: {
+            const auto *value = as_tag<acpi_tag>(tag);
 
-        case ACPI_NEW:
-            translate_acpi(tag, 2, out);
-            return true;
+            return value != nullptr && translate_acpi(*value, 1, out);
+        }
+
+        case ACPI_NEW: {
+            const auto *value = as_tag<acpi_tag>(tag);
+
+            return value != nullptr && translate_acpi(*value, 2, out);
+        }
 
         case BASIC_MEMORY:
         case END:
@@ -180,74 +159,37 @@ void translate_acpi(const tag_header &tag, kernel::core::u8 revision, kernel::bo
     }
 }
 
-}  // namespace
-
 void set_handoff(u64 magic, paddr_t address)
 {
     m_magic = magic;
     m_info_address = address;
 }
 
+bool adapter::well_formed()
+{
+    if (m_magic != BOOTLOADER_MAGIC)
+        return false;
+
+    if (m_info_address == 0)
+        return false;
+
+    return multiboot2::well_formed(*(m_info_address as(const fixed_header *)));
+}
+
 kernel::init::init_result adapter::parse(kernel::boot::info &out)
 {
     using kernel::init::init_error;
 
-    if (m_magic != BOOTLOADER_MAGIC)
-        return kernel::core::Err(init_error::INVALID_BOOT_DATA);
-
-    if (m_info_address == 0)
-        return kernel::core::Err(init_error::INVALID_BOOT_DATA);
-
     const auto *header = m_info_address as(const fixed_header *);
 
-    if (header->total_size < sizeof(*header))
-        return kernel::core::Err(init_error::INVALID_BOOT_DATA);
+    out.reserved.emplace_back(m_info_address, header->total_size);
 
-    const auto *begin = header as(const u8 *);
-
-    if (header->total_size > (~uptr{0}) as(usize) - begin as(uptr))
-        return kernel::core::Err(init_error::INVALID_BOOT_DATA);
-
-    out.reserved.push_back(kernel::boot::address_range{
-        .base = m_info_address,
-        .length = header->total_size,
-    });
-
-    const auto *end = begin + header->total_size;
-    const auto *tag = first_tag(*header);
-
-    while (tag as(const u8 *) < end) {
-        const auto *tag_begin = tag as(const u8 *);
-
-        if ((end - tag_begin) as(usize) < sizeof(*tag))
+    for (const tag_header &tag : tags(*header)) {
+        if (!translate_tag(tag, out))
             return kernel::core::Err(init_error::INVALID_BOOT_DATA);
-
-        if (tag->size < sizeof(*tag))
-            return kernel::core::Err(init_error::INVALID_BOOT_DATA);
-
-        if (tag->size > (end - tag_begin) as(usize))
-            return kernel::core::Err(init_error::INVALID_BOOT_DATA);
-
-        if (tag->type as(tag_type) == tag_type::END) {
-            if (tag->size != sizeof(tag_header))
-                return kernel::core::Err(init_error::INVALID_BOOT_DATA);
-
-            return kernel::core::Ok();
-        }
-
-        if (!translate_tag(*tag, end, out))
-            return kernel::core::Err(init_error::INVALID_BOOT_DATA);
-
-        const auto *next = next_tag(*tag);
-
-        if (next as(const u8 *) <= tag_begin)
-            return kernel::core::Err(init_error::INVALID_BOOT_DATA);
-
-        tag = next;
     }
 
-    // Ran off the end without an END tag.
-    return kernel::core::Err(init_error::INVALID_BOOT_DATA);
+    return kernel::core::Ok();
 }
 
 }  // namespace kernel::boot::multiboot2
