@@ -2,6 +2,14 @@
 #define DOOM_OS_KERNEL_CORE_INPLACE_VECTOR_HPP_
 
 // =================================================================================================
+// Standard library
+// =================================================================================================
+
+#include <memory>
+#include <source_location>
+#include <utility>
+
+// =================================================================================================
 // Kernel files
 // =================================================================================================
 
@@ -106,19 +114,34 @@ struct inplace_vector {
         return m_items + m_size;
     }
 
-    constexpr T &push_back(const T &value)
+    template <typename... Args>
+    constexpr T &emplace_back(Args &&...args)  // TODO currently no std::source_location support
     {
         if (m_size == N)
-            KPANIC("inplace_vector: push_back past capacity");
+            KPANIC("inplace_vector: emplace_back past capacity");
 
-        m_items[m_size] = value;
-        return m_items[m_size++];
+        T *slot = m_items + m_size;
+
+        std::destroy_at(slot);
+        std::construct_at(slot, std::forward<Args>(args)...);
+
+        ++m_size;
+        return *slot;
     }
 
-    constexpr void pop_back()
+    constexpr T &push_back(const T             &value,
+                           std::source_location location = std::source_location::current())
+    {
+        if (m_size == N)
+            KPANIC_AT(location, "inplace_vector: push_back past capacity");
+
+        return emplace_back(value);
+    }
+
+    constexpr void pop_back(std::source_location location = std::source_location::current())
     {
         if (m_size == 0)
-            KPANIC("inplace_vector: pop_back on empty");
+            KPANIC_AT(location, "inplace_vector: pop_back on empty");
 
         --m_size;
     }
