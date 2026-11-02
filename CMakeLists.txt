@@ -28,15 +28,19 @@ include(cmake/DoomOSConfig.cmake)
 # Sources
 # ==================================================================================================
 
-# arch/ and platform/ are globbed by the selected ids rather than wholesale. Those settings have to
-# decide which port and machine wiring are compiled, or they decide nothing: a sweep of either tree
-# would take every implementation present and hand the linker duplicate entry points.
+# arch/, platform/ and the boot protocol directories are globbed by the selected ids rather than
+# wholesale. Those settings have to decide which port, machine wiring and boot protocol are compiled,
+# or they decide nothing: a sweep of either tree would take every implementation present and hand
+# the linker duplicate entry points.
 
 file(GLOB_RECURSE KERNEL_CXX_SOURCES CONFIGURE_DEPENDS
         ${DOOM_OS_ROOT}/kernel/*.cpp)
 
 file(GLOB_RECURSE KERNEL_ASM_SOURCES CONFIGURE_DEPENDS
         ${DOOM_OS_ROOT}/kernel/*.S)
+
+list(FILTER KERNEL_CXX_SOURCES EXCLUDE REGEX "/kernel/boot/[^/]+/")
+list(FILTER KERNEL_ASM_SOURCES EXCLUDE REGEX "/kernel/boot/[^/]+/")
 
 file(GLOB_RECURSE KERNEL_ARCH_CXX_SOURCES CONFIGURE_DEPENDS
         ${DOOM_OS_ROOT}/arch/${DOOM_OS_ARCHITECTURE_ID}/*.cpp)
@@ -49,6 +53,9 @@ if(NOT KERNEL_ARCH_CXX_SOURCES AND NOT KERNEL_ARCH_ASM_SOURCES)
             "No sources under arch/${DOOM_OS_ARCHITECTURE_ID}. "
             "DOOM_OS_ARCHITECTURE names a port that is not in the tree.")
 endif()
+
+list(FILTER KERNEL_ARCH_CXX_SOURCES EXCLUDE REGEX "/arch/[^/]+/boot/[^/]+/")
+list(FILTER KERNEL_ARCH_ASM_SOURCES EXCLUDE REGEX "/arch/[^/]+/boot/[^/]+/")
 
 set(DOOM_OS_PLATFORM_DIR ${DOOM_OS_ROOT}/platform/${DOOM_OS_PLATFORM_ID})
 
@@ -64,13 +71,33 @@ file(GLOB_RECURSE KERNEL_PLATFORM_CXX_SOURCES CONFIGURE_DEPENDS
 file(GLOB_RECURSE KERNEL_PLATFORM_ASM_SOURCES CONFIGURE_DEPENDS
         ${DOOM_OS_PLATFORM_DIR}/*.S)
 
+set(DOOM_OS_BOOT_PROTOCOL_DIR ${DOOM_OS_ROOT}/kernel/boot/${DOOM_OS_BOOT_PROTOCOL_ID})
+set(DOOM_OS_BOOT_PROTOCOL_ARCH_DIR
+        ${DOOM_OS_ROOT}/arch/${DOOM_OS_ARCHITECTURE_ID}/boot/${DOOM_OS_BOOT_PROTOCOL_ID})
+
+if(NOT EXISTS "${DOOM_OS_BOOT_PROTOCOL_DIR}")
+    message(FATAL_ERROR
+            "No boot protocol directory at kernel/boot/${DOOM_OS_BOOT_PROTOCOL_ID}. "
+            "DOOM_OS_BOOT_PROTOCOL names a boot protocol that is not in the tree.")
+endif()
+
+file(GLOB_RECURSE KERNEL_BOOT_PROTOCOL_CXX_SOURCES CONFIGURE_DEPENDS
+        ${DOOM_OS_BOOT_PROTOCOL_DIR}/*.cpp
+        ${DOOM_OS_BOOT_PROTOCOL_ARCH_DIR}/*.cpp)
+
+file(GLOB_RECURSE KERNEL_BOOT_PROTOCOL_ASM_SOURCES CONFIGURE_DEPENDS
+        ${DOOM_OS_BOOT_PROTOCOL_DIR}/*.S
+        ${DOOM_OS_BOOT_PROTOCOL_ARCH_DIR}/*.S)
+
 list(APPEND KERNEL_CXX_SOURCES
         ${KERNEL_ARCH_CXX_SOURCES}
-        ${KERNEL_PLATFORM_CXX_SOURCES})
+        ${KERNEL_PLATFORM_CXX_SOURCES}
+        ${KERNEL_BOOT_PROTOCOL_CXX_SOURCES})
 
 list(APPEND KERNEL_ASM_SOURCES
         ${KERNEL_ARCH_ASM_SOURCES}
-        ${KERNEL_PLATFORM_ASM_SOURCES})
+        ${KERNEL_PLATFORM_ASM_SOURCES}
+        ${KERNEL_BOOT_PROTOCOL_ASM_SOURCES})
 
 file(GLOB_RECURSE KERNEL_HEADERS CONFIGURE_DEPENDS
         ${DOOM_OS_ROOT}/kernel/*.hpp

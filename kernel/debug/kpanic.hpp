@@ -1,7 +1,10 @@
 #ifndef DOOM_OS_KERNEL_DEBUG_KPANIC_HPP_
 #define DOOM_OS_KERNEL_DEBUG_KPANIC_HPP_
 
+#include <source_location>
+
 #include "arch/x86_64/cpu/registers.hpp"
+#include "kernel/core/cast.hpp"
 #include "kernel/core/types.hpp"
 #include "kernel/debug/kprint.hpp"
 
@@ -31,6 +34,12 @@ struct panic_register_frame {
 
 [[noreturn]] void kpanic(const char *message, void *frame, const char *file, int line,
                          const char *function) noexcept;
+
+[[noreturn]] inline void kpanic(const char *message, void *frame,
+                                const std::source_location &location) noexcept
+{
+    kpanic(message, frame, location.file_name(), location.line() as(int), location.function_name());
+}
 
 template <detail::fixed_string FMT, typename... Args>
 [[noreturn]] inline void kpanic_fmt(void *frame, const char *file, int line, const char *function,
@@ -94,6 +103,13 @@ template <detail::fixed_string FMT, typename... Args>
         ::kernel::debug::panic_register_frame __panic_frame{};                            \
         DOOM_OS_KPANIC_CAPTURE();                                                         \
         ::kernel::debug::kpanic((message), &__panic_frame, __FILE__, __LINE__, __func__); \
+    } while (0)
+
+#define KPANIC_AT(location__, message__)                                    \
+    do {                                                                    \
+        ::kernel::debug::panic_register_frame __panic_frame{};              \
+        DOOM_OS_KPANIC_CAPTURE();                                           \
+        ::kernel::debug::kpanic((message__), &__panic_frame, (location__)); \
     } while (0)
 
 #define KPANIC_FMT(fmt__, ...)                                                     \

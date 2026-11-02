@@ -26,14 +26,23 @@ function(doom_os_normalize_platform out_var platform)
     set(${out_var} "${_platform_id}" PARENT_SCOPE)
 endfunction()
 
+function(doom_os_normalize_boot_protocol out_var boot_protocol)
+    string(TOLOWER "${boot_protocol}" _boot_protocol_id)
+    string(REPLACE "-" "_" _boot_protocol_id "${_boot_protocol_id}")
+    set(${out_var} "${_boot_protocol_id}" PARENT_SCOPE)
+endfunction()
+
 set(DOOM_OS_BOARD "qemu_x86_64" CACHE STRING "Target board/platform")
 set_property(CACHE DOOM_OS_BOARD PROPERTY STRINGS qemu_x86_64 qemu-x86_64)
 
-set(DOOM_OS_PLATFORM "pc_multiboot2" CACHE STRING "Target platform wiring")
-set_property(CACHE DOOM_OS_PLATFORM PROPERTY STRINGS pc_multiboot2 pc-multiboot2)
+set(DOOM_OS_PLATFORM "pc" CACHE STRING "Target platform wiring")
+set_property(CACHE DOOM_OS_PLATFORM PROPERTY STRINGS pc)
 
 set(DOOM_OS_ARCHITECTURE "x86_64" CACHE STRING "Target architecture")
 set_property(CACHE DOOM_OS_ARCHITECTURE PROPERTY STRINGS x86_64 x86-64)
+
+set(DOOM_OS_BOOT_PROTOCOL "multiboot2" CACHE STRING "Boot protocol the kernel image is entered through")
+set_property(CACHE DOOM_OS_BOOT_PROTOCOL PROPERTY STRINGS multiboot2)
 
 option(DOOM_OS_HAS_MMU "Target provides a hardware MMU" ON)
 option(DOOM_OS_HAS_FPU "Target provides an FPU/SIMD state" ON)
@@ -41,6 +50,7 @@ option(DOOM_OS_HAS_FPU "Target provides an FPU/SIMD state" ON)
 doom_os_normalize_board(DOOM_OS_BOARD_ID "${DOOM_OS_BOARD}")
 doom_os_normalize_platform(DOOM_OS_PLATFORM_ID "${DOOM_OS_PLATFORM}")
 doom_os_normalize_architecture(DOOM_OS_ARCHITECTURE_ID "${DOOM_OS_ARCHITECTURE}")
+doom_os_normalize_boot_protocol(DOOM_OS_BOOT_PROTOCOL_ID "${DOOM_OS_BOOT_PROTOCOL}")
 
 if(NOT DOOM_OS_BOARD_ID STREQUAL "qemu_x86_64")
     message(FATAL_ERROR
@@ -48,10 +58,10 @@ if(NOT DOOM_OS_BOARD_ID STREQUAL "qemu_x86_64")
             "The only implemented board is qemu_x86_64.")
 endif()
 
-if(NOT DOOM_OS_PLATFORM_ID STREQUAL "pc_multiboot2")
+if(NOT DOOM_OS_PLATFORM_ID STREQUAL "pc")
     message(FATAL_ERROR
             "Unsupported DOOM_OS_PLATFORM='${DOOM_OS_PLATFORM}'. "
-            "The only implemented platform is pc_multiboot2.")
+            "The only implemented platform is pc.")
 endif()
 
 # No whitelist of implemented architectures. arch/<id> is globbed by this id, so the tree is the
@@ -83,13 +93,16 @@ if(NOT DOOM_OS_HAS_FPU)
             "Unsupported DOOM_OS_HAS_FPU=OFF. The current x86_64 core wiring enables the FPU.")
 endif()
 
-# No compile definitions. The board, architecture, MMU and FPU settings decided which sources are
-# compiled and which components the platform wiring lists; nothing in the tree branches on them at
-# preprocessing time, and a macro no source reads is a claim the build cannot check.
+# One compile definition: DOOM_OS_PLATFORM_HEADER, read by platform/platform.hpp. The board,
+# architecture, MMU and FPU settings decide which sources are compiled; nothing in the tree branches
+# on them at preprocessing time, and a macro no source reads is a claim the build cannot check.
 
 add_library(doom_os_config INTERFACE)
 
+target_compile_definitions(doom_os_config INTERFACE
+        DOOM_OS_PLATFORM_HEADER="platform/${DOOM_OS_PLATFORM_ID}/platform.hpp")
+
 message(STATUS
         "DoomOS config: board=${DOOM_OS_BOARD_ID}, platform=${DOOM_OS_PLATFORM_ID}, "
-        "architecture=${DOOM_OS_ARCHITECTURE_ID}, mmu=${DOOM_OS_HAS_MMU}, "
-        "fpu=${DOOM_OS_HAS_FPU}")
+        "architecture=${DOOM_OS_ARCHITECTURE_ID}, boot_protocol=${DOOM_OS_BOOT_PROTOCOL_ID}, "
+        "mmu=${DOOM_OS_HAS_MMU}, fpu=${DOOM_OS_HAS_FPU}")
