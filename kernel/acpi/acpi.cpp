@@ -134,9 +134,6 @@ sdt_view find_table(const char signature[4])
 
 kernel::init::init_result component::init_acpi()
 {
-    if (!kernel::boot::boot_info::available())
-        return kernel::core::Err(kernel::init::init_error::DEPENDENCY_UNAVAILABLE);
-
     const auto &boot_info = kernel::boot::boot_info::current();
     if (!boot_info.acpi.present || boot_info.acpi.rsdp.base == 0)
         return kernel::core::Err(kernel::init::init_error::INVALID_BOOT_DATA);

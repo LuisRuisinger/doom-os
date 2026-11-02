@@ -283,9 +283,6 @@ kernel::init::init_result component::init_allocator()
 
     const auto &boot = kernel::boot::boot_info::current();
 
-    if (!boot.valid)
-        return Err(init_error::DEPENDENCY_UNAVAILABLE);
-
     populate(boot);
 
     if (m_whole == NIL && m_broken == NIL)

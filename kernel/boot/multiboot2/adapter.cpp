@@ -1,4 +1,3 @@
-
 #include "kernel/boot/multiboot2/adapter.hpp"
 
 #include "kernel/core/cast.hpp"
@@ -7,10 +6,14 @@ namespace kernel::boot::multiboot2 {
 
 namespace {
 
+using kernel::core::paddr_t;
 using kernel::core::u32;
 using kernel::core::u8;
 using kernel::core::uptr;
 using kernel::core::usize;
+
+u64     m_magic{};
+paddr_t m_info_address{};
 
 template <typename T>
 [[nodiscard]] const T *as_tag(const tag_header &tag, const u8 *buffer_end)
@@ -59,11 +62,11 @@ template <typename T>
     for (usize i = 0; i < count; ++i) {
         const auto *entry = memory_map_entry_at(tag, i);
 
-        static_cast<void>(out.memory_map.push(kernel::boot::memory_region{
+        out.memory_map.push_back(kernel::boot::memory_region{
             .base = entry->base_addr,
             .length = entry->length,
             .kind = translate_memory_type(entry->type),
-        }));
+        });
     }
 
     return true;
@@ -80,7 +83,7 @@ template <typename T>
     entry.range.length = tag.mod_end - tag.mod_start;
     entry.command_line.assign(module_command_line(tag));
 
-    static_cast<void>(out.modules.push(entry));
+    out.modules.push_back(entry);
     return true;
 }
 
@@ -179,18 +182,23 @@ void translate_acpi(const tag_header &tag, kernel::core::u8 revision, kernel::bo
 
 }  // namespace
 
-kernel::init::init_result adapter::parse(const kernel::boot::handoff &source,
-                                         kernel::boot::info          &out)
+void set_handoff(u64 magic, paddr_t address)
+{
+    m_magic = magic;
+    m_info_address = address;
+}
+
+kernel::init::init_result adapter::parse(kernel::boot::info &out)
 {
     using kernel::init::init_error;
 
-    if (source.magic != BOOTLOADER_MAGIC)
+    if (m_magic != BOOTLOADER_MAGIC)
         return kernel::core::Err(init_error::INVALID_BOOT_DATA);
 
-    if (source.address == 0)
+    if (m_info_address == 0)
         return kernel::core::Err(init_error::INVALID_BOOT_DATA);
 
-    const auto *header = source.address as(const fixed_header *);
+    const auto *header = m_info_address as(const fixed_header *);
 
     if (header->total_size < sizeof(*header))
         return kernel::core::Err(init_error::INVALID_BOOT_DATA);
@@ -200,10 +208,10 @@ kernel::init::init_result adapter::parse(const kernel::boot::handoff &source,
     if (header->total_size > (~uptr{0}) as(usize) - begin as(uptr))
         return kernel::core::Err(init_error::INVALID_BOOT_DATA);
 
-    static_cast<void>(out.reserved.push(kernel::boot::address_range{
-        .base = source.address,
+    out.reserved.push_back(kernel::boot::address_range{
+        .base = m_info_address,
         .length = header->total_size,
-    }));
+    });
 
     const auto *end = begin + header->total_size;
     const auto *tag = first_tag(*header);

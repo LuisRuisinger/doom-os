@@ -1,5 +1,5 @@
 
-#include "kernel/boot/boot_info.hpp"
+#include "kernel/boot/multiboot2/adapter.hpp"
 #include "kernel/core/types.hpp"
 #include "kernel/debug/kpanic.hpp"
 #include "kernel/debug/kprint.hpp"
@@ -16,7 +16,7 @@ namespace boot_platform = kernel::platform::pc_multiboot2;
 
 void kernel_main64(u64 mb2_magic, u64 mb2_info)
 {
-    kernel::boot::boot_info::set_handoff(mb2_magic, mb2_info);
+    kernel::boot::multiboot2::set_handoff(mb2_magic, mb2_info);
 
     kernel::init::run_init_graph_silent<boot_platform::early_boot_roots>();
     KPRINTLN("KERNEL BOOT");

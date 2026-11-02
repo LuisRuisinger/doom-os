@@ -5,6 +5,7 @@
 #include "arch/x86_64/mmu/paging.hpp"
 #include "arch/x86_64/mmu/tlb.hpp"
 #include "config/layout.h"
+#include "kernel/boot/boot_info.hpp"
 #include "kernel/core/cast.hpp"
 #include "kernel/core/result.hpp"
 #include "kernel/core/types.hpp"
@@ -78,7 +79,8 @@ using address_space = kernel::arch::common::mmu::radix_tree<paging, kernel_env>;
 [[nodiscard]] address_space &kernel_space();
 
 struct component
-    : kernel::init::component<component, kernel::init::no_resource, kernel::mm::pmm::component> {
+    : kernel::init::component<component, kernel::init::no_resource,
+                              kernel::boot::boot_info::component, kernel::mm::pmm::component> {
     static constexpr auto *name = "MMU";
 
     static kernel::init::init_result init_kernel_space();

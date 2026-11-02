@@ -153,9 +153,6 @@ kernel::init::init_result component::init_kernel_space()
 
     const kernel::boot::info &boot = kernel::boot::boot_info::current();
 
-    if (!boot.valid)
-        return Err(init_error::INVALID_BOOT_DATA);
-
     enable_paging_features();
     link_tables();
 

@@ -132,16 +132,9 @@ extern "C" int open(const char *path, int flags, ...)
         return -1;
     }
 
-    if (!kernel::boot::boot_info::available()) {
-        errno = ENOENT;
-        return -1;
-    }
-
     const kernel::boot::info &boot = kernel::boot::boot_info::current();
 
-    for (usize i = 0; i < boot.modules.count; ++i) {
-        const kernel::boot::module_info &module = boot.modules[i];
-
+    for (const kernel::boot::module_info &module : boot.modules) {
         if (!same_string(path, module.command_line.c_str())) {
             continue;
         }

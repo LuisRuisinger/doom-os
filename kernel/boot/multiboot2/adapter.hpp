@@ -6,11 +6,12 @@
 
 namespace kernel::boot::multiboot2 {
 
-struct adapter {
-    static constexpr auto *name = "multiboot2";
+void set_handoff(u64 magic, kernel::core::paddr_t address);
 
-    static kernel::init::init_result parse(const kernel::boot::handoff &source,
-                                           kernel::boot::info          &out);
+struct adapter {
+    static constexpr const char *name = "multiboot2";
+
+    static kernel::init::init_result parse(kernel::boot::info &out);
 };
 
 static_assert(kernel::boot::boot_protocol<adapter>);
