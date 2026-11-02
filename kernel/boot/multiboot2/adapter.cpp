@@ -1,5 +1,5 @@
 
-#include "kernel/boot/multiboot2_adapter.hpp"
+#include "kernel/boot/multiboot2/adapter.hpp"
 
 #include "kernel/core/cast.hpp"
 

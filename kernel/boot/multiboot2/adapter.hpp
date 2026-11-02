@@ -1,7 +1,7 @@
 #ifndef DOOM_OS_KERNEL_BOOT_MULTIBOOT2_ADAPTER_HPP_
 #define DOOM_OS_KERNEL_BOOT_MULTIBOOT2_ADAPTER_HPP_
 
-#include "kernel/boot/multiboot2.hpp"
+#include "kernel/boot/multiboot2/spec.hpp"
 #include "kernel/boot/protocol.hpp"
 
 namespace kernel::boot::multiboot2 {

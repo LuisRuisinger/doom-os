@@ -1,5 +1,5 @@
-#ifndef DOOM_OS_KERNEL_BOOT_MULTIBOOT2_HPP_
-#define DOOM_OS_KERNEL_BOOT_MULTIBOOT2_HPP_
+#ifndef DOOM_OS_KERNEL_BOOT_MULTIBOOT2_SPEC_HPP_
+#define DOOM_OS_KERNEL_BOOT_MULTIBOOT2_SPEC_HPP_
 
 #include "kernel/core/cast.hpp"
 #include "kernel/core/types.hpp"
@@ -149,4 +149,4 @@ inline const acpi_rsdp_v1 *acpi_rsdp(const tag_header &tag)
 
 }  // namespace kernel::boot::multiboot2
 
-#endif  // DOOM_OS_KERNEL_BOOT_MULTIBOOT2_HPP_
+#endif  // DOOM_OS_KERNEL_BOOT_MULTIBOOT2_SPEC_HPP_
