@@ -10,19 +10,19 @@ namespace kernel::init {
 
 struct default_init_logger {
     template <typename Component, typename Backing>
-    void begin(Backing &)
+    void begin(Backing & /*unused*/)
     {
         KPRINTLN("[init] {}", Component::name);
     }
 
     template <typename Component, typename Backing>
-    void ok(Backing &)
+    void ok(Backing & /*unused*/)
     {
         KPRINTLN("[init] {}: OK", Component::name);
     }
 
     template <typename Component, typename Backing>
-    void fail(Backing &, init_error error)
+    void fail(Backing & /*unused*/, init_error error)
     {
         KPRINTLN("[init] {}: FAIL ({})", Component::name, error);
     }

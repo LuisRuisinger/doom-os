@@ -5,9 +5,7 @@
 #include "kernel/core/cast.hpp"
 #include "kernel/debug/console.hpp"
 
-namespace kernel::debug {
-
-namespace detail {
+namespace kernel::debug::detail {
 
 using kernel::core::i32;
 using kernel::core::i64;
@@ -100,6 +98,4 @@ void emit_pointer(const volatile void *value)
     emit_hex_u64(value as(u64));
 }
 
-}  // namespace detail
-
-}  // namespace kernel::debug
+}  // namespace kernel::debug::detail

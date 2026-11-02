@@ -1,7 +1,7 @@
-#ifndef DOOM_OS_KERNEL_ARCH_X86_64_IO_HPP_
-#define DOOM_OS_KERNEL_ARCH_X86_64_IO_HPP_
+#ifndef DOOM_OS_ARCH_X86_64_SERIAL_IO_HPP_
+#define DOOM_OS_ARCH_X86_64_SERIAL_IO_HPP_
 
-#include <stdint.h>
+#include <cstdint>
 
 #include "kernel/core/types.hpp"
 
@@ -26,4 +26,4 @@ static inline u8 inb(u16 port)
 
 }  // namespace kernel::arch::x86_64
 
-#endif  // DOOM_OS_KERNEL_ARCH_X86_64_IO_HPP_
+#endif  // DOOM_OS_ARCH_X86_64_SERIAL_IO_HPP_

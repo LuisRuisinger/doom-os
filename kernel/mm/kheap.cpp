@@ -1,6 +1,6 @@
 #include "kernel/mm/kheap.hpp"
 
-#include <stddef.h>
+#include <cstddef>
 
 #include "kernel/core/cast.hpp"
 #include "kernel/debug/kpanic.hpp"
@@ -71,7 +71,7 @@ int heap_munmap(void *ptr, usize bytes)
 
 extern "C" {
 
-static size_t dlmalloc_usable_size(void *);
+static size_t dlmalloc_usable_size(void * /*mem*/);
 }
 
 #pragma GCC diagnostic push
@@ -81,7 +81,7 @@ static size_t dlmalloc_usable_size(void *);
 #if defined(__clang__)
 #    pragma clang diagnostic ignored "-Wgnu-null-pointer-arithmetic"
 #endif
-#include <malloc.c>
+#include <malloc.c>  // NOLINT(bugprone-suspicious-include)
 #pragma GCC diagnostic pop
 
 namespace kernel::mm::kheap {
@@ -94,7 +94,7 @@ void *alloc(usize bytes, usize alignment)
     if (bytes == 0)
         return nullptr;
 
-    kernel::sync::spinlock_guard guard(m_lock);
+    kernel::sync::spinlock_guard const guard(m_lock);
 
     if (alignment <= NATURAL_ALIGNMENT)
         return dlmalloc(bytes);
@@ -110,7 +110,7 @@ void free(void *ptr)
     if (!m_heap_ready)
         KPANIC("kernel heap freed before KHEAP init");
 
-    kernel::sync::spinlock_guard guard(m_lock);
+    kernel::sync::spinlock_guard const guard(m_lock);
 
     dlfree(ptr);
 }

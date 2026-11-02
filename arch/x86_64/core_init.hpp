@@ -1,5 +1,5 @@
-#ifndef DOOM_OS_KERNEL_ARCH_X86_64_CORE_INIT_HPP_
-#define DOOM_OS_KERNEL_ARCH_X86_64_CORE_INIT_HPP_
+#ifndef DOOM_OS_ARCH_X86_64_CORE_INIT_HPP_
+#define DOOM_OS_ARCH_X86_64_CORE_INIT_HPP_
 
 #include "arch/x86_64/cpu/cpu.hpp"
 #include "kernel/init/component.hpp"
@@ -16,7 +16,7 @@ struct component : kernel::init::component<component, kernel::init::no_resource,
     static constexpr auto *name = "CORE_INIT";
 
     template <typename View>
-    static kernel::init::init_result init(View)
+    static kernel::init::init_result init(View /*unused*/)
     {
         if (!init_bsp()) {
             return kernel::core::Err(kernel::init::init_error::UNSPECIFIED);
@@ -28,4 +28,4 @@ struct component : kernel::init::component<component, kernel::init::no_resource,
 
 }  // namespace kernel::arch::x86_64::core_init
 
-#endif  // DOOM_OS_KERNEL_ARCH_X86_64_CORE_INIT_HPP_
+#endif  // DOOM_OS_ARCH_X86_64_CORE_INIT_HPP_

@@ -1,5 +1,5 @@
-#ifndef DOOM_OS_KERNEL_ARCH_X86_64_SERIAL_HPP_
-#define DOOM_OS_KERNEL_ARCH_X86_64_SERIAL_HPP_
+#ifndef DOOM_OS_ARCH_X86_64_SERIAL_SERIAL_HPP_
+#define DOOM_OS_ARCH_X86_64_SERIAL_SERIAL_HPP_
 
 #include "kernel/init/component.hpp"
 
@@ -19,7 +19,7 @@ struct component : kernel::init::component<component, kernel::init::no_resource>
     static constexpr const char *name = "SERIAL";
 
     template <typename View>
-    static kernel::init::init_result init(View)
+    static kernel::init::init_result init(View /*unused*/)
     {
         kernel::arch::x86_64::serial::init();
         kernel::arch::x86_64::serial::attach_console();
@@ -30,4 +30,4 @@ struct component : kernel::init::component<component, kernel::init::no_resource>
 
 }  // namespace kernel::arch::x86_64::serial
 
-#endif  // DOOM_OS_KERNEL_ARCH_X86_64_SERIAL_HPP_
+#endif  // DOOM_OS_ARCH_X86_64_SERIAL_SERIAL_HPP_

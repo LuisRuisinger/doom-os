@@ -1,7 +1,7 @@
 #ifndef DOOM_OS_KERNEL_RUNTIME_MEMORY_HPP_
 #define DOOM_OS_KERNEL_RUNTIME_MEMORY_HPP_
 
-#include <stddef.h>
+#include <cstddef>
 
 #ifdef __cplusplus
 #    define DOOM_OS_MEMORY_NOTHROW noexcept

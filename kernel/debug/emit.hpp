@@ -1,13 +1,13 @@
 #ifndef DOOM_OS_KERNEL_DEBUG_EMIT_HPP_
 #define DOOM_OS_KERNEL_DEBUG_EMIT_HPP_
 
+#include <algorithm>
+
 #include "kernel/core/array.hpp"
 #include "kernel/core/cast.hpp"
 #include "kernel/debug/format_spec.hpp"
 
-namespace kernel::debug {
-
-namespace detail {
+namespace kernel::debug::detail {
 
 using kernel::core::i64;
 using kernel::core::u64;
@@ -60,7 +60,7 @@ inline usize format_u64_decimal(u64 value, char *buffer)
     usize           length = 0;
 
     do {
-        reverse[length] = ('0' + value % 10) as(char);
+        reverse[length] = ('0' + (value % 10)) as(char);
         value /= 10;
         ++length;
     } while (value != 0);
@@ -154,18 +154,10 @@ inline void emit_unsigned_decimal(u64 value)
     array<char, 20> body;
     const usize     body_length = format_u64_decimal(value, body.data());
 
-    array<char, 1> prefix_buffer;
-    usize          prefix_length = 0;
+    constexpr bool has_sign = Spec.sign == format_sign::PLUS || Spec.sign == format_sign::SPACE;
+    const array<char, 1> prefix_buffer{Spec.sign == format_sign::PLUS ? '+' : ' '};
 
-    if constexpr (Spec.sign == format_sign::PLUS) {
-        prefix_buffer[0] = '+';
-        prefix_length = 1;
-    } else if constexpr (Spec.sign == format_sign::SPACE) {
-        prefix_buffer[0] = ' ';
-        prefix_length = 1;
-    }
-
-    emit_padded<Spec>(prefix_buffer.data(), prefix_length, body.data(), body_length, true);
+    emit_padded<Spec>(prefix_buffer.data(), has_sign ? 1 : 0, body.data(), body_length, true);
 }
 
 template <format_spec Spec>
@@ -287,7 +279,7 @@ inline void emit_fixed_float(long double value)
         value = -value;
     }
 
-    const long double infinity_test = value - value;
+    const long double infinity_test = value - value;  // NOLINT(misc-redundant-expression)
 
     if (infinity_test != infinity_test) {
         emit_float_special<Spec>("inf", 3, negative);
@@ -359,13 +351,8 @@ inline void emit_string_value(const char *value)
                   "unsupported format specifier for string");
 
     const char *actual_value = value == nullptr ? "(null)" : value;
-    usize       length = c_string_length(actual_value);
-
-    if constexpr (Spec.has_precision) {
-        if (length > Spec.precision) {
-            length = Spec.precision;
-        }
-    }
+    const usize full_length = c_string_length(actual_value);
+    const usize length = Spec.has_precision ? std::min(full_length, Spec.precision) : full_length;
 
     emit_padded<Spec>("", 0, actual_value, length, false);
 }
@@ -388,8 +375,6 @@ inline void emit_char_value(char value)
     }
 }
 
-}  // namespace detail
-
-}  // namespace kernel::debug
+}  // namespace kernel::debug::detail
 
 #endif  // DOOM_OS_KERNEL_DEBUG_EMIT_HPP_

@@ -55,24 +55,24 @@ struct sdt_view {
 
     [[nodiscard]] const char *signature() const
     {
-        return header ? header->signature : "";
+        return (header != nullptr) ? header->signature : "";
     }
 
     [[nodiscard]] u32 length() const
     {
-        return header ? header->length : 0;
+        return (header != nullptr) ? header->length : 0;
     }
 
     [[nodiscard]] const void *body() const
     {
-        if (!header)
+        if (header == nullptr)
             return nullptr;
         return header as(const u8 *) + sizeof(wire::sdt_header);
     }
 
     [[nodiscard]] usize body_size() const
     {
-        if (!header || header->length < sizeof(wire::sdt_header))
+        if ((header == nullptr) || header->length < sizeof(wire::sdt_header))
             return 0;
         return header->length - sizeof(wire::sdt_header);
     }
@@ -91,7 +91,7 @@ struct component
     static kernel::init::init_result init_acpi();
 
     template <typename View>
-    static kernel::init::init_result init(View)
+    static kernel::init::init_result init(View /*unused*/)
     {
         return init_acpi();
     }

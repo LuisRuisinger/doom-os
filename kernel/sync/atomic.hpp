@@ -271,8 +271,9 @@ class atomic {
 public:
     using value_type = T;
 
-    template <typename U = T, std::enable_if_t<std::is_default_constructible_v<U>, i32> = 0>
+    template <typename U = T>
     constexpr atomic()
+        requires(std::is_default_constructible_v<U>)
         : m_storage(detail::encode_atomic_value(T{}))
     {
     }
@@ -288,7 +289,7 @@ public:
     atomic(atomic &&) = delete;
     atomic &operator=(atomic &&) = delete;
 
-    T operator=(T value)
+    T operator=(T value)  // NOLINT(misc-unconventional-assign-operator): as std::atomic
     {
         store(value);
         return value;
@@ -299,7 +300,7 @@ public:
         return load();
     }
 
-    T load(memory_order order = memory_order::SEQ_CST) const
+    [[nodiscard]] T load(memory_order order = memory_order::SEQ_CST) const
     {
         const storage_type storage = __atomic_load_n(&m_storage, detail::to_load_order(order));
 
@@ -368,8 +369,9 @@ public:
         return exchanged;
     }
 
-    template <typename U = T, std::enable_if_t<detail::supports_arithmetic_ops_v<U>, i32> = 0>
+    template <typename U = T>
     T fetch_add(T value, memory_order order = memory_order::SEQ_CST)
+        requires(detail::supports_arithmetic_ops_v<U>)
     {
         const storage_type encoded_value = detail::encode_atomic_value(value);
         const storage_type old =
@@ -378,8 +380,9 @@ public:
         return detail::decode_atomic_value<T>(old);
     }
 
-    template <typename U = T, std::enable_if_t<detail::supports_arithmetic_ops_v<U>, i32> = 0>
+    template <typename U = T>
     T fetch_sub(T value, memory_order order = memory_order::SEQ_CST)
+        requires(detail::supports_arithmetic_ops_v<U>)
     {
         const storage_type encoded_value = detail::encode_atomic_value(value);
         const storage_type old =
@@ -388,8 +391,9 @@ public:
         return detail::decode_atomic_value<T>(old);
     }
 
-    template <typename U = T, std::enable_if_t<detail::supports_arithmetic_ops_v<U>, i32> = 0>
+    template <typename U = T>
     T fetch_and(T value, memory_order order = memory_order::SEQ_CST)
+        requires(detail::supports_arithmetic_ops_v<U>)
     {
         const storage_type encoded_value = detail::encode_atomic_value(value);
         const storage_type old =
@@ -398,8 +402,9 @@ public:
         return detail::decode_atomic_value<T>(old);
     }
 
-    template <typename U = T, std::enable_if_t<detail::supports_arithmetic_ops_v<U>, i32> = 0>
+    template <typename U = T>
     T fetch_or(T value, memory_order order = memory_order::SEQ_CST)
+        requires(detail::supports_arithmetic_ops_v<U>)
     {
         const storage_type encoded_value = detail::encode_atomic_value(value);
         const storage_type old =
@@ -408,8 +413,9 @@ public:
         return detail::decode_atomic_value<T>(old);
     }
 
-    template <typename U = T, std::enable_if_t<detail::supports_arithmetic_ops_v<U>, i32> = 0>
+    template <typename U = T>
     T fetch_xor(T value, memory_order order = memory_order::SEQ_CST)
+        requires(detail::supports_arithmetic_ops_v<U>)
     {
         const storage_type encoded_value = detail::encode_atomic_value(value);
         const storage_type old =
@@ -418,60 +424,69 @@ public:
         return detail::decode_atomic_value<T>(old);
     }
 
-    template <typename U = T, std::enable_if_t<detail::supports_arithmetic_ops_v<U>, i32> = 0>
+    template <typename U = T>
     T operator++()
+        requires(detail::supports_arithmetic_ops_v<U>)
     {
         return detail::add_atomic_values(fetch_add(T{1}), T{1});
     }
 
-    template <typename U = T, std::enable_if_t<detail::supports_arithmetic_ops_v<U>, i32> = 0>
+    template <typename U = T>
     T operator++(i32)
+        requires(detail::supports_arithmetic_ops_v<U>)
     {
         return fetch_add(T{1});
     }
 
-    template <typename U = T, std::enable_if_t<detail::supports_arithmetic_ops_v<U>, i32> = 0>
+    template <typename U = T>
     T operator--()
+        requires(detail::supports_arithmetic_ops_v<U>)
     {
         return detail::sub_atomic_values(fetch_sub(T{1}), T{1});
     }
 
-    template <typename U = T, std::enable_if_t<detail::supports_arithmetic_ops_v<U>, i32> = 0>
+    template <typename U = T>
     T operator--(i32)
+        requires(detail::supports_arithmetic_ops_v<U>)
     {
         return fetch_sub(T{1});
     }
 
-    template <typename U = T, std::enable_if_t<detail::supports_arithmetic_ops_v<U>, i32> = 0>
+    template <typename U = T>
     T operator+=(T value)
+        requires(detail::supports_arithmetic_ops_v<U>)
     {
         return detail::add_atomic_values(fetch_add(value), value);
     }
 
-    template <typename U = T, std::enable_if_t<detail::supports_arithmetic_ops_v<U>, i32> = 0>
+    template <typename U = T>
     T operator-=(T value)
+        requires(detail::supports_arithmetic_ops_v<U>)
     {
         return detail::sub_atomic_values(fetch_sub(value), value);
     }
 
-    template <typename U = T, std::enable_if_t<detail::supports_arithmetic_ops_v<U>, i32> = 0>
+    template <typename U = T>
     T operator&=(T value)
+        requires(detail::supports_arithmetic_ops_v<U>)
     {
         return detail::decode_atomic_value<T>(
             (detail::encode_atomic_value(fetch_and(value)) & detail::encode_atomic_value(value))
                 as(storage_type));
     }
 
-    template <typename U = T, std::enable_if_t<detail::supports_arithmetic_ops_v<U>, i32> = 0>
+    template <typename U = T>
     T operator|=(T value)
+        requires(detail::supports_arithmetic_ops_v<U>)
     {
         return detail::decode_atomic_value<T>(
             (detail::encode_atomic_value(fetch_or(value)) | detail::encode_atomic_value(value))
                 as(storage_type));
     }
 
-    template <typename U = T, std::enable_if_t<detail::supports_arithmetic_ops_v<U>, i32> = 0>
+    template <typename U = T>
     T operator^=(T value)
+        requires(detail::supports_arithmetic_ops_v<U>)
     {
         return detail::decode_atomic_value<T>(
             (detail::encode_atomic_value(fetch_xor(value)) ^ detail::encode_atomic_value(value))
@@ -507,7 +522,7 @@ public:
     atomic_ref(const atomic_ref &) = default;
     atomic_ref &operator=(const atomic_ref &) = delete;
 
-    T load(memory_order order = memory_order::SEQ_CST) const
+    [[nodiscard]] T load(memory_order order = memory_order::SEQ_CST) const
     {
         return __atomic_load_n(&object_m, detail::to_load_order(order));
     }
@@ -517,7 +532,7 @@ public:
         __atomic_store_n(&object_m, value, detail::to_store_order(order));
     }
 
-    T exchange(T value, memory_order order = memory_order::SEQ_CST) const
+    [[nodiscard]] T exchange(T value, memory_order order = memory_order::SEQ_CST) const
     {
         return __atomic_exchange_n(&object_m, value, detail::to_builtin_order(order));
     }
@@ -552,32 +567,37 @@ public:
                                            detail::to_failure_order(failure_order));
     }
 
-    template <typename U = T, std::enable_if_t<detail::supports_arithmetic_ops_v<U>, i32> = 0>
-    T fetch_add(T value, memory_order order = memory_order::SEQ_CST) const
+    template <typename U = T>
+    [[nodiscard]] T fetch_add(T value, memory_order order = memory_order::SEQ_CST) const
+        requires(detail::supports_arithmetic_ops_v<U>)
     {
         return __atomic_fetch_add(&object_m, value, detail::to_builtin_order(order));
     }
 
-    template <typename U = T, std::enable_if_t<detail::supports_arithmetic_ops_v<U>, i32> = 0>
-    T fetch_sub(T value, memory_order order = memory_order::SEQ_CST) const
+    template <typename U = T>
+    [[nodiscard]] T fetch_sub(T value, memory_order order = memory_order::SEQ_CST) const
+        requires(detail::supports_arithmetic_ops_v<U>)
     {
         return __atomic_fetch_sub(&object_m, value, detail::to_builtin_order(order));
     }
 
-    template <typename U = T, std::enable_if_t<detail::supports_arithmetic_ops_v<U>, i32> = 0>
-    T fetch_and(T value, memory_order order = memory_order::SEQ_CST) const
+    template <typename U = T>
+    [[nodiscard]] T fetch_and(T value, memory_order order = memory_order::SEQ_CST) const
+        requires(detail::supports_arithmetic_ops_v<U>)
     {
         return __atomic_fetch_and(&object_m, value, detail::to_builtin_order(order));
     }
 
-    template <typename U = T, std::enable_if_t<detail::supports_arithmetic_ops_v<U>, i32> = 0>
-    T fetch_or(T value, memory_order order = memory_order::SEQ_CST) const
+    template <typename U = T>
+    [[nodiscard]] T fetch_or(T value, memory_order order = memory_order::SEQ_CST) const
+        requires(detail::supports_arithmetic_ops_v<U>)
     {
         return __atomic_fetch_or(&object_m, value, detail::to_builtin_order(order));
     }
 
-    template <typename U = T, std::enable_if_t<detail::supports_arithmetic_ops_v<U>, i32> = 0>
-    T fetch_xor(T value, memory_order order = memory_order::SEQ_CST) const
+    template <typename U = T>
+    [[nodiscard]] T fetch_xor(T value, memory_order order = memory_order::SEQ_CST) const
+        requires(detail::supports_arithmetic_ops_v<U>)
     {
         return __atomic_fetch_xor(&object_m, value, detail::to_builtin_order(order));
     }

@@ -23,7 +23,7 @@ bool    m_initialized{false};
 
 bool validate_checksum(const void *pointer, usize length)
 {
-    if (!pointer || length == 0)
+    if ((pointer == nullptr) || length == 0)
         return false;
 
     const auto *bytes = pointer as(const u8 *);
@@ -46,7 +46,7 @@ void init(paddr_t rsdp_address)
 
     const auto *rsdp = kernel::mm::vmm::phy_to_vrt(m_rsdp_phys) as(const wire::rsdp_descriptor *);
 
-    if (!rsdp)
+    if (rsdp == nullptr)
         return;
 
     for (usize i = 0; i < 8; ++i) {
@@ -75,6 +75,7 @@ bool is_ready()
     return m_initialized;
 }
 
+// NOLINTNEXTLINE(readability-function-cognitive-complexity)
 sdt_view find_table(const char signature[4])
 {
     if (!m_initialized)
@@ -83,7 +84,7 @@ sdt_view find_table(const char signature[4])
     const auto *root_header =
         kernel::mm::vmm::phy_to_vrt(m_sdt_root_phys) as(const wire::sdt_header *);
 
-    if (!root_header || !validate_checksum(root_header, root_header->length))
+    if ((root_header == nullptr) || !validate_checksum(root_header, root_header->length))
         return {};
 
     const usize header_size = sizeof(wire::sdt_header);
@@ -105,7 +106,7 @@ sdt_view find_table(const char signature[4])
             const auto *header =
                 kernel::mm::vmm::phy_to_vrt(table_phys) as(const wire::sdt_header *);
 
-            if (header && signature_match(header->signature, signature)) {
+            if ((header != nullptr) && signature_match(header->signature, signature)) {
                 if (validate_checksum(header, header->length))
                     return sdt_view{header};
             }
@@ -122,7 +123,7 @@ sdt_view find_table(const char signature[4])
             const auto *header =
                 kernel::mm::vmm::phy_to_vrt(table_phys) as(const wire::sdt_header *);
 
-            if (header && signature_match(header->signature, signature)) {
+            if ((header != nullptr) && signature_match(header->signature, signature)) {
                 if (validate_checksum(header, header->length))
                     return sdt_view{header};
             }

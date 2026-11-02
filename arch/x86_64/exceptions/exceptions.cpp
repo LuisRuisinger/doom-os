@@ -261,6 +261,10 @@ struct trap_exception_type : fault_exception_type {
 
 template <typename Derived, kernel::arch::x86_64::tss::interrupt_stack Stack>
 struct fatal_exception_type {
+private:
+    fatal_exception_type() = default;
+
+public:
     static constexpr auto interrupt_stack = Stack;
     static constexpr auto gate = exception_gate::INTERRUPT;
 
@@ -281,6 +285,7 @@ struct fatal_exception_type {
                           exception_name(frame.vector as(u8)), Derived::fatal_reason, frame.vector,
                           frame.error_code, fatal_stack.bottom, fatal_stack.top, fatal_stack.size);
     }
+    friend Derived;
 };
 
 struct nmi_exception_type
@@ -384,7 +389,7 @@ static void describe_exception_gate(kernel::arch::x86_64::idt::gate_table &gates
 
 template <usize... Vectors>
 static void describe_exception_gates(kernel::arch::x86_64::idt::gate_table &gates,
-                                     std::index_sequence<Vectors...>)
+                                     std::index_sequence<Vectors...> /*unused*/)
 {
     (describe_exception_gate<Vectors>(gates), ...);
 }

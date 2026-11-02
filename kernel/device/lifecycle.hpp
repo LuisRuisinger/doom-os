@@ -15,9 +15,9 @@ struct component : kernel::init::component<component, kernel::init::no_resource>
     static constexpr auto *name = "DRIVERS";
 
     template <typename View>
-    static kernel::init::init_result init(View)
+    static kernel::init::init_result init(View /*unused*/)
     {
-        init_result outcome = init_all();
+        const init_result outcome = init_all();
 
         if (outcome.is_err()) {
             return kernel::core::Err(kernel::init::init_error::UNSPECIFIED);

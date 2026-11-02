@@ -1,5 +1,5 @@
-#ifndef DOOM_OS_KERNEL_ARCH_X86_64_CPU_FPU_HPP_
-#define DOOM_OS_KERNEL_ARCH_X86_64_CPU_FPU_HPP_
+#ifndef DOOM_OS_ARCH_X86_64_CPU_FPU_HPP_
+#define DOOM_OS_ARCH_X86_64_CPU_FPU_HPP_
 
 #include "kernel/init/component.hpp"
 
@@ -11,7 +11,7 @@ struct fpu_component : kernel::init::component<fpu_component, kernel::init::no_r
     static constexpr auto *name = "FPU";
 
     template <typename View>
-    static kernel::init::init_result init(View)
+    static kernel::init::init_result init(View /*unused*/)
     {
         enable_sse();
 
@@ -21,4 +21,4 @@ struct fpu_component : kernel::init::component<fpu_component, kernel::init::no_r
 
 }  // namespace kernel::arch::x86_64::cpu
 
-#endif  // DOOM_OS_KERNEL_ARCH_X86_64_CPU_FPU_HPP_
+#endif  // DOOM_OS_ARCH_X86_64_CPU_FPU_HPP_

@@ -1,0 +1,43 @@
+Checks: >
+  -*,
+  bugprone-*,
+  -bugprone-easily-swappable-parameters,
+  -bugprone-reserved-identifier,
+  -bugprone-dynamic-static-initializers,
+  performance-*,
+  -performance-enum-size,
+  -performance-no-int-to-ptr,
+  portability-*,
+  misc-*,
+  -misc-unused-parameters,
+  -misc-include-cleaner,
+  -misc-use-anonymous-namespace,
+  -misc-non-private-member-variables-in-classes,
+  -misc-no-recursion,
+  -misc-use-internal-linkage,
+  modernize-*,
+  -modernize-use-trailing-return-type,
+  -modernize-avoid-c-arrays,
+  readability-*,
+  -readability-redundant-declaration,
+  -readability-magic-numbers,
+  -readability-braces-around-statements,
+  -readability-identifier-length
+
+WarningsAsErrors: '*'
+
+HeaderFilterRegex: '/(kernel|arch|platform|include|posix|entry)/'
+ExcludeHeaderFilterRegex: '/_deps/'
+
+# c++/current is linked by the Dockerfile. +x87 undoes -mno-80387, under which clang rejects the
+# long double members of <limits>; via -Xclang it lands after the build's own flags. reflect's enum
+# folds exceed clang's nesting limit of 256. ExtraArgs would land after the "--" clang-tidy inserts
+# for headers, so everything goes in ExtraArgsBefore.
+ExtraArgsBefore:
+  - -isystem/opt/cross/x86_64-elf/include/c++/current
+  - -isystem/opt/cross/x86_64-elf/include/c++/current/x86_64-elf
+  - -fbracket-depth=1024
+  - -Xclang
+  - -target-feature
+  - -Xclang
+  - +x87

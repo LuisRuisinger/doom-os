@@ -1,5 +1,5 @@
-#ifndef DOOM_OS_KERNEL_ARCH_X86_64_TRAP_FRAME_HPP_
-#define DOOM_OS_KERNEL_ARCH_X86_64_TRAP_FRAME_HPP_
+#ifndef DOOM_OS_ARCH_X86_64_TRAP_FRAME_HPP_
+#define DOOM_OS_ARCH_X86_64_TRAP_FRAME_HPP_
 
 #include "kernel/core/types.hpp"
 
@@ -66,4 +66,4 @@ DOOM_OS_X86_64_TRAP_FRAME_FIELD(ss, 21);
 
 }  // namespace kernel::arch::x86_64::trap
 
-#endif  // DOOM_OS_KERNEL_ARCH_X86_64_TRAP_FRAME_HPP_
+#endif  // DOOM_OS_ARCH_X86_64_TRAP_FRAME_HPP_

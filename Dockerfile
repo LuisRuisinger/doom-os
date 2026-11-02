@@ -78,7 +78,7 @@ FROM ubuntu:24.04
 ARG DEBIAN_FRONTEND=noninteractive
 ARG TARGET=x86_64-elf
 ARG PREFIX=/opt/cross
-ARG CLANG_FORMAT_VERSION=20
+ARG LLVM_VERSION=20
 ARG PRE_COMMIT_VERSION=4.6.2
 ARG NEOVIM_VERSION=0.11.6
 ARG RUST_TOOLCHAIN=stable
@@ -107,6 +107,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     grub-pc-bin \
     xorriso \
     mtools \
+    openssh-client \
     qemu-system-x86 \
     qemu-system-gui \
     ripgrep \
@@ -118,11 +119,13 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 
 # .clang-format uses AlignFunctionDeclarations, which needs clang-format >= 20; Ubuntu 24.04 ships 18.
 RUN wget -qO /usr/share/keyrings/llvm.asc https://apt.llvm.org/llvm-snapshot.gpg.key \
-    && echo "deb [signed-by=/usr/share/keyrings/llvm.asc] http://apt.llvm.org/noble/ llvm-toolchain-noble-${CLANG_FORMAT_VERSION} main" \
+    && echo "deb [signed-by=/usr/share/keyrings/llvm.asc] http://apt.llvm.org/noble/ llvm-toolchain-noble-${LLVM_VERSION} main" \
        > /etc/apt/sources.list.d/llvm.list \
     && apt-get update \
-    && apt-get install -y --no-install-recommends "clang-format-${CLANG_FORMAT_VERSION}" \
-    && ln -sf "/usr/bin/clang-format-${CLANG_FORMAT_VERSION}" /usr/bin/clang-format \
+    && apt-get install -y --no-install-recommends \
+       "clang-format-${LLVM_VERSION}" "clang-tidy-${LLVM_VERSION}" \
+    && ln -sf "/usr/bin/clang-format-${LLVM_VERSION}" /usr/bin/clang-format \
+    && ln -sf "/usr/bin/clang-tidy-${LLVM_VERSION}" /usr/bin/clang-tidy \
     && rm -rf /var/lib/apt/lists/*
 
 # Must match the host: plugins, parsers and the bytecode cache are bind-mounted from there.
@@ -139,14 +142,18 @@ RUN wget -qO- https://sh.rustup.rs \
 
 COPY --from=toolchain ${PREFIX} ${PREFIX}
 
+# .clang-tidy names c++/current: clang finds no GCC install for x86_64-elf on its own.
+RUN ln -s "$("${TARGET}-gcc" -dumpversion)" "${PREFIX}/${TARGET}/include/c++/current"
+
 RUN "${TARGET}-g++" --version \
     && test -f "$("${TARGET}-gcc" -print-libgcc-file-name)" \
-    && test -d "${PREFIX}/${TARGET}/include/c++" \
+    && test -d "${PREFIX}/${TARGET}/include/c++/current" \
     && test -f "$(rustc --print target-libdir --target "${RUST_TARGET}")/self-contained/libc.a" \
     && rust-analyzer --version \
     && grub-mkrescue --version \
     && qemu-system-x86_64 --version \
     && clang-format --version \
+    && clang-tidy --version \
     && pre-commit --version \
     && nvim --version
 
@@ -154,6 +161,7 @@ RUN "${TARGET}-g++" --version \
 RUN echo "ubuntu ALL=(ALL) NOPASSWD:ALL" > /etc/sudoers.d/ubuntu \
     && chmod 0440 /etc/sudoers.d/ubuntu \
     && mkdir -p /workspace /home/ubuntu/.config /home/ubuntu/.local/share /home/ubuntu/.local/state /home/ubuntu/.cache \
+       /home/ubuntu/.ssh \
     && chown -R ubuntu:ubuntu /workspace /home/ubuntu
 
 USER ubuntu

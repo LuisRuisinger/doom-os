@@ -151,7 +151,10 @@ extern "C" int open(const char *path, int flags, ...)
                 continue;
             }
 
-            m_descriptors[fd] = {true, window as(const u8 *), module.range.length, 0};
+            m_descriptors[fd] = {.open = true,
+                                 .base = window as(const u8 *),
+                                 .size = module.range.length,
+                                 .offset = 0};
             return fd;
         }
 
