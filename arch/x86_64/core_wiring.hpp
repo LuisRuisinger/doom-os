@@ -1,5 +1,5 @@
-#ifndef DOOM_OS_KERNEL_ARCH_X86_64_CORE_WIRING_HPP_
-#define DOOM_OS_KERNEL_ARCH_X86_64_CORE_WIRING_HPP_
+#ifndef DOOM_OS_ARCH_X86_64_CORE_WIRING_HPP_
+#define DOOM_OS_ARCH_X86_64_CORE_WIRING_HPP_
 
 #include "arch/x86_64/cpu/cpu.hpp"
 #include "arch/x86_64/cpu/fpu.hpp"
@@ -9,6 +9,7 @@
 
 namespace kernel::init {
 
+// NOLINTBEGIN(bugprone-macro-parentheses): member is a member name
 #define DOOM_OS_BIND_CORE_RESOURCE(component_type, resource_type, member)             \
     template <>                                                                       \
     struct resource_binding<component_type, kernel::arch::x86_64::cpu::local_state> { \
@@ -17,6 +18,7 @@ namespace kernel::init {
             return state.member;                                                      \
         }                                                                             \
     }
+// NOLINTEND(bugprone-macro-parentheses)
 
 DOOM_OS_BIND_CORE_RESOURCE(kernel::arch::x86_64::cpu::stacks_component,
                            kernel::arch::x86_64::cpu::stack_set, stacks_m);
@@ -48,4 +50,4 @@ using core_roots = early_core_roots;
 
 }  // namespace kernel::arch::x86_64::core_wiring
 
-#endif  // DOOM_OS_KERNEL_ARCH_X86_64_CORE_WIRING_HPP_
+#endif  // DOOM_OS_ARCH_X86_64_CORE_WIRING_HPP_

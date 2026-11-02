@@ -1,8 +1,7 @@
 #ifndef DOOM_OS_KERNEL_CORE_TYPES_HPP_
 #define DOOM_OS_KERNEL_CORE_TYPES_HPP_
 
-#include <stdarg.h>  // va_list
-
+#include <cstdarg>  // va_list
 #include <uk/types.hpp>
 
 namespace kernel::core {

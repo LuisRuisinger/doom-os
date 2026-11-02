@@ -9,17 +9,38 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
-  style:
+  pre-commit:
+    needs: toolchain
     runs-on: ubuntu-latest
+
+    permissions:
+      contents: read
+      packages: read
+
+    # Root, because the runner owns the checkout directory; HOME is /github/home.
+    container:
+      image: ${{ needs.toolchain.outputs.image }}
+      credentials:
+        username: ${{ github.actor }}
+        password: ${{ secrets.GITHUB_TOKEN }}
+      options: --user root
+
+    env:
+      # Guards local commits; CI checks out master itself.
+      SKIP: no-commit-to-branch
 
     steps:
       - uses: actions/checkout@v4
 
-      - uses: actions/setup-python@v5
+      - uses: actions/cache@v4
         with:
-          python-version: "3.12"
+          path: ~/.cache/pre-commit
+          key: pre-commit-${{ needs.toolchain.outputs.image }}-${{ hashFiles('.pre-commit-config.yaml') }}
 
-      - uses: pre-commit/action@v3.0.1
+      # clang-tidy reads build/compile_commands.json.
+      - run: cmake --preset default
+
+      - run: pre-commit run --all-files --show-diff-on-failure --color=always
 
   toolchain:
     runs-on: ubuntu-latest

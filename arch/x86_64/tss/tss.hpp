@@ -1,5 +1,5 @@
-#ifndef DOOM_OS_KERNEL_ARCH_X86_64_TSS_HPP_
-#define DOOM_OS_KERNEL_ARCH_X86_64_TSS_HPP_
+#ifndef DOOM_OS_ARCH_X86_64_TSS_TSS_HPP_
+#define DOOM_OS_ARCH_X86_64_TSS_TSS_HPP_
 
 #include "arch/x86_64/cpu/stacks.hpp"
 #include "kernel/core/types.hpp"
@@ -100,4 +100,4 @@ struct core_component
 
 }  // namespace kernel::arch::x86_64::tss
 
-#endif  // DOOM_OS_KERNEL_ARCH_X86_64_TSS_HPP_
+#endif  // DOOM_OS_ARCH_X86_64_TSS_TSS_HPP_

@@ -1,5 +1,5 @@
-#ifndef DOOM_OS_KERNEL_ARCH_X86_64_IDT_HPP_
-#define DOOM_OS_KERNEL_ARCH_X86_64_IDT_HPP_
+#ifndef DOOM_OS_ARCH_X86_64_IDT_IDT_HPP_
+#define DOOM_OS_ARCH_X86_64_IDT_IDT_HPP_
 
 #include "arch/x86_64/gdt/gdt.hpp"
 #include "kernel/core/array.hpp"
@@ -91,4 +91,4 @@ struct core_component
 
 }  // namespace kernel::arch::x86_64::idt
 
-#endif  // DOOM_OS_KERNEL_ARCH_X86_64_IDT_HPP_
+#endif  // DOOM_OS_ARCH_X86_64_IDT_IDT_HPP_

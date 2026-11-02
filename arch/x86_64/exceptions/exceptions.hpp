@@ -1,5 +1,5 @@
-#ifndef DOOM_OS_KERNEL_ARCH_X86_64_EXCEPTIONS_HPP_
-#define DOOM_OS_KERNEL_ARCH_X86_64_EXCEPTIONS_HPP_
+#ifndef DOOM_OS_ARCH_X86_64_EXCEPTIONS_EXCEPTIONS_HPP_
+#define DOOM_OS_ARCH_X86_64_EXCEPTIONS_EXCEPTIONS_HPP_
 
 #include "arch/x86_64/idt/idt.hpp"
 #include "arch/x86_64/trap/frame.hpp"
@@ -57,4 +57,4 @@ struct core_component : kernel::init::component<core_component, idt::gate_table>
 
 }  // namespace kernel::arch::x86_64::exceptions
 
-#endif  // DOOM_OS_KERNEL_ARCH_X86_64_EXCEPTIONS_HPP_
+#endif  // DOOM_OS_ARCH_X86_64_EXCEPTIONS_EXCEPTIONS_HPP_

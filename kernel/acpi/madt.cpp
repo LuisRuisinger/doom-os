@@ -22,6 +22,7 @@ enum madt_type : u8 {
 
 }  // namespace
 
+// NOLINTNEXTLINE(readability-function-cognitive-complexity)
 madt_info parse_madt(sdt_view view)
 {
     madt_info info{};
@@ -121,7 +122,7 @@ madt_info parse_madt(sdt_view view)
 const madt_info &get_madt_info()
 {
     if (!m_madt_parsed) {
-        sdt_view view = find_table("APIC");
+        const sdt_view view = find_table("APIC");
         if (view.valid()) {
             parse_madt(view);
         }

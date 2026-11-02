@@ -29,8 +29,8 @@ using kernel::core::u8;
 using kernel::core::usize;
 using kernel::core::utils::array;
 
-static constexpr usize MAX_DRIVERS = 128;
-static constexpr usize MAX_REGISTERED_CAPABILITIES = 256;
+constexpr usize MAX_DRIVERS = 128;
+constexpr usize MAX_REGISTERED_CAPABILITIES = 256;
 
 enum class visit_state : u8 {
     NOT_VISITED,
@@ -66,7 +66,7 @@ struct lifecycle_state {
     bool initialized_all;
 };
 
-static lifecycle_state m_state{};
+lifecycle_state m_state{};
 
 bool string_equal(const char *lhs, const char *rhs)
 {
@@ -579,7 +579,7 @@ void exit_all()
 
 void init_all_or_halt()
 {
-    init_result outcome = init_all();
+    const init_result outcome = init_all();
 
     if (outcome.is_ok()) {
         return;

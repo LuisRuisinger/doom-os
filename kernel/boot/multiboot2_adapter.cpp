@@ -88,7 +88,7 @@ void translate_framebuffer(const framebuffer_tag &tag, kernel::boot::info &out)
 {
     out.framebuffer = kernel::boot::framebuffer_info{
         .present = true,
-        .range = {tag.address, tag.pitch as(u64) * tag.height},
+        .range = {.base = tag.address, .length = tag.pitch as(u64) * tag.height},
         .pitch = tag.pitch,
         .width = tag.width,
         .height = tag.height,
@@ -109,7 +109,7 @@ void translate_acpi(const tag_header &tag, kernel::core::u8 revision, kernel::bo
 
     out.acpi = kernel::boot::acpi_info{
         .present = true,
-        .rsdp = {rsdp as(kernel::core::paddr_t), tag.size - sizeof(tag_header)},
+        .rsdp = {.base = rsdp as(kernel::core::paddr_t), .length = tag.size - sizeof(tag_header)},
         .revision = revision,
     };
 }
@@ -123,7 +123,7 @@ void translate_acpi(const tag_header &tag, kernel::core::u8 revision, kernel::bo
         case COMMAND_LINE: {
             const auto *value = as_tag<string_tag>(tag, buffer_end);
 
-            if (!value)
+            if (value == nullptr)
                 return false;
 
             out.command_line.assign(string_payload(*value));
@@ -133,7 +133,7 @@ void translate_acpi(const tag_header &tag, kernel::core::u8 revision, kernel::bo
         case BOOTLOADER_NAME: {
             const auto *value = as_tag<string_tag>(tag, buffer_end);
 
-            if (!value)
+            if (value == nullptr)
                 return false;
 
             out.bootloader_name.assign(string_payload(*value));
@@ -143,19 +143,19 @@ void translate_acpi(const tag_header &tag, kernel::core::u8 revision, kernel::bo
         case MODULE: {
             const auto *value = as_tag<module_tag>(tag, buffer_end);
 
-            return value && translate_module(*value, out);
+            return (value != nullptr) && translate_module(*value, out);
         }
 
         case MEMORY_MAP: {
             const auto *value = as_tag<memory_map_tag>(tag, buffer_end);
 
-            return value && translate_memory_map(*value, out);
+            return (value != nullptr) && translate_memory_map(*value, out);
         }
 
         case FRAMEBUFFER: {
             const auto *value = as_tag<framebuffer_tag>(tag, buffer_end);
 
-            if (!value)
+            if (value == nullptr)
                 return false;
 
             translate_framebuffer(*value, out);

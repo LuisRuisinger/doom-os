@@ -1,5 +1,5 @@
-#ifndef DOOM_OS_KERNEL_ARCH_X86_64_GDT_HPP_
-#define DOOM_OS_KERNEL_ARCH_X86_64_GDT_HPP_
+#ifndef DOOM_OS_ARCH_X86_64_GDT_GDT_HPP_
+#define DOOM_OS_ARCH_X86_64_GDT_GDT_HPP_
 
 #include "arch/x86_64/tss/tss.hpp"
 #include "kernel/core/array.hpp"
@@ -43,7 +43,7 @@ public:
     void init(const kernel::arch::x86_64::tss::state &task_state_segment);
     void load() const;
 
-    [[nodiscard]] u16 kernel_code_selector() const;
+    [[nodiscard]] static u16 kernel_code_selector();
 };
 
 void load_task_register(u16 selector);
@@ -67,4 +67,4 @@ struct core_component
 
 }  // namespace kernel::arch::x86_64::gdt
 
-#endif  // DOOM_OS_KERNEL_ARCH_X86_64_GDT_HPP_
+#endif  // DOOM_OS_ARCH_X86_64_GDT_GDT_HPP_

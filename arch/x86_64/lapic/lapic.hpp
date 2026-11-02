@@ -45,17 +45,17 @@ enum class reg : u32 {
     timer_div = 0x03E0,
 };
 
-[[nodiscard]] inline constexpr reg isr_register(usize index)
+[[nodiscard]] constexpr reg isr_register(usize index)
 {
     return (reg::isr_base as(u32) + (index * 0x10)) as(reg);
 }
 
-[[nodiscard]] inline constexpr reg tmr_register(usize index)
+[[nodiscard]] constexpr reg tmr_register(usize index)
 {
     return (reg::tmr_base as(u32) + (index * 0x10)) as(reg);
 }
 
-[[nodiscard]] inline constexpr reg irr_register(usize index)
+[[nodiscard]] constexpr reg irr_register(usize index)
 {
     return (reg::irr_base as(u32) + (index * 0x10)) as(reg);
 }
@@ -79,7 +79,7 @@ struct component
     static kernel::init::init_result init_lapic();
 
     template <typename View>
-    static kernel::init::init_result init(View)
+    static kernel::init::init_result init(View /*unused*/)
     {
         return init_lapic();
     }

@@ -14,7 +14,7 @@ struct component
     static constexpr auto *name = "RUNTIME";
 
     template <typename View>
-    static kernel::init::init_result init(View)
+    static kernel::init::init_result init(View /*unused*/)
     {
         call_global_constructors();
 

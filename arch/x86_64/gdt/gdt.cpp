@@ -104,8 +104,8 @@ void table::init(const kernel::arch::x86_64::tss::state &task_state_segment)
     entries_m[TSS_ENTRY_INDEX + 1] = make_tss_descriptor_high(task_state_segment.base());
 
     ptr_m = pointer{
-        sizeof(entries_m) - 1,
-        (&entries_m[0]) as(kernel::core::u64),
+        .limit = sizeof(entries_m) - 1,
+        .base = (entries_m.data()) as(kernel::core::u64),
     };
 }
 
@@ -114,7 +114,7 @@ void table::load() const
     gdt_load(&ptr_m, KERNEL_CODE_SELECTOR, KERNEL_DATA_SELECTOR);
 }
 
-u16 table::kernel_code_selector() const
+u16 table::kernel_code_selector()
 {
     return KERNEL_CODE_SELECTOR;
 }

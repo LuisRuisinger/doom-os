@@ -13,7 +13,7 @@ using kernel::core::u8;
 using kernel::core::usize;
 
 constexpr u32 CPUID_FEATURE_LEAF = 1;
-constexpr u32 CPUID_ECX_RDRAND = 1u << 30;
+constexpr u32 CPUID_ECX_RDRAND = 1U << 30;
 constexpr int RDRAND_ATTEMPTS = 10;
 
 bool rdrand_supported()
@@ -35,7 +35,7 @@ bool rdrand64(u64 &out)
 
         asm volatile("rdrand %0; setc %1" : "=r"(value), "=qm"(carry)::"cc");
 
-        if (carry) {
+        if (carry != 0U) {
             out = value;
             return true;
         }

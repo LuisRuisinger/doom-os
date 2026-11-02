@@ -1,6 +1,7 @@
 #ifndef DOOM_OS_KERNEL_DEBUG_FORMATTER_HPP_
 #define DOOM_OS_KERNEL_DEBUG_FORMATTER_HPP_
 
+#include <algorithm>
 #include <concepts>
 #include <type_traits>
 
@@ -9,9 +10,7 @@
 #include "kernel/core/string.hpp"
 #include "kernel/debug/emit.hpp"
 
-namespace kernel::debug {
-
-namespace detail {
+namespace kernel::debug::detail {
 
 using kernel::core::i64;
 using kernel::core::u64;
@@ -225,13 +224,8 @@ struct formatter<T> {
                           Spec.presentation_value == presentation::STRING,
                       "unsupported format specifier for string");
 
-        usize length = value.size();
-
-        if constexpr (Spec.has_precision) {
-            if (length > Spec.precision) {
-                length = Spec.precision;
-            }
-        }
+        const usize size = value.size();
+        const usize length = Spec.has_precision ? std::min(size, Spec.precision) : size;
 
         emit_padded<Spec>("", 0, value.data(), length, false);
     }
@@ -296,8 +290,6 @@ inline void emit_value(const T &value)
     formatter<std::decay_t<decltype(value)>>::template emit<Spec>(value);
 }
 
-}  // namespace detail
-
-}  // namespace kernel::debug
+}  // namespace kernel::debug::detail
 
 #endif  // DOOM_OS_KERNEL_DEBUG_FORMATTER_HPP_

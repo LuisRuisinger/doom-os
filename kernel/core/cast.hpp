@@ -21,8 +21,9 @@
 
 namespace kernel::core::cast {
 
-inline constexpr bool has_rtti = DOOM_OS_CAST_HAS_RTTI != 0;
-inline constexpr bool rtti_enabled = DOOM_OS_CAST_ENABLE_RTTI != 0;
+inline constexpr bool has_rtti = DOOM_OS_CAST_HAS_RTTI != 0;  // NOLINT(misc-redundant-expression)
+inline constexpr bool rtti_enabled =
+    DOOM_OS_CAST_ENABLE_RTTI != 0;  // NOLINT(misc-redundant-expression)
 
 namespace detail {
 
@@ -140,7 +141,7 @@ template <typename To>
 struct as_tag {};
 
 template <typename From, typename To>
-[[nodiscard]] constexpr To operator->*(From &&from, as_tag<To>) noexcept
+[[nodiscard]] constexpr To operator->*(From &&from, as_tag<To> /*unused*/) noexcept
 {
     return auto_cast<To>(std::forward<From>(from));
 }

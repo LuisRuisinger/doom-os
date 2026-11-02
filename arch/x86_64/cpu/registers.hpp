@@ -1,5 +1,5 @@
-#ifndef DOOM_OS_KERNEL_ARCH_X86_64_CPU_REGISTERS_HPP_
-#define DOOM_OS_KERNEL_ARCH_X86_64_CPU_REGISTERS_HPP_
+#ifndef DOOM_OS_ARCH_X86_64_CPU_REGISTERS_HPP_
+#define DOOM_OS_ARCH_X86_64_CPU_REGISTERS_HPP_
 
 #include "arch/common/cpu/registers.hpp"
 #include "kernel/core/cast.hpp"
@@ -76,7 +76,8 @@ inline constexpr u64 EFER_NO_EXECUTE_ENABLE = u64{1} << 11;
 
 [[nodiscard]] inline u64 read_msr(u32 msr)
 {
-    u32 low, high;
+    u32 low;
+    u32 high;
     asm volatile("rdmsr" : "=a"(low), "=d"(high) : "c"(msr));
 
     return (u64{high} << 32) | low;
@@ -106,4 +107,4 @@ struct cpuid_result {
 
 }  // namespace kernel::arch::x86_64::cpu
 
-#endif  // DOOM_OS_KERNEL_ARCH_X86_64_CPU_REGISTERS_HPP_
+#endif  // DOOM_OS_ARCH_X86_64_CPU_REGISTERS_HPP_
