@@ -70,8 +70,9 @@ protected:
     template <typename View>
     static Resource &own(View view)
     {
-        static_assert(!std::is_same_v<Resource, no_resource>,
-                      "component owns no resource: declare one to use own()");
+        static_assert(
+            !std::is_same_v<Resource, no_resource>,
+            "component owns no resource: declare one to use own()");
 
         return view.template bind<Self>();
     }
@@ -79,9 +80,10 @@ protected:
     template <typename Dep, typename View>
     static const auto &dep(View view)
     {
-        static_assert((std::is_same_v<Dep, Deps> || ...),
-                      "component declares no dependency on the component whose resource it "
-                      "is trying to read");
+        static_assert(
+            (std::is_same_v<Dep, Deps> || ...),
+            "component declares no dependency on the component whose resource it "
+            "is trying to read");
 
         return view.template bind<Dep>();
     }

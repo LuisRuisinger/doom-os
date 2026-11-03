@@ -33,12 +33,12 @@ inline void emit_format(const Args &...args)
 {
     if constexpr (offset >= fmt.length()) {
         return;
-    } else if constexpr (format_char_at<fmt>(offset) == '{' &&
-                         format_char_at<fmt>(offset + 1) == '{') {
+    } else if constexpr (
+        format_char_at<fmt>(offset) == '{' && format_char_at<fmt>(offset + 1) == '{') {
         emit_char('{');
         emit_format<fmt, offset + 2, arg_index>(args...);
-    } else if constexpr (format_char_at<fmt>(offset) == '}' &&
-                         format_char_at<fmt>(offset + 1) == '}') {
+    } else if constexpr (
+        format_char_at<fmt>(offset) == '}' && format_char_at<fmt>(offset + 1) == '}') {
         emit_char('}');
         emit_format<fmt, offset + 2, arg_index>(args...);
     } else if constexpr (format_char_at<fmt>(offset) == '{') {
@@ -68,13 +68,15 @@ inline void kprint_ct(const Args &...args)
 {
     constexpr detail::format_parse_result parse_result = detail::parse_format<FMT>();
 
-    static_assert(parse_result.valid,
-                  "invalid kprint format string; supported fields are {}, {:d}, {:x}, {:X}, "
-                  "{:#x}, {:016x}, {:#018x}, {:p}, {:018p}, {:.3f}, {:s}, {:c}; escape braces as "
-                  "{{ and }}");
+    static_assert(
+        parse_result.valid,
+        "invalid kprint format string; supported fields are {}, {:d}, {:x}, {:X}, "
+        "{:#x}, {:016x}, {:#018x}, {:p}, {:018p}, {:.3f}, {:s}, {:c}; escape braces as "
+        "{{ and }}");
 
-    static_assert(parse_result.field_count == sizeof...(Args),
-                  "kprint argument count does not match replacement field count");
+    static_assert(
+        parse_result.field_count == sizeof...(Args),
+        "kprint argument count does not match replacement field count");
 
     detail::emit_format<FMT, 0, 0>(args...);
 }

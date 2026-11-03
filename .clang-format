@@ -33,6 +33,10 @@ AllowShortEnumsOnASingleLine: false
 AllowShortIfStatementsOnASingleLine: Never
 AllowShortLoopsOnASingleLine: false
 
+AlignAfterOpenBracket: AlwaysBreak
+BinPackArguments: false
+AllowAllArgumentsOnNextLine: false
+
 ConstructorInitializerIndentWidth: 4
 BreakConstructorInitializers: BeforeColon
 PackConstructorInitializers: Never

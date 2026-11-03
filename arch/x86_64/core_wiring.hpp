@@ -20,20 +20,21 @@ namespace kernel::init {
     }
 // NOLINTEND(bugprone-macro-parentheses)
 
-DOOM_OS_BIND_CORE_RESOURCE(kernel::arch::x86_64::cpu::stacks_component,
-                           kernel::arch::x86_64::cpu::stack_set, stacks_m);
+DOOM_OS_BIND_CORE_RESOURCE(
+    kernel::arch::x86_64::cpu::stacks_component, kernel::arch::x86_64::cpu::stack_set, stacks_m);
 
-DOOM_OS_BIND_CORE_RESOURCE(kernel::arch::x86_64::tss::core_component,
-                           kernel::arch::x86_64::tss::state, tss_m);
+DOOM_OS_BIND_CORE_RESOURCE(
+    kernel::arch::x86_64::tss::core_component, kernel::arch::x86_64::tss::state, tss_m);
 
-DOOM_OS_BIND_CORE_RESOURCE(kernel::arch::x86_64::gdt::core_component,
-                           kernel::arch::x86_64::gdt::table, gdt_m);
+DOOM_OS_BIND_CORE_RESOURCE(
+    kernel::arch::x86_64::gdt::core_component, kernel::arch::x86_64::gdt::table, gdt_m);
 
-DOOM_OS_BIND_CORE_RESOURCE(kernel::arch::x86_64::exceptions::core_component,
-                           kernel::arch::x86_64::idt::gate_table, exception_gates_m);
+DOOM_OS_BIND_CORE_RESOURCE(
+    kernel::arch::x86_64::exceptions::core_component, kernel::arch::x86_64::idt::gate_table,
+    exception_gates_m);
 
-DOOM_OS_BIND_CORE_RESOURCE(kernel::arch::x86_64::idt::core_component,
-                           kernel::arch::x86_64::idt::table, idt_m);
+DOOM_OS_BIND_CORE_RESOURCE(
+    kernel::arch::x86_64::idt::core_component, kernel::arch::x86_64::idt::table, idt_m);
 
 #undef DOOM_OS_BIND_CORE_RESOURCE
 
@@ -41,8 +42,8 @@ DOOM_OS_BIND_CORE_RESOURCE(kernel::arch::x86_64::idt::core_component,
 
 namespace kernel::arch::x86_64::core_wiring {
 
-using early_core_roots = kernel::init::type_list<kernel::arch::x86_64::idt::core_component,
-                                                 kernel::arch::x86_64::cpu::fpu_component>;
+using early_core_roots = kernel::init::type_list<
+    kernel::arch::x86_64::idt::core_component, kernel::arch::x86_64::cpu::fpu_component>;
 
 using late_core_roots = kernel::init::type_list<kernel::arch::x86_64::lapic::core_component>;
 

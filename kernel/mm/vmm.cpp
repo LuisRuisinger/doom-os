@@ -81,7 +81,9 @@ void release(vaddr_t base, u64 bytes)
         return;
 
     const auto unmapped = mmu::kernel_space().unmap_range(
-        base, bytes, page_size::SIZE_4K,
+        base,
+        bytes,
+        page_size::SIZE_4K,
         [](const mapping &removed) { pmm::free(removed.size, removed.frame); });
 
     if (unmapped.is_err())
@@ -98,8 +100,9 @@ void release(vaddr_t base, u64 bytes)
             return Err(frame.unwrap_err_ref());
         }
 
-        const auto mapped = mmu::kernel_space().map_range(base + offset, frame.unwrap_ref(),
-                                                          FRAME_SIZE, page_size::SIZE_4K, prot);
+        const auto mapped =
+            mmu::kernel_space()
+                .map_range(base + offset, frame.unwrap_ref(), FRAME_SIZE, page_size::SIZE_4K, prot);
 
         if (mapped.is_err()) {
             pmm::free(page_size::SIZE_4K, frame.unwrap_ref());
@@ -193,8 +196,13 @@ Result<volatile void *, mm_error> map_mmio(paddr_t pa, usize bytes)
     {
         kernel::sync::spinlock_guard const guard(m_lock);
 
-        KTRY(mmu::kernel_space().map_range(mmu::MMIO_MAP_BASE + first, first, last - first,
-                                           page_size::SIZE_4K, page_prot::MMIO));
+        KTRY(
+            mmu::kernel_space().map_range(
+                mmu::MMIO_MAP_BASE + first,
+                first,
+                last - first,
+                page_size::SIZE_4K,
+                page_prot::MMIO));
     }
 
     return Ok((mmu::MMIO_MAP_BASE + pa) as(volatile void *));

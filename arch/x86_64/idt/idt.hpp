@@ -71,9 +71,9 @@ public:
     void load() const;
 };
 
-struct core_component
-    : kernel::init::component<core_component, table, kernel::arch::x86_64::gdt::core_component,
-                              kernel::arch::x86_64::exceptions::core_component> {
+struct core_component : kernel::init::component<
+                            core_component, table, kernel::arch::x86_64::gdt::core_component,
+                            kernel::arch::x86_64::exceptions::core_component> {
     static constexpr auto *name = "IDT";
 
     template <typename View>
@@ -81,8 +81,9 @@ struct core_component
     {
         table &self = own(view);
 
-        self.init(dep<kernel::arch::x86_64::exceptions::core_component>(view),
-                  dep<kernel::arch::x86_64::gdt::core_component>(view).kernel_code_selector());
+        self.init(
+            dep<kernel::arch::x86_64::exceptions::core_component>(view),
+            dep<kernel::arch::x86_64::gdt::core_component>(view).kernel_code_selector());
         self.load();
 
         return kernel::core::Ok();

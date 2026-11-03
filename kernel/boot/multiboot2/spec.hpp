@@ -217,8 +217,9 @@ struct framebuffer_tag {
         const usize count = *(bytes.data() as(const u16 *));
         const usize fits = (bytes.size() - sizeof(u16)) / sizeof(framebuffer_color);
 
-        return {(bytes.data() + sizeof(u16)) as(const framebuffer_color *),
-                count < fits ? count : fits};
+        return {
+            (bytes.data() + sizeof(u16)) as(const framebuffer_color *),
+            count < fits ? count : fits};
     }
 
     [[nodiscard]] const framebuffer_rgb *rgb() const

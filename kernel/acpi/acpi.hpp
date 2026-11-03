@@ -83,9 +83,9 @@ void init(paddr_t rsdp_address);
 [[nodiscard]] bool validate_checksum(const void *pointer, usize length);
 [[nodiscard]] sdt_view find_table(const char signature[4]);
 
-struct component
-    : kernel::init::component<component, kernel::init::no_resource,
-                              kernel::boot::boot_info::component, kernel::mm::vmm::component> {
+struct component : kernel::init::component<
+                       component, kernel::init::no_resource, kernel::boot::boot_info::component,
+                       kernel::mm::vmm::component> {
     static constexpr auto *name = "ACPI";
 
     static kernel::init::init_result init_acpi();

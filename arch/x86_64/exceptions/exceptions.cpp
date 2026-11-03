@@ -119,8 +119,10 @@ static void validate_exception_frame(const exception_frame &frame)
 
     const auto vector = frame.vector as(u8);
     if (!exception_has_error_code(vector) && frame.error_code != 0)
-        KPANIC("[exception] malformed frame vector={} unexpected error={:#018X}", vector,
-               frame.error_code);
+        KPANIC(
+            "[exception] malformed frame vector={} unexpected error={:#018X}",
+            vector,
+            frame.error_code);
 }
 
 static void validate_handler_vector(const exception_frame &frame, u8 expected)
@@ -141,8 +143,9 @@ static const cpu::stack &stack_for_exception_type(cpu::local_state &cpu)
     } else if constexpr (Stack == kernel::arch::x86_64::tss::interrupt_stack::MACHINE_CHECK) {
         return stacks.machine_check();
     } else {
-        static_assert(Stack == kernel::arch::x86_64::tss::interrupt_stack::NONE,
-                      "exception type references an IST slot without a CPU stack accessor");
+        static_assert(
+            Stack == kernel::arch::x86_64::tss::interrupt_stack::NONE,
+            "exception type references an IST slot without a CPU stack accessor");
         return stacks.kernel();
     }
 }
@@ -224,12 +227,21 @@ static page_fault_cause decode_page_fault(u64 error_code)
 
     // capture_ambient_registers already read CR2, which is where the #PF address lives.
     if (vector == PAGE_FAULT_VECTOR) {
-        KPANIC_WITH_FRAME(dump, "[exception] {} address={:#018X} error={:#x} cause={}", name,
-                          dump.cr2, frame.error_code, decode_page_fault(frame.error_code));
+        KPANIC_WITH_FRAME(
+            dump,
+            "[exception] {} address={:#018X} error={:#x} cause={}",
+            name,
+            dump.cr2,
+            frame.error_code,
+            decode_page_fault(frame.error_code));
     }
 
-    KPANIC_WITH_FRAME(dump, "[exception] {} vector={} error={:#018X}", name, vector,
-                      frame.error_code);
+    KPANIC_WITH_FRAME(
+        dump,
+        "[exception] {} vector={} error={:#018X}",
+        name,
+        vector,
+        frame.error_code);
 }
 
 enum class exception_gate : u8 {
@@ -279,11 +291,17 @@ public:
 
         auto fatal_dump = panic_frame_from(frame);
 
-        KPANIC_WITH_FRAME(fatal_dump,
-                          "[exception] fatal {}: {} vector={} error={:#018X} "
-                          "stack=[{:#018X}, {:#018X}) size={}",
-                          exception_name(frame.vector as(u8)), Derived::fatal_reason, frame.vector,
-                          frame.error_code, fatal_stack.bottom, fatal_stack.top, fatal_stack.size);
+        KPANIC_WITH_FRAME(
+            fatal_dump,
+            "[exception] fatal {}: {} vector={} error={:#018X} "
+            "stack=[{:#018X}, {:#018X}) size={}",
+            exception_name(frame.vector as(u8)),
+            Derived::fatal_reason,
+            frame.vector,
+            frame.error_code,
+            fatal_stack.bottom,
+            fatal_stack.top,
+            fatal_stack.size);
     }
     friend Derived;
 };
@@ -294,14 +312,14 @@ struct nmi_exception_type
 };
 
 struct double_fault_exception_type
-    : fatal_exception_type<double_fault_exception_type,
-                           kernel::arch::x86_64::tss::interrupt_stack::DOUBLE_FAULT> {
+    : fatal_exception_type<
+          double_fault_exception_type, kernel::arch::x86_64::tss::interrupt_stack::DOUBLE_FAULT> {
     static constexpr const char *fatal_reason = "double fault";
 };
 
 struct machine_check_exception_type
-    : fatal_exception_type<machine_check_exception_type,
-                           kernel::arch::x86_64::tss::interrupt_stack::MACHINE_CHECK> {
+    : fatal_exception_type<
+          machine_check_exception_type, kernel::arch::x86_64::tss::interrupt_stack::MACHINE_CHECK> {
     static constexpr const char *fatal_reason = "machine check";
 };
 
@@ -331,14 +349,14 @@ DOOM_OS_CPU_EXCEPTION_VECTORS(DOOM_OS_DECLARE_EXCEPTION_DESCRIPTOR)
 
 #undef DOOM_OS_DECLARE_EXCEPTION_DESCRIPTOR
 
-#define DOOM_OS_DEFINE_WEAK_EXCEPTION_HANDLER(vector_id, exception_type)       \
-    extern "C" [[gnu::weak]] void DOOM_OS_EXCEPTION_HANDLER_SYMBOL(vector_id)( \
-        cpu::local_state & cpu, exception_frame & frame);                      \
-                                                                               \
-    extern "C" void DOOM_OS_EXCEPTION_HANDLER_SYMBOL(vector_id)(               \
-        cpu::local_state & cpu [[maybe_unused]], exception_frame & frame)      \
-    {                                                                          \
-        exception_descriptor_for_vector<vector_id>::handle(cpu, frame);        \
+#define DOOM_OS_DEFINE_WEAK_EXCEPTION_HANDLER(vector_id, exception_type)             \
+    extern "C" [[gnu::weak]] void DOOM_OS_EXCEPTION_HANDLER_SYMBOL(                  \
+        vector_id)(cpu::local_state & cpu, exception_frame & frame);                 \
+                                                                                     \
+    extern "C" void DOOM_OS_EXCEPTION_HANDLER_SYMBOL(                                \
+        vector_id)(cpu::local_state & cpu [[maybe_unused]], exception_frame & frame) \
+    {                                                                                \
+        exception_descriptor_for_vector<vector_id>::handle(cpu, frame);              \
     }
 
 DOOM_OS_CPU_EXCEPTION_VECTORS(DOOM_OS_DEFINE_WEAK_EXCEPTION_HANDLER)
@@ -388,8 +406,8 @@ static void describe_exception_gate(kernel::arch::x86_64::idt::gate_table &gates
 }
 
 template <usize... Vectors>
-static void describe_exception_gates(kernel::arch::x86_64::idt::gate_table &gates,
-                                     std::index_sequence<Vectors...> /*unused*/)
+static void describe_exception_gates(
+    kernel::arch::x86_64::idt::gate_table &gates, std::index_sequence<Vectors...> /*unused*/)
 {
     (describe_exception_gate<Vectors>(gates), ...);
 }

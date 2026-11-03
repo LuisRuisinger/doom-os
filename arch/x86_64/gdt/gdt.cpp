@@ -80,22 +80,26 @@ void table::init(const kernel::arch::x86_64::tss::state &task_state_segment)
     entries_m[0] = make_descriptor(0, 0, 0, 0);
 
     entries_m[1] = make_descriptor(
-        FLAT_BASE, FLAT_LIMIT,
+        FLAT_BASE,
+        FLAT_LIMIT,
         ACCESS_PRESENT | ACCESS_RING_0 | ACCESS_DESCRIPTOR | ACCESS_EXECUTABLE | ACCESS_READ_WRITE,
         FLAGS_GRANULARITY_4K | FLAGS_64_BIT);
 
-    entries_m[2] =
-        make_descriptor(FLAT_BASE, FLAT_LIMIT,
-                        ACCESS_PRESENT | ACCESS_RING_0 | ACCESS_DESCRIPTOR | ACCESS_READ_WRITE,
-                        FLAGS_GRANULARITY_4K | FLAGS_32_BIT);
+    entries_m[2] = make_descriptor(
+        FLAT_BASE,
+        FLAT_LIMIT,
+        ACCESS_PRESENT | ACCESS_RING_0 | ACCESS_DESCRIPTOR | ACCESS_READ_WRITE,
+        FLAGS_GRANULARITY_4K | FLAGS_32_BIT);
 
-    entries_m[3] =
-        make_descriptor(FLAT_BASE, FLAT_LIMIT,
-                        ACCESS_PRESENT | ACCESS_RING_3 | ACCESS_DESCRIPTOR | ACCESS_READ_WRITE,
-                        FLAGS_GRANULARITY_4K | FLAGS_32_BIT);
+    entries_m[3] = make_descriptor(
+        FLAT_BASE,
+        FLAT_LIMIT,
+        ACCESS_PRESENT | ACCESS_RING_3 | ACCESS_DESCRIPTOR | ACCESS_READ_WRITE,
+        FLAGS_GRANULARITY_4K | FLAGS_32_BIT);
 
     entries_m[4] = make_descriptor(
-        FLAT_BASE, FLAT_LIMIT,
+        FLAT_BASE,
+        FLAT_LIMIT,
         ACCESS_PRESENT | ACCESS_RING_3 | ACCESS_DESCRIPTOR | ACCESS_EXECUTABLE | ACCESS_READ_WRITE,
         FLAGS_GRANULARITY_4K | FLAGS_64_BIT);
 

@@ -26,8 +26,9 @@ template <typename T>
 }
 
 template <typename T>
-[[nodiscard]] bool translate_as(const tag_header &tag, kernel::boot::info &out,
-                                bool (*translate)(const T &, kernel::boot::info &))
+[[nodiscard]] bool translate_as(
+    const tag_header &tag, kernel::boot::info &out,
+    bool (*translate)(const T &, kernel::boot::info &))
 {
     const T *value = as_tag<T>(tag);
 
@@ -75,8 +76,10 @@ template <typename T>
         return false;
 
     for (const memory_map_entry &entry : entries(tag))
-        out.memory_map.emplace_back(entry.base_addr, entry.length,
-                                    translate_memory_type(entry.type));
+        out.memory_map.emplace_back(
+            entry.base_addr,
+            entry.length,
+            translate_memory_type(entry.type));
 
     return true;
 }
@@ -152,8 +155,9 @@ template <u8 Revision>
     if (out.acpi.present && out.acpi.revision >= Revision)
         return true;
 
-    const kernel::boot::address_range rsdp((&tag.rsdp) as(paddr_t),
-                                           tag.header.size - sizeof(tag_header));
+    const kernel::boot::address_range rsdp(
+        (&tag.rsdp) as(paddr_t),
+        tag.header.size - sizeof(tag_header));
     out.acpi = kernel::boot::acpi_info(true, rsdp, Revision);
 
     return true;
@@ -217,3 +221,17 @@ kernel::init::init_result adapter::parse(kernel::boot::info &out)
 }
 
 }  // namespace kernel::boot::multiboot2
+
+namespace kernel::boot::active {
+
+bool well_formed()
+{
+    return multiboot2::adapter::well_formed();
+}
+
+kernel::init::init_result parse(info &out)
+{
+    return multiboot2::adapter::parse(out);
+}
+
+}  // namespace kernel::boot::active

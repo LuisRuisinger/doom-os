@@ -40,8 +40,8 @@ class radix_tree {
         return F::size_at(level);
     }
 
-    [[nodiscard]] static Result<usize, mm_error> validate(vaddr_t va, page_size size,
-                                                          paddr_t pa = 0)
+    [[nodiscard]] static Result<usize, mm_error> validate(
+        vaddr_t va, page_size size, paddr_t pa = 0)
     {
         if (!F::valid(va) || ((va | pa) & (bytes_in(size) - 1)) != 0)
             return Err(mm_error::INVALID_ADDRESS);
@@ -119,8 +119,8 @@ class radix_tree {
         }
     }
 
-    [[nodiscard]] Result<void, mm_error> map_leaf(vaddr_t va, paddr_t pa, page_size size,
-                                                  page_prot prot) const
+    [[nodiscard]] Result<void, mm_error> map_leaf(
+        vaddr_t va, paddr_t pa, page_size size, page_prot prot) const
     {
         const usize     target = KTRY(validate(va, size, pa));
         const walk_path path = KTRY(walk(va, target, true));
@@ -136,8 +136,8 @@ class radix_tree {
         return Ok();
     }
 
-    [[nodiscard]] Result<void, mm_error> protect_leaf(vaddr_t va, page_size size,
-                                                      page_prot prot) const
+    [[nodiscard]] Result<void, mm_error> protect_leaf(
+        vaddr_t va, page_size size, page_prot prot) const
     {
         const usize     target = KTRY(validate(va, size));
         const walk_path path = KTRY(walk_to_leaf(va, target));
@@ -184,8 +184,8 @@ class radix_tree {
     }
 
     template <class Fn>
-    [[nodiscard]] Result<void, mm_error> for_each_leaf(vaddr_t va, u64 length, page_size size,
-                                                       Fn fn) const
+    [[nodiscard]] Result<void, mm_error> for_each_leaf(
+        vaddr_t va, u64 length, page_size size, Fn fn) const
     {
         size = leaf_size(size);
 
@@ -213,16 +213,16 @@ public:
         return m_root;
     }
 
-    [[nodiscard]] Result<void, mm_error> map_range(vaddr_t va, paddr_t pa, u64 length,
-                                                   page_size size, page_prot prot) const
+    [[nodiscard]] Result<void, mm_error> map_range(
+        vaddr_t va, paddr_t pa, u64 length, page_size size, page_prot prot) const
     {
         return for_each_leaf(va, length, size, [&](vaddr_t leaf, u64 offset, page_size leaf_sz) {
             return map_leaf(leaf, pa + offset, leaf_sz, prot);
         });
     }
 
-    [[nodiscard]] Result<void, mm_error> protect_range(vaddr_t va, u64 length, page_size size,
-                                                       page_prot prot) const
+    [[nodiscard]] Result<void, mm_error> protect_range(
+        vaddr_t va, u64 length, page_size size, page_prot prot) const
     {
         return for_each_leaf(va, length, size, [&](vaddr_t leaf, u64, page_size leaf_sz) {
             return protect_leaf(leaf, leaf_sz, prot);
@@ -230,8 +230,8 @@ public:
     }
 
     template <class Fn = ignore_removed>
-    [[nodiscard]] Result<void, mm_error> unmap_range(vaddr_t va, u64 length, page_size size,
-                                                     Fn on_removed = {}) const
+    [[nodiscard]] Result<void, mm_error> unmap_range(
+        vaddr_t va, u64 length, page_size size, Fn on_removed = {}) const
     {
         size = leaf_size(size);
 

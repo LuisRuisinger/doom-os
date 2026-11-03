@@ -82,9 +82,10 @@ struct unsupported_formatted_type : std::false_type {};
 
 template <typename T>
 struct formatter {
-    static_assert(unsupported_formatted_type<T>::value,
-                  "kprint cannot format this type; specialise "
-                  "kernel::debug::detail::formatter<T> for it");
+    static_assert(
+        unsupported_formatted_type<T>::value,
+        "kprint cannot format this type; specialise "
+        "kernel::debug::detail::formatter<T> for it");
 };
 
 template <character_value T>
@@ -107,8 +108,9 @@ struct formatter<T> {
             emit_string_value<Spec>(value ? "true" : "false");
         } else if constexpr (Spec.presentation_value == presentation::DECIMAL) {
             emit_unsigned_decimal<Spec>(value ? 1ULL : 0ULL);
-        } else if constexpr (Spec.presentation_value == presentation::HEX_LOWER ||
-                             Spec.presentation_value == presentation::HEX_UPPER) {
+        } else if constexpr (
+            Spec.presentation_value == presentation::HEX_LOWER ||
+            Spec.presentation_value == presentation::HEX_UPPER) {
             emit_hex_integer<Spec>(value ? 1ULL : 0ULL);
         } else {
             static_assert(unsupported_format_spec_v<Spec>, "unsupported format specifier for bool");
@@ -121,15 +123,18 @@ struct formatter<T> {
     template <format_spec Spec>
     static void emit(T value)
     {
-        if constexpr (Spec.presentation_value == presentation::DEFAULT ||
-                      Spec.presentation_value == presentation::DECIMAL) {
+        if constexpr (
+            Spec.presentation_value == presentation::DEFAULT ||
+            Spec.presentation_value == presentation::DECIMAL) {
             emit_unsigned_decimal<Spec>(value as(u64));
-        } else if constexpr (Spec.presentation_value == presentation::HEX_LOWER ||
-                             Spec.presentation_value == presentation::HEX_UPPER) {
+        } else if constexpr (
+            Spec.presentation_value == presentation::HEX_LOWER ||
+            Spec.presentation_value == presentation::HEX_UPPER) {
             emit_hex_integer<Spec>(value as(u64));
         } else {
-            static_assert(unsupported_format_spec_v<Spec>,
-                          "unsupported format specifier for unsigned integer");
+            static_assert(
+                unsupported_format_spec_v<Spec>,
+                "unsupported format specifier for unsigned integer");
         }
     }
 };
@@ -139,15 +144,18 @@ struct formatter<T> {
     template <format_spec Spec>
     static void emit(T value)
     {
-        if constexpr (Spec.presentation_value == presentation::DEFAULT ||
-                      Spec.presentation_value == presentation::DECIMAL) {
+        if constexpr (
+            Spec.presentation_value == presentation::DEFAULT ||
+            Spec.presentation_value == presentation::DECIMAL) {
             emit_signed_decimal<Spec>(value as(i64));
-        } else if constexpr (Spec.presentation_value == presentation::HEX_LOWER ||
-                             Spec.presentation_value == presentation::HEX_UPPER) {
+        } else if constexpr (
+            Spec.presentation_value == presentation::HEX_LOWER ||
+            Spec.presentation_value == presentation::HEX_UPPER) {
             emit_hex_integer<Spec>((value as(i64)) as(u64));
         } else {
-            static_assert(unsupported_format_spec_v<Spec>,
-                          "unsupported format specifier for signed integer");
+            static_assert(
+                unsupported_format_spec_v<Spec>,
+                "unsupported format specifier for signed integer");
         }
     }
 };
@@ -166,9 +174,10 @@ struct formatter<T> {
     template <format_spec Spec>
     static void emit(const char *value)
     {
-        if constexpr (Spec.presentation_value == presentation::POINTER ||
-                      Spec.presentation_value == presentation::HEX_LOWER ||
-                      Spec.presentation_value == presentation::HEX_UPPER) {
+        if constexpr (
+            Spec.presentation_value == presentation::POINTER ||
+            Spec.presentation_value == presentation::HEX_LOWER ||
+            Spec.presentation_value == presentation::HEX_UPPER) {
             emit_pointer_value<Spec>(value as(const volatile void *));
         } else {
             emit_string_value<Spec>(value);
@@ -220,9 +229,10 @@ struct formatter<T> {
     template <format_spec Spec>
     static void emit(reflect::str_view value)
     {
-        static_assert(Spec.presentation_value == presentation::DEFAULT ||
-                          Spec.presentation_value == presentation::STRING,
-                      "unsupported format specifier for string");
+        static_assert(
+            Spec.presentation_value == presentation::DEFAULT ||
+                Spec.presentation_value == presentation::STRING,
+            "unsupported format specifier for string");
 
         const usize size = value.size();
         const usize length = Spec.has_precision ? std::min(size, Spec.precision) : size;
@@ -239,9 +249,10 @@ struct formatter<T> {
         using underlying = std::underlying_type_t<T>;
 
         // An explicit numeric spec asks for the value, not the name.
-        if constexpr (Spec.presentation_value == presentation::DECIMAL ||
-                      Spec.presentation_value == presentation::HEX_LOWER ||
-                      Spec.presentation_value == presentation::HEX_UPPER) {
+        if constexpr (
+            Spec.presentation_value == presentation::DECIMAL ||
+            Spec.presentation_value == presentation::HEX_LOWER ||
+            Spec.presentation_value == presentation::HEX_UPPER) {
             formatter<underlying>::template emit<Spec>(value as(underlying));
         } else {
             const reflect::str_view name = reflect::enum_name(value);

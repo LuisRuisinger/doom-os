@@ -38,8 +38,11 @@ public:
     bool try_lock()
     {
         u8 expected = SPINLOCK_UNLOCKED;
-        return m_state.compare_exchange(expected, SPINLOCK_LOCKED, memory_order::ACQUIRE,
-                                        memory_order::RELAXED);
+        return m_state.compare_exchange(
+            expected,
+            SPINLOCK_LOCKED,
+            memory_order::ACQUIRE,
+            memory_order::RELAXED);
     }
 
     void unlock()

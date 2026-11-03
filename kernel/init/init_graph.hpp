@@ -31,8 +31,8 @@ struct list_append<type_list<Ts...>, T> {
 
 template <typename List, typename T>
 struct list_append_unique {
-    using type = std::conditional_t<list_contains<T, List>::value, List,
-                                    typename list_append<List, T>::type>;
+    using type = std::conditional_t<
+        list_contains<T, List>::value, List, typename list_append<List, T>::type>;
 };
 
 template <typename A, typename B>
@@ -60,8 +60,8 @@ struct list_filter_out_accum<type_list<>, Excluded, Accum> {
 
 template <typename Head, typename... Tail, typename Excluded, typename Accum>
 struct list_filter_out_accum<type_list<Head, Tail...>, Excluded, Accum> {
-    using with_head = std::conditional_t<list_contains<Head, Excluded>::value, Accum,
-                                         typename list_append<Accum, Head>::type>;
+    using with_head = std::conditional_t<
+        list_contains<Head, Excluded>::value, Accum, typename list_append<Accum, Head>::type>;
 
     using type = typename list_filter_out_accum<type_list<Tail...>, Excluded, with_head>::type;
 };
@@ -98,9 +98,9 @@ struct topo_component {
 
     using visiting_with_self = typename list_append<Visiting, Component>::type;
 
-    using deps_sorted =
-        typename topo_list<std::conditional_t<is_cyclic, type_list<>, typename Component::deps>,
-                           visiting_with_self>::type;
+    using deps_sorted = typename topo_list<
+        std::conditional_t<is_cyclic, type_list<>, typename Component::deps>,
+        visiting_with_self>::type;
 
     using type = typename list_append_unique<deps_sorted, Component>::type;
 };

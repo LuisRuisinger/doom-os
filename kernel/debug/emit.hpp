@@ -102,8 +102,8 @@ inline u64 signed_magnitude_i64(i64 value)
 }
 
 template <format_spec Spec>
-inline void emit_padded(const char *prefix, usize prefix_length, const char *body,
-                        usize body_length, bool numeric)
+inline void emit_padded(
+    const char *prefix, usize prefix_length, const char *body, usize body_length, bool numeric)
 {
     const usize content_length = prefix_length + body_length;
     const usize width = Spec.has_width ? Spec.width : 0;
@@ -215,11 +215,13 @@ inline void emit_pointer_value(const volatile void *value)
 
     const u64 address = value as(u64);
 
-    if constexpr (Spec.presentation_value == presentation::HEX_LOWER ||
-                  Spec.presentation_value == presentation::HEX_UPPER) {
+    if constexpr (
+        Spec.presentation_value == presentation::HEX_LOWER ||
+        Spec.presentation_value == presentation::HEX_UPPER) {
         emit_hex_integer<Spec>(address);
-    } else if constexpr (Spec.presentation_value == presentation::DEFAULT ||
-                         Spec.presentation_value == presentation::POINTER) {
+    } else if constexpr (
+        Spec.presentation_value == presentation::DEFAULT ||
+        Spec.presentation_value == presentation::POINTER) {
         constexpr format_spec pointer_spec{
             .presentation_value = presentation::HEX_LOWER,
             .align = Spec.align,
@@ -262,9 +264,10 @@ inline void emit_float_special(const char *body, usize body_length, bool negativ
 template <format_spec Spec>
 inline void emit_fixed_float(long double value)
 {
-    static_assert(Spec.presentation_value == presentation::DEFAULT ||
-                      Spec.presentation_value == presentation::FIXED,
-                  "unsupported format specifier for floating-point value");
+    static_assert(
+        Spec.presentation_value == presentation::DEFAULT ||
+            Spec.presentation_value == presentation::FIXED,
+        "unsupported format specifier for floating-point value");
 
     constexpr usize precision = Spec.has_precision ? Spec.precision : 6;
 
@@ -346,9 +349,10 @@ inline void emit_fixed_float(long double value)
 template <format_spec Spec>
 inline void emit_string_value(const char *value)
 {
-    static_assert(Spec.presentation_value == presentation::DEFAULT ||
-                      Spec.presentation_value == presentation::STRING,
-                  "unsupported format specifier for string");
+    static_assert(
+        Spec.presentation_value == presentation::DEFAULT ||
+            Spec.presentation_value == presentation::STRING,
+        "unsupported format specifier for string");
 
     const char *actual_value = value == nullptr ? "(null)" : value;
     const usize full_length = c_string_length(actual_value);
@@ -362,13 +366,15 @@ inline void emit_char_value(char value)
 {
     static_assert(!Spec.has_precision, "precision is not supported for character formats");
 
-    if constexpr (Spec.presentation_value == presentation::DEFAULT ||
-                  Spec.presentation_value == presentation::CHARACTER) {
+    if constexpr (
+        Spec.presentation_value == presentation::DEFAULT ||
+        Spec.presentation_value == presentation::CHARACTER) {
         emit_padded<Spec>("", 0, &value, 1, false);
     } else if constexpr (Spec.presentation_value == presentation::DECIMAL) {
         emit_unsigned_decimal<Spec>((value as(unsigned char)) as(u64));
-    } else if constexpr (Spec.presentation_value == presentation::HEX_LOWER ||
-                         Spec.presentation_value == presentation::HEX_UPPER) {
+    } else if constexpr (
+        Spec.presentation_value == presentation::HEX_LOWER ||
+        Spec.presentation_value == presentation::HEX_UPPER) {
         emit_hex_integer<Spec>((value as(unsigned char)) as(u64));
     } else {
         static_assert(unsupported_format_spec_v<Spec>, "unsupported format specifier for char");

@@ -87,12 +87,13 @@ struct core_component
         const kernel::arch::x86_64::cpu::stack_set &stacks =
             dep<kernel::arch::x86_64::cpu::stacks_component>(view);
 
-        own(view).init(stack_config{
-            .rsp0 = stacks.kernel().top,
-            .ist1 = stacks.double_fault().top,
-            .ist2 = stacks.nmi().top,
-            .ist3 = stacks.machine_check().top,
-        });
+        own(view).init(
+            stack_config{
+                .rsp0 = stacks.kernel().top,
+                .ist1 = stacks.double_fault().top,
+                .ist2 = stacks.nmi().top,
+                .ist3 = stacks.machine_check().top,
+            });
 
         return kernel::core::Ok();
     }

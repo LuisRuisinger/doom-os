@@ -49,8 +49,8 @@ Return finish_stub(MakeValue make_value)
 
 extern "C" [[noreturn]] void _exit(int status);
 
-extern "C" void *mmap(void *address, size_t length, int protection, int flags, int fd,
-                      off_t offset);
+extern "C" void *mmap(
+    void *address, size_t length, int protection, int flags, int fd, off_t offset);
 extern "C" void *mremap(void *old_address, size_t old_size, size_t new_size, int flags, ...);
 
 extern "C" [[noreturn, gnu::weak]] void _Exit(int status)
@@ -90,14 +90,14 @@ extern "C" [[gnu::weak]] unsigned long __getauxval(unsigned long type)
     return getauxval(type);
 }
 
-extern "C" [[gnu::weak]] void *__mmap(void *address, size_t length, int protection, int flags,
-                                      int fd, off_t offset)
+extern "C" [[gnu::weak]] void *__mmap(
+    void *address, size_t length, int protection, int flags, int fd, off_t offset)
 {
     return mmap(address, length, protection, flags, fd, offset);
 }
 
-extern "C" [[gnu::weak]] void *__mremap(void *old_address, size_t old_size, size_t new_size,
-                                        int flags, ...)
+extern "C" [[gnu::weak]] void *__mremap(
+    void *old_address, size_t old_size, size_t new_size, int flags, ...)
 {
     return mremap(old_address, old_size, new_size, flags);
 }
@@ -134,8 +134,8 @@ extern "C" [[noreturn, gnu::weak]] void *__tls_get_addr(void *descriptor)
     KPANIC("__tls_get_addr: thread-local storage is not set up yet");
 }
 
-extern "C" [[noreturn, gnu::weak]] void __compilerrt_abort_impl(const char *file, int line,
-                                                                const char *func)
+extern "C" [[noreturn, gnu::weak]] void __compilerrt_abort_impl(
+    const char *file, int line, const char *func)
 {
     KPANIC("compiler-rt abort in {} at {}:{}", func, file, line);
 }

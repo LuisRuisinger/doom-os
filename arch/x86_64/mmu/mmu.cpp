@@ -106,13 +106,17 @@ void fill_direct_map(const kernel::boot::info &boot)
         const auto    last = align_up<paddr_t>(end, PAGE_2M);
 
         for (paddr_t pa = first; pa < last; pa += PAGE_2M)
-            fill_2m(m_direct_pds[pa / PAGE_1G], DIRECT_MAP_BASE + pa, pa, PAGE_2M,
-                    page_prot::KERNEL_DATA);
+            fill_2m(
+                m_direct_pds[pa / PAGE_1G],
+                DIRECT_MAP_BASE + pa,
+                pa,
+                PAGE_2M,
+                page_prot::KERNEL_DATA);
     }
 }
 
-[[nodiscard]] Result<void, mm_error> protect_region(const char *first, const char *last,
-                                                    page_prot prot)
+[[nodiscard]] Result<void, mm_error> protect_region(
+    const char *first, const char *last, page_prot prot)
 {
     const auto start = align_down<vaddr_t>(symbol(first), PAGE_4K);
     const auto end = align_up<vaddr_t>(symbol(last), PAGE_4K);
@@ -156,8 +160,12 @@ kernel::init::init_result component::init_kernel_space()
     enable_paging_features();
     link_tables();
 
-    fill_2m(m_kernel_pd, KERNEL_BASE, 0, kernel_window_size(),
-            page_prot::WRITE | page_prot::EXEC | page_prot::GLOBAL);
+    fill_2m(
+        m_kernel_pd,
+        KERNEL_BASE,
+        0,
+        kernel_window_size(),
+        page_prot::WRITE | page_prot::EXEC | page_prot::GLOBAL);
     fill_direct_map(boot);
 
     m_kernel_space = address_space{image_phys(&m_pml4)};
