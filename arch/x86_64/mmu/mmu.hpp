@@ -78,9 +78,9 @@ using address_space = kernel::arch::common::mmu::radix_tree<paging, kernel_env>;
 
 [[nodiscard]] address_space &kernel_space();
 
-struct component
-    : kernel::init::component<component, kernel::init::no_resource,
-                              kernel::boot::boot_info::component, kernel::mm::pmm::component> {
+struct component : kernel::init::component<
+                       component, kernel::init::no_resource, kernel::boot::boot_info::component,
+                       kernel::mm::pmm::component> {
     static constexpr auto *name = "MMU";
 
     static kernel::init::init_result init_kernel_space();

@@ -42,8 +42,8 @@ struct radix9 {
 };
 
 template <class F>
-concept page_format = requires(u64 entry, usize level, vaddr_t va, paddr_t pa, page_size size,
-                               page_prot prot, u64 *table) {
+concept page_format = requires(
+    u64 entry, usize level, vaddr_t va, paddr_t pa, page_size size, page_prot prot, u64 *table) {
     { F::LEVELS } -> std::convertible_to<usize>;
     { F::ENTRIES } -> std::convertible_to<usize>;
     { F::index(level, va) } -> std::same_as<usize>;

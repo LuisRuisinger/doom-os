@@ -1,8 +1,8 @@
 
 #include "kernel/debug/kprint.hpp"
 
-#include "kernel/core/array.hpp"
 #include "kernel/core/cast.hpp"
+#include "kernel/core/utils/array.hpp"
 #include "kernel/debug/console.hpp"
 
 namespace kernel::debug::detail {

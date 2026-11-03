@@ -85,8 +85,9 @@ struct component
     }
 };
 
-struct core_component : kernel::init::component<core_component, kernel::init::no_resource,
-                                                kernel::arch::x86_64::idt::core_component> {
+struct core_component
+    : kernel::init::component<
+          core_component, kernel::init::no_resource, kernel::arch::x86_64::idt::core_component> {
     static constexpr const char *name = "LAPIC_CORE";
 
     template <typename View>

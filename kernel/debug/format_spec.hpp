@@ -4,8 +4,8 @@
 #include <utility>
 
 #include "kernel/core/cast.hpp"
-#include "kernel/core/string.hpp"
 #include "kernel/core/types.hpp"
+#include "kernel/core/utils/string.hpp"
 
 namespace kernel::debug::detail {
 

@@ -27,8 +27,8 @@ static void dump_panic_registers(const panic_register_frame &r)
         detail::emit_char('\n');
 }
 
-[[noreturn]] void kpanic(const char *message, void *frame, const char *file, int line,
-                         const char *function) noexcept
+[[noreturn]] void kpanic(
+    const char *message, void *frame, const char *file, int line, const char *function) noexcept
 {
     asm volatile("cli" ::: "memory");
 

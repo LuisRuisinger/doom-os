@@ -2,8 +2,8 @@
 #define DOOM_OS_ARCH_X86_64_GDT_GDT_HPP_
 
 #include "arch/x86_64/tss/tss.hpp"
-#include "kernel/core/array.hpp"
 #include "kernel/core/types.hpp"
+#include "kernel/core/utils/array.hpp"
 #include "kernel/init/component.hpp"
 
 namespace kernel::arch::x86_64::gdt {

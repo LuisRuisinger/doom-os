@@ -2,8 +2,8 @@
 #define DOOM_OS_ARCH_X86_64_IDT_IDT_HPP_
 
 #include "arch/x86_64/gdt/gdt.hpp"
-#include "kernel/core/array.hpp"
 #include "kernel/core/types.hpp"
+#include "kernel/core/utils/array.hpp"
 #include "kernel/init/component.hpp"
 
 namespace kernel::arch::x86_64::exceptions {
@@ -71,9 +71,9 @@ public:
     void load() const;
 };
 
-struct core_component
-    : kernel::init::component<core_component, table, kernel::arch::x86_64::gdt::core_component,
-                              kernel::arch::x86_64::exceptions::core_component> {
+struct core_component : kernel::init::component<
+                            core_component, table, kernel::arch::x86_64::gdt::core_component,
+                            kernel::arch::x86_64::exceptions::core_component> {
     static constexpr auto *name = "IDT";
 
     template <typename View>
@@ -81,8 +81,9 @@ struct core_component
     {
         table &self = own(view);
 
-        self.init(dep<kernel::arch::x86_64::exceptions::core_component>(view),
-                  dep<kernel::arch::x86_64::gdt::core_component>(view).kernel_code_selector());
+        self.init(
+            dep<kernel::arch::x86_64::exceptions::core_component>(view),
+            dep<kernel::arch::x86_64::gdt::core_component>(view).kernel_code_selector());
         self.load();
 
         return kernel::core::Ok();

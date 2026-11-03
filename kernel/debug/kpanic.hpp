@@ -32,18 +32,18 @@ struct panic_register_frame {
 #undef FIELD
 };
 
-[[noreturn]] void kpanic(const char *message, void *frame, const char *file, int line,
-                         const char *function) noexcept;
+[[noreturn]] void kpanic(
+    const char *message, void *frame, const char *file, int line, const char *function) noexcept;
 
-[[noreturn]] inline void kpanic(const char *message, void *frame,
-                                const std::source_location &location) noexcept
+[[noreturn]] inline void kpanic(
+    const char *message, void *frame, const std::source_location &location) noexcept
 {
     kpanic(message, frame, location.file_name(), location.line() as(int), location.function_name());
 }
 
 template <detail::fixed_string FMT, typename... Args>
-[[noreturn]] inline void kpanic_fmt(void *frame, const char *file, int line, const char *function,
-                                    const Args &...args) noexcept
+[[noreturn]] inline void kpanic_fmt(
+    void *frame, const char *file, int line, const char *function, const Args &...args) noexcept
 {
     asm volatile("cli" ::: "memory");
 
@@ -105,27 +105,29 @@ template <detail::fixed_string FMT, typename... Args>
         ::kernel::debug::kpanic((message), &__panic_frame, __FILE__, __LINE__, __func__); \
     } while (0)
 
-#define KPANIC_AT(location__, message__)                                    \
-    do {                                                                    \
-        ::kernel::debug::panic_register_frame __panic_frame{};              \
-        DOOM_OS_KPANIC_CAPTURE();                                           \
-        ::kernel::debug::kpanic((message__), &__panic_frame, (location__)); \
-    } while (0)
-
 #define KPANIC_FMT(fmt__, ...)                                                     \
     do {                                                                           \
         ::kernel::debug::panic_register_frame __panic_frame{};                     \
         DOOM_OS_KPANIC_CAPTURE();                                                  \
         ::kernel::debug::kpanic_fmt<::kernel::debug::detail::fixed_string{fmt__}>( \
-            &__panic_frame, __FILE__, __LINE__, __func__, __VA_ARGS__);            \
+            &__panic_frame,                                                        \
+            __FILE__,                                                              \
+            __LINE__,                                                              \
+            __func__,                                                              \
+            __VA_ARGS__);                                                          \
     } while (0)
 
 #define KPANIC_WITH_FRAME(frame__, fmt__, ...)                                     \
     do {                                                                           \
         ::kernel::debug::kpanic_fmt<::kernel::debug::detail::fixed_string{fmt__}>( \
-            &(frame__), __FILE__, __LINE__, __func__, __VA_ARGS__);                \
+            &(frame__),                                                            \
+            __FILE__,                                                              \
+            __LINE__,                                                              \
+            __func__,                                                              \
+            __VA_ARGS__);                                                          \
     } while (0)
 
+// clang-format off
 #define KPANIC_SELECT(_0, _1, _2, _3, _4, _5, _6, _7, _8, _9, _10, _11, _12, _13, _14, _15, _16, \
                       NAME, ...)                                                                 \
     NAME
@@ -135,5 +137,6 @@ template <detail::fixed_string FMT, typename... Args>
                   KPANIC_FMT, KPANIC_FMT, KPANIC_FMT, KPANIC_FMT, KPANIC_FMT, KPANIC_FMT,       \
                   KPANIC_FMT, KPANIC_FMT, KPANIC_FMT, KPANIC_FMT, KPANIC_FMT, KPANIC_1,         \
                   KPANIC_0)(__VA_ARGS__)
+// clang-format on
 
 #endif  // DOOM_OS_KERNEL_DEBUG_KPANIC_HPP_

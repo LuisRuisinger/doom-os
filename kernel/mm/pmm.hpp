@@ -15,8 +15,8 @@ using kernel::core::Result;
 [[nodiscard]] Result<paddr_t, mm_error> alloc(page_size size = page_size::SIZE_4K);
 void free(page_size size, paddr_t base);
 
-struct component : kernel::init::component<component, kernel::init::no_resource,
-                                           kernel::boot::boot_info::component> {
+struct component : kernel::init::component<
+                       component, kernel::init::no_resource, kernel::boot::boot_info::component> {
     static constexpr auto *name = "PMM";
 
     static kernel::init::init_result init_allocator();

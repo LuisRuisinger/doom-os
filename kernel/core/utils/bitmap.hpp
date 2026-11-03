@@ -1,14 +1,14 @@
-#ifndef DOOM_OS_KERNEL_CORE_BITMAP_HPP_
-#define DOOM_OS_KERNEL_CORE_BITMAP_HPP_
+#ifndef DOOM_OS_KERNEL_CORE_UTILS_BITMAP_HPP_
+#define DOOM_OS_KERNEL_CORE_UTILS_BITMAP_HPP_
 
 #include <bit>
 #include <limits>
 #include <type_traits>
 
-#include "kernel/core/array.hpp"
-#include "kernel/core/bits.hpp"
 #include "kernel/core/cast.hpp"
 #include "kernel/core/types.hpp"
+#include "kernel/core/utils/array.hpp"
+#include "kernel/core/utils/bits.hpp"
 
 namespace kernel::core::utils {
 
@@ -411,4 +411,4 @@ public:
 
 }  // namespace kernel::core::utils
 
-#endif  // DOOM_OS_KERNEL_CORE_BITMAP_HPP_
+#endif  // DOOM_OS_KERNEL_CORE_UTILS_BITMAP_HPP_

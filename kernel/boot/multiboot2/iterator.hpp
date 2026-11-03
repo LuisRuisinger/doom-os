@@ -14,9 +14,9 @@
 // =================================================================================================
 
 #include "kernel/boot/multiboot2/spec.hpp"
-#include "kernel/core/bits.hpp"
 #include "kernel/core/cast.hpp"
 #include "kernel/core/types.hpp"
+#include "kernel/core/utils/bits.hpp"
 
 namespace kernel::boot::multiboot2 {
 
@@ -55,6 +55,8 @@ using kernel::core::uptr;
 }
 
 class tag_iterator {
+    const tag_header *m_tag;
+
 public:
     using value_type = tag_header;
     using difference_type = std::ptrdiff_t;
@@ -89,9 +91,6 @@ public:
     {
         return m_tag->type as(tag_type) == tag_type::END;
     }
-
-private:
-    const tag_header *m_tag;
 };
 
 static_assert(std::input_iterator<tag_iterator>);
@@ -110,8 +109,8 @@ inline std::ranges::subrange<tag_iterator, std::default_sentinel_t> tags(const f
 inline auto entries(const memory_map_tag &tag)
 {
     const auto *fst = (&tag) as(const u8 *) + sizeof(memory_map_tag);
-    const usize cnt = (tag.header.size - sizeof(memory_map_tag)) / tag.entry_size;
-    const u32   stride = tag.entry_size;
+    const auto  cnt = (tag.header.size - sizeof(memory_map_tag)) / tag.entry_size;
+    const auto  stride = tag.entry_size;
 
     return std::views::iota(usize{0}, cnt) |
            std::views::transform([fst, stride](usize i) -> const memory_map_entry & {

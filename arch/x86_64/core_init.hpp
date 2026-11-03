@@ -11,8 +11,8 @@ bool init_bsp();
 bool init_late_core(cpu::local_state &cpu);
 bool init_late_bsp();
 
-struct component : kernel::init::component<component, kernel::init::no_resource,
-                                           kernel::arch::x86_64::cpu::component> {
+struct component : kernel::init::component<
+                       component, kernel::init::no_resource, kernel::arch::x86_64::cpu::component> {
     static constexpr auto *name = "CORE_INIT";
 
     template <typename View>

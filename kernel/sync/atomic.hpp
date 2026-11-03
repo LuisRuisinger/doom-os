@@ -105,8 +105,8 @@ constexpr int to_failure_order(memory_order order)
 
 template <u64 Size>
 struct inline_atomic_storage {
-    static_assert(Size >= 1 && Size <= 8,
-                  "inline atomic storage supports only byte sequences of 1..8 bytes");
+    static_assert(
+        Size >= 1 && Size <= 8, "inline atomic storage supports only byte sequences of 1..8 bytes");
 
     using type = std::conditional_t<
         (Size <= 1), u8,
@@ -125,20 +125,20 @@ inline constexpr bool has_inline_atomic_storage_v = has_inline_atomic_storage<T>
 
 template <typename T>
 struct supports_atomic_object_ops
-    : std::integral_constant<bool, !std::is_lvalue_reference_v<T> &&
-                                       !std::is_rvalue_reference_v<T> &&
-                                       !std::is_const_v<std::remove_reference_t<T>> &&
-                                       !std::is_volatile_v<std::remove_reference_t<T>> &&
-                                       __is_trivially_copyable(std::remove_cvref_t<T>) &&
-                                       has_inline_atomic_storage_v<std::remove_cvref_t<T>>> {};
+    : std::integral_constant<
+          bool, !std::is_lvalue_reference_v<T> && !std::is_rvalue_reference_v<T> &&
+                    !std::is_const_v<std::remove_reference_t<T>> &&
+                    !std::is_volatile_v<std::remove_reference_t<T>> &&
+                    __is_trivially_copyable(std::remove_cvref_t<T>) &&
+                    has_inline_atomic_storage_v<std::remove_cvref_t<T>>> {};
 
 template <typename T>
 inline constexpr bool supports_atomic_object_ops_v = supports_atomic_object_ops<T>::value;
 
 template <typename T>
 struct supports_arithmetic_ops
-    : std::integral_constant<bool, std::is_integral_v<T> &&
-                                       !std::is_same_v<std::remove_cvref_t<T>, bool>> {};
+    : std::integral_constant<
+          bool, std::is_integral_v<T> && !std::is_same_v<std::remove_cvref_t<T>, bool>> {};
 
 template <typename T>
 inline constexpr bool supports_arithmetic_ops_v = supports_arithmetic_ops<T>::value;
@@ -258,13 +258,15 @@ inline void signal_fence(memory_order order = memory_order::SEQ_CST)
 
 template <typename T>
 class atomic {
-    static_assert(detail::supports_atomic_object_ops_v<T>,
-                  "kernel::sync::atomic<T> currently requires non-cv, non-reference, trivially "
-                  "copyable T with size <= 8 bytes");
+    static_assert(
+        detail::supports_atomic_object_ops_v<T>,
+        "kernel::sync::atomic<T> currently requires non-cv, non-reference, trivially "
+        "copyable T with size <= 8 bytes");
 
     using storage_type = detail::inline_atomic_storage_t<T>;
-    static_assert(__atomic_always_lock_free(sizeof(storage_type), nullptr),
-                  "kernel::sync::atomic<T> requires always-lock-free inline storage");
+    static_assert(
+        __atomic_always_lock_free(sizeof(storage_type), nullptr),
+        "kernel::sync::atomic<T> requires always-lock-free inline storage");
 
     alignas(storage_type) storage_type m_storage;
 
@@ -323,22 +325,29 @@ public:
         return detail::decode_atomic_value<T>(old);
     }
 
-    bool compare_exchange(T &expected, T desired,
-                          memory_order success_order = memory_order::SEQ_CST)
+    bool compare_exchange(
+        T &expected, T desired, memory_order success_order = memory_order::SEQ_CST)
     {
-        return compare_exchange(expected, desired, success_order,
-                                detail::default_failure_order(success_order));
+        return compare_exchange(
+            expected,
+            desired,
+            success_order,
+            detail::default_failure_order(success_order));
     }
 
-    bool compare_exchange(T &expected, T desired, memory_order success_order,
-                          memory_order failure_order)
+    bool compare_exchange(
+        T &expected, T desired, memory_order success_order, memory_order failure_order)
     {
         storage_type       expected_storage = detail::encode_atomic_value(expected);
         const storage_type desired_storage = detail::encode_atomic_value(desired);
 
         const bool exchanged = __atomic_compare_exchange_n(
-            &m_storage, &expected_storage, desired_storage, false,
-            detail::to_builtin_order(success_order), detail::to_failure_order(failure_order));
+            &m_storage,
+            &expected_storage,
+            desired_storage,
+            false,
+            detail::to_builtin_order(success_order),
+            detail::to_failure_order(failure_order));
 
         if (!exchanged)
             expected = detail::decode_atomic_value<T>(expected_storage);
@@ -346,22 +355,29 @@ public:
         return exchanged;
     }
 
-    bool compare_exchange_weak(T &expected, T desired,
-                               memory_order success_order = memory_order::SEQ_CST)
+    bool compare_exchange_weak(
+        T &expected, T desired, memory_order success_order = memory_order::SEQ_CST)
     {
-        return compare_exchange_weak(expected, desired, success_order,
-                                     detail::default_failure_order(success_order));
+        return compare_exchange_weak(
+            expected,
+            desired,
+            success_order,
+            detail::default_failure_order(success_order));
     }
 
-    bool compare_exchange_weak(T &expected, T desired, memory_order success_order,
-                               memory_order failure_order)
+    bool compare_exchange_weak(
+        T &expected, T desired, memory_order success_order, memory_order failure_order)
     {
         storage_type       expected_storage = detail::encode_atomic_value(expected);
         const storage_type desired_storage = detail::encode_atomic_value(desired);
 
         const bool exchanged = __atomic_compare_exchange_n(
-            &m_storage, &expected_storage, desired_storage, true,
-            detail::to_builtin_order(success_order), detail::to_failure_order(failure_order));
+            &m_storage,
+            &expected_storage,
+            desired_storage,
+            true,
+            detail::to_builtin_order(success_order),
+            detail::to_failure_order(failure_order));
 
         if (!exchanged)
             expected = detail::decode_atomic_value<T>(expected_storage);
@@ -500,12 +516,14 @@ public:
 
 template <typename T>
 class atomic_ref {
-    static_assert((std::is_integral_v<T> || std::is_pointer_v<T>) && !std::is_const_v<T> &&
-                      !std::is_volatile_v<T>,
-                  "kernel::sync::atomic_ref<T> currently requires a non-cv integral or pointer T");
+    static_assert(
+        (std::is_integral_v<T> || std::is_pointer_v<T>) && !std::is_const_v<T> &&
+            !std::is_volatile_v<T>,
+        "kernel::sync::atomic_ref<T> currently requires a non-cv integral or pointer T");
 
-    static_assert(__atomic_always_lock_free(sizeof(T), nullptr),
-                  "kernel::sync::atomic_ref<T> requires always-lock-free T");
+    static_assert(
+        __atomic_always_lock_free(sizeof(T), nullptr),
+        "kernel::sync::atomic_ref<T> requires always-lock-free T");
 
     T &object_m;
 
@@ -537,34 +555,48 @@ public:
         return __atomic_exchange_n(&object_m, value, detail::to_builtin_order(order));
     }
 
-    bool compare_exchange(T &expected, T desired,
-                          memory_order success_order = memory_order::SEQ_CST) const
+    bool compare_exchange(
+        T &expected, T desired, memory_order success_order = memory_order::SEQ_CST) const
     {
-        return compare_exchange(expected, desired, success_order,
-                                detail::default_failure_order(success_order));
+        return compare_exchange(
+            expected,
+            desired,
+            success_order,
+            detail::default_failure_order(success_order));
     }
 
-    bool compare_exchange(T &expected, T desired, memory_order success_order,
-                          memory_order failure_order) const
+    bool compare_exchange(
+        T &expected, T desired, memory_order success_order, memory_order failure_order) const
     {
-        return __atomic_compare_exchange_n(&object_m, &expected, desired, false,
-                                           detail::to_builtin_order(success_order),
-                                           detail::to_failure_order(failure_order));
+        return __atomic_compare_exchange_n(
+            &object_m,
+            &expected,
+            desired,
+            false,
+            detail::to_builtin_order(success_order),
+            detail::to_failure_order(failure_order));
     }
 
-    bool compare_exchange_weak(T &expected, T desired,
-                               memory_order success_order = memory_order::SEQ_CST) const
+    bool compare_exchange_weak(
+        T &expected, T desired, memory_order success_order = memory_order::SEQ_CST) const
     {
-        return compare_exchange_weak(expected, desired, success_order,
-                                     detail::default_failure_order(success_order));
+        return compare_exchange_weak(
+            expected,
+            desired,
+            success_order,
+            detail::default_failure_order(success_order));
     }
 
-    bool compare_exchange_weak(T &expected, T desired, memory_order success_order,
-                               memory_order failure_order) const
+    bool compare_exchange_weak(
+        T &expected, T desired, memory_order success_order, memory_order failure_order) const
     {
-        return __atomic_compare_exchange_n(&object_m, &expected, desired, true,
-                                           detail::to_builtin_order(success_order),
-                                           detail::to_failure_order(failure_order));
+        return __atomic_compare_exchange_n(
+            &object_m,
+            &expected,
+            desired,
+            true,
+            detail::to_builtin_order(success_order),
+            detail::to_failure_order(failure_order));
     }
 
     template <typename U = T>

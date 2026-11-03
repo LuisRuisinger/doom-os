@@ -179,20 +179,23 @@ inline section_range<exit_record> exit_records()
 
 inline section_range<provide_record> provide_records()
 {
-    return section_range<provide_record>{__start_doom_os_driver_provides,
-                                         __stop_doom_os_driver_provides};
+    return section_range<provide_record>{
+        __start_doom_os_driver_provides,
+        __stop_doom_os_driver_provides};
 }
 
 inline section_range<require_driver_record> require_driver_records()
 {
-    return section_range<require_driver_record>{__start_doom_os_driver_requires_driver,
-                                                __stop_doom_os_driver_requires_driver};
+    return section_range<require_driver_record>{
+        __start_doom_os_driver_requires_driver,
+        __stop_doom_os_driver_requires_driver};
 }
 
 inline section_range<require_capability_record> require_capability_records()
 {
-    return section_range<require_capability_record>{__start_doom_os_driver_requires_capability,
-                                                    __stop_doom_os_driver_requires_capability};
+    return section_range<require_capability_record>{
+        __start_doom_os_driver_requires_capability,
+        __stop_doom_os_driver_requires_capability};
 }
 
 }  // namespace uk::registry

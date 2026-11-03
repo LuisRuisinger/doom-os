@@ -4,7 +4,7 @@
 #include <uk/capability.hpp>
 
 #include "arch/x86_64/cpu/cpu.hpp"
-#include "kernel/core/array.hpp"
+#include "kernel/core/utils/array.hpp"
 #include "kernel/debug/kprint.hpp"
 
 namespace uk {

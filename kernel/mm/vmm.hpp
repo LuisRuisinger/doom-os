@@ -27,8 +27,8 @@ using kernel::core::vaddr_t;
 
 [[nodiscard]] Result<volatile void *, mm_error> map_mmio(paddr_t pa, usize bytes);
 
-struct component : kernel::init::component<component, kernel::init::no_resource,
-                                           kernel::arch::x86_64::mmu::component> {
+struct component : kernel::init::component<
+                       component, kernel::init::no_resource, kernel::arch::x86_64::mmu::component> {
     static constexpr auto *name = "VMM";
 
     template <typename View>

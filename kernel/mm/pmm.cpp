@@ -4,11 +4,11 @@
 #include <cstddef>
 
 #include "config/layout.h"
-#include "kernel/core/array.hpp"
-#include "kernel/core/bitmap.hpp"
-#include "kernel/core/bits.hpp"
 #include "kernel/core/cast.hpp"
 #include "kernel/core/reflect.hpp"
+#include "kernel/core/utils/array.hpp"
+#include "kernel/core/utils/bitmap.hpp"
+#include "kernel/core/utils/bits.hpp"
 #include "kernel/debug/kpanic.hpp"
 #include "kernel/sync/spinlock.hpp"
 

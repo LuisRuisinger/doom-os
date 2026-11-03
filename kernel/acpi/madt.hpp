@@ -2,8 +2,8 @@
 #define DOOM_OS_KERNEL_ACPI_MADT_HPP_
 
 #include "kernel/acpi/acpi.hpp"
-#include "kernel/core/array.hpp"
 #include "kernel/core/types.hpp"
+#include "kernel/core/utils/array.hpp"
 
 namespace kernel::acpi {
 

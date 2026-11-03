@@ -1,5 +1,5 @@
-#ifndef DOOM_OS_KERNEL_CORE_STRING_HPP_
-#define DOOM_OS_KERNEL_CORE_STRING_HPP_
+#ifndef DOOM_OS_KERNEL_CORE_UTILS_STRING_HPP_
+#define DOOM_OS_KERNEL_CORE_UTILS_STRING_HPP_
 
 #include <limits>
 
@@ -294,4 +294,4 @@ fixed_string(const char (&)[M]) -> fixed_string<M - 1>;
 
 }  // namespace kernel::core::utils
 
-#endif  // DOOM_OS_KERNEL_CORE_STRING_HPP_
+#endif  // DOOM_OS_KERNEL_CORE_UTILS_STRING_HPP_
