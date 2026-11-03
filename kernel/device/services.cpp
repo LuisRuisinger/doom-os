@@ -2,7 +2,7 @@
 #include <uk/services.hpp>
 
 #include "arch/x86_64/serial/io.hpp"
-#include "kernel/core/bits.hpp"
+#include "kernel/core/utils/bits.hpp"
 #include "kernel/debug/kpanic.hpp"
 #include "kernel/debug/kprint.hpp"
 #include "kernel/mm/kheap.hpp"

@@ -3,8 +3,8 @@
 
 #include <algorithm>
 
-#include "kernel/core/array.hpp"
 #include "kernel/core/cast.hpp"
+#include "kernel/core/utils/array.hpp"
 #include "kernel/debug/format_spec.hpp"
 
 namespace kernel::debug::detail {

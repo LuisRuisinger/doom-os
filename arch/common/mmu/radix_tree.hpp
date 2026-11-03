@@ -2,9 +2,9 @@
 #define DOOM_OS_ARCH_COMMON_MMU_RADIX_TREE_HPP_
 
 #include "arch/common/mmu/traits.hpp"
-#include "kernel/core/array.hpp"
 #include "kernel/core/result.hpp"
 #include "kernel/core/types.hpp"
+#include "kernel/core/utils/array.hpp"
 #include "kernel/mm/page.hpp"
 
 namespace kernel::arch::common::mmu {

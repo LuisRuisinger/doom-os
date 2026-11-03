@@ -105,13 +105,6 @@ template <detail::fixed_string FMT, typename... Args>
         ::kernel::debug::kpanic((message), &__panic_frame, __FILE__, __LINE__, __func__); \
     } while (0)
 
-#define KPANIC_AT(location__, message__)                                    \
-    do {                                                                    \
-        ::kernel::debug::panic_register_frame __panic_frame{};              \
-        DOOM_OS_KPANIC_CAPTURE();                                           \
-        ::kernel::debug::kpanic((message__), &__panic_frame, (location__)); \
-    } while (0)
-
 #define KPANIC_FMT(fmt__, ...)                                                     \
     do {                                                                           \
         ::kernel::debug::panic_register_frame __panic_frame{};                     \

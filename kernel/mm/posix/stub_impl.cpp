@@ -1,6 +1,6 @@
 
-#include "kernel/core/bits.hpp"
 #include "kernel/core/cast.hpp"
+#include "kernel/core/utils/bits.hpp"
 #include "kernel/debug/kpanic.hpp"
 #include "kernel/mm/vmm.hpp"
 #include "kernel/runtime/memory.hpp"

@@ -25,6 +25,31 @@ template <typename T>
     return (&tag) as(const T *);
 }
 
+template <typename T>
+[[nodiscard]] bool translate_as(const tag_header &tag, kernel::boot::info &out,
+                                bool (*translate)(const T &, kernel::boot::info &))
+{
+    const T *value = as_tag<T>(tag);
+
+    return value != nullptr && translate(*value, out);
+}
+
+[[nodiscard]] bool translate_command_line(const string_tag &tag, kernel::boot::info &out)
+{
+    const std::string_view text = tag.value();
+
+    out.command_line.assign(text.data(), text.size());
+    return true;
+}
+
+[[nodiscard]] bool translate_bootloader_name(const string_tag &tag, kernel::boot::info &out)
+{
+    const std::string_view text = tag.value();
+
+    out.bootloader_name.assign(text.data(), text.size());
+    return true;
+}
+
 [[nodiscard]] kernel::boot::memory_kind translate_memory_type(u32 type)
 {
     switch (type as(memory_type)) {
@@ -70,21 +95,66 @@ template <typename T>
     return true;
 }
 
-void translate_framebuffer(const framebuffer_tag &tag, kernel::boot::info &out)
+[[nodiscard]] bool translate_framebuffer(const framebuffer_tag &tag, kernel::boot::info &out)
 {
-    const kernel::boot::address_range range(tag.address, tag.pitch as(u64) * tag.height);
-    out.framebuffer = kernel::boot::framebuffer_info(true, range, tag.pitch, tag.width, tag.height,
-                                                     tag.bits_per_pixel);
+    using kernel::boot::framebuffer_kind;
+
+    kernel::boot::framebuffer_info &framebuffer = out.framebuffer;
+    framebuffer = kernel::boot::framebuffer_info{};
+
+    switch (tag.type as(framebuffer_type)) {
+        case framebuffer_type::RGB: {
+            const framebuffer_rgb *rgb = tag.rgb();
+
+            if (rgb == nullptr)
+                return false;
+
+            framebuffer.kind = framebuffer_kind::RGB;
+            framebuffer.red = {.position = rgb->red_position, .size = rgb->red_mask_size};
+            framebuffer.green = {.position = rgb->green_position, .size = rgb->green_mask_size};
+            framebuffer.blue = {.position = rgb->blue_position, .size = rgb->blue_mask_size};
+            break;
+        }
+
+        case framebuffer_type::INDEXED: {
+            const std::span<const framebuffer_color> colors = tag.palette();
+
+            if (colors.size() > kernel::boot::MAX_BOOT_PALETTE_COLORS)
+                return false;
+
+            framebuffer.kind = framebuffer_kind::INDEXED;
+            for (const framebuffer_color &color : colors)
+                framebuffer.palette.emplace_back(color.red, color.green, color.blue);
+
+            break;
+        }
+
+        case framebuffer_type::EGA_TEXT:
+            framebuffer.kind = framebuffer_kind::TEXT;
+            break;
+
+        default:
+            return true;
+    }
+
+    framebuffer.present = true;
+    framebuffer.range = kernel::boot::address_range(tag.address, tag.pitch as(u64) * tag.height);
+    framebuffer.pitch = tag.pitch;
+    framebuffer.width = tag.width;
+    framebuffer.height = tag.height;
+    framebuffer.bits_per_pixel = tag.bits_per_pixel;
+    return true;
 }
 
-[[nodiscard]] bool translate_acpi(const acpi_tag &tag, u8 revision, kernel::boot::info &out)
+template <u8 Revision>
+[[nodiscard]] bool translate_acpi(const acpi_tag &tag, kernel::boot::info &out)
 {
-    if (out.acpi.present && out.acpi.revision >= revision)
+    if (out.acpi.present && out.acpi.revision >= Revision)
         return true;
 
     const kernel::boot::address_range rsdp((&tag.rsdp) as(paddr_t),
                                            tag.header.size - sizeof(tag_header));
-    out.acpi = kernel::boot::acpi_info(true, rsdp, revision);
+    out.acpi = kernel::boot::acpi_info(true, rsdp, Revision);
 
     return true;
 }
@@ -94,66 +164,20 @@ void translate_framebuffer(const framebuffer_tag &tag, kernel::boot::info &out)
     using enum tag_type;
 
     switch (tag.type as(tag_type)) {
-        case COMMAND_LINE: {
-            const auto *value = as_tag<string_tag>(tag);
-
-            if (value == nullptr)
-                return false;
-
-            const std::string_view text = value->value();
-
-            out.command_line.assign(text.data(), text.size());
-            return true;
-        }
-
-        case BOOTLOADER_NAME: {
-            const auto *value = as_tag<string_tag>(tag);
-
-            if (value == nullptr)
-                return false;
-
-            const std::string_view text = value->value();
-
-            out.bootloader_name.assign(text.data(), text.size());
-            return true;
-        }
-
-        case MODULE: {
-            const auto *value = as_tag<module_tag>(tag);
-
-            return value != nullptr && translate_module(*value, out);
-        }
-
-        case MEMORY_MAP: {
-            const auto *value = as_tag<memory_map_tag>(tag);
-
-            return value != nullptr && translate_memory_map(*value, out);
-        }
-
-        case FRAMEBUFFER: {
-            const auto *value = as_tag<framebuffer_tag>(tag);
-
-            if (value == nullptr)
-                return false;
-
-            translate_framebuffer(*value, out);
-            return true;
-        }
-
-        case ACPI_OLD: {
-            const auto *value = as_tag<acpi_tag>(tag);
-
-            return value != nullptr && translate_acpi(*value, 1, out);
-        }
-
-        case ACPI_NEW: {
-            const auto *value = as_tag<acpi_tag>(tag);
-
-            return value != nullptr && translate_acpi(*value, 2, out);
-        }
-
-        case BASIC_MEMORY:
-        case END:
+        case COMMAND_LINE:
+            return translate_as(tag, out, translate_command_line);
+        case BOOTLOADER_NAME:
+            return translate_as(tag, out, translate_bootloader_name);
+        case MODULE:
+            return translate_as(tag, out, translate_module);
+        case MEMORY_MAP:
+            return translate_as(tag, out, translate_memory_map);
+        case FRAMEBUFFER:
+            return translate_as(tag, out, translate_framebuffer);
+        case ACPI_OLD:
+            return translate_as(tag, out, translate_acpi<1>);
+        case ACPI_NEW:
+            return translate_as(tag, out, translate_acpi<2>);
         default:
             return true;
     }

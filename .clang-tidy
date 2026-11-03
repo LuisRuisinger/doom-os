@@ -24,6 +24,9 @@ Checks: >
   -readability-braces-around-statements,
   -readability-identifier-length
 
+CheckOptions:
+  readability-function-size.LineThreshold: 50
+
 WarningsAsErrors: '*'
 
 HeaderFilterRegex: '/(kernel|arch|platform|include|posix|entry)/'

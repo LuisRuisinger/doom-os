@@ -2,9 +2,9 @@
 
 #include "arch/x86_64/cpu/registers.hpp"
 #include "kernel/boot/boot_info.hpp"
-#include "kernel/core/array.hpp"
-#include "kernel/core/bits.hpp"
 #include "kernel/core/cast.hpp"
+#include "kernel/core/utils/array.hpp"
+#include "kernel/core/utils/bits.hpp"
 
 namespace kernel::arch::x86_64::mmu {
 

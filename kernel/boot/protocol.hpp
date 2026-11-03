@@ -3,9 +3,9 @@
 
 #include <concepts>
 
-#include "kernel/core/inplace_vector.hpp"
-#include "kernel/core/string.hpp"
 #include "kernel/core/types.hpp"
+#include "kernel/core/utils/inplace_vector.hpp"
+#include "kernel/core/utils/string.hpp"
 #include "kernel/init/component.hpp"
 
 namespace kernel::boot {
@@ -24,6 +24,7 @@ inline constexpr usize MAX_BOOT_MEMORY_REGIONS = 128;
 inline constexpr usize MAX_BOOT_MODULES = 32;
 inline constexpr usize MAX_BOOT_RESERVED_RANGES = 8;
 inline constexpr usize MAX_BOOT_MODULE_COMMAND_LINE = 128;
+inline constexpr usize MAX_BOOT_PALETTE_COLORS = 256;
 
 enum class memory_kind : u32 {
     USABLE,
@@ -49,13 +50,36 @@ struct module_info {
     fixed_string<MAX_BOOT_MODULE_COMMAND_LINE> command_line;
 };
 
+enum class framebuffer_kind : u8 {
+    RGB,
+    INDEXED,
+    TEXT,
+};
+
+struct pixel_channel {
+    u8 position;
+    u8 size;
+};
+
+struct palette_color {
+    u8 red;
+    u8 green;
+    u8 blue;
+};
+
 struct framebuffer_info {
-    bool          present;
-    address_range range;
-    u32           pitch;
-    u32           width;
-    u32           height;
-    u8            bits_per_pixel;
+    bool             present;
+    framebuffer_kind kind;
+    address_range    range;
+    u32              pitch;
+    u32              width;
+    u32              height;
+    u8               bits_per_pixel;
+    pixel_channel    red;
+    pixel_channel    green;
+    pixel_channel    blue;
+
+    inplace_vector<palette_color, MAX_BOOT_PALETTE_COLORS> palette;
 };
 
 struct acpi_info {

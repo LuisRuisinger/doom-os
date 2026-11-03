@@ -1,5 +1,5 @@
-#ifndef DOOM_OS_KERNEL_CORE_INPLACE_VECTOR_HPP_
-#define DOOM_OS_KERNEL_CORE_INPLACE_VECTOR_HPP_
+#ifndef DOOM_OS_KERNEL_CORE_UTILS_INPLACE_VECTOR_HPP_
+#define DOOM_OS_KERNEL_CORE_UTILS_INPLACE_VECTOR_HPP_
 
 // =================================================================================================
 // Standard library
@@ -13,8 +13,11 @@
 // Kernel files
 // =================================================================================================
 
+#include "kernel/core/result.hpp"
 #include "kernel/core/types.hpp"
+#include "kernel/core/utils/container.hpp"
 #include "kernel/debug/kpanic.hpp"
+#include "kernel/mm/page.hpp"
 
 namespace kernel::core::utils {
 
@@ -129,21 +132,36 @@ struct inplace_vector {
         return *slot;
     }
 
-    constexpr T &push_back(const T             &value,
-                           std::source_location location = std::source_location::current())
+    constexpr T &push_back(const T &value)
     {
         if (m_size == N)
-            KPANIC_AT(location, "inplace_vector: push_back past capacity");
+            KPANIC("inplace_vector: push_back past capacity");
 
         return emplace_back(value);
     }
 
-    constexpr void pop_back(std::source_location location = std::source_location::current())
+    constexpr void pop_back()
     {
         if (m_size == 0)
-            KPANIC_AT(location, "inplace_vector: pop_back on empty");
+            KPANIC("inplace_vector: pop_back on empty");
 
         --m_size;
+    }
+
+    Result<T &, container_error> try_push_back(const T &value)
+    {
+        if (m_size == N)
+            return Err(container_error::CAPACITY_EXCEEDED);
+
+        return Ok(emplace_back(value));
+    }
+
+    Result<void, container_error> try_pop_back()
+    {
+        if (m_size == 0)
+            return Err(container_error::EMPTY);
+
+        return Ok();
     }
 
     [[gnu::always_inline]] constexpr void clear()
@@ -154,4 +172,4 @@ struct inplace_vector {
 
 }  // namespace kernel::core::utils
 
-#endif  // DOOM_OS_KERNEL_CORE_INPLACE_VECTOR_HPP_
+#endif  // DOOM_OS_KERNEL_CORE_UTILS_INPLACE_VECTOR_HPP_

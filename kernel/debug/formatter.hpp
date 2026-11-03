@@ -7,7 +7,7 @@
 
 #include "kernel/core/cast.hpp"
 #include "kernel/core/reflect.hpp"
-#include "kernel/core/string.hpp"
+#include "kernel/core/utils/string.hpp"
 #include "kernel/debug/emit.hpp"
 
 namespace kernel::debug::detail {

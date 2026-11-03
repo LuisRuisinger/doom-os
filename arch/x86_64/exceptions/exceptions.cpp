@@ -7,8 +7,8 @@
 #include "arch/x86_64/cpu/registers.hpp"
 #include "arch/x86_64/idt/idt.hpp"
 #include "arch/x86_64/tss/tss.hpp"
-#include "kernel/core/array.hpp"
 #include "kernel/core/cast.hpp"
+#include "kernel/core/utils/array.hpp"
 #include "kernel/debug/kpanic.hpp"
 #include "kernel/debug/kprint.hpp"
 

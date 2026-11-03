@@ -1,5 +1,5 @@
-#ifndef DOOM_OS_KERNEL_CORE_BITS_HPP_
-#define DOOM_OS_KERNEL_CORE_BITS_HPP_
+#ifndef DOOM_OS_KERNEL_CORE_UTILS_BITS_HPP_
+#define DOOM_OS_KERNEL_CORE_UTILS_BITS_HPP_
 
 #include "kernel/core/cast.hpp"
 #include "kernel/core/types.hpp"
@@ -198,4 +198,4 @@ static_assert(is_aligned(usize{0x2000}, usize{0x1000}));
 
 }  // namespace kernel::core::utils
 
-#endif  // DOOM_OS_KERNEL_CORE_BITS_HPP_
+#endif  // DOOM_OS_KERNEL_CORE_UTILS_BITS_HPP_

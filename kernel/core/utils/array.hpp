@@ -1,5 +1,5 @@
-#ifndef DOOM_OS_KERNEL_CORE_ARRAY_HPP_
-#define DOOM_OS_KERNEL_CORE_ARRAY_HPP_
+#ifndef DOOM_OS_KERNEL_CORE_UTILS_ARRAY_HPP_
+#define DOOM_OS_KERNEL_CORE_UTILS_ARRAY_HPP_
 
 #include <type_traits>
 
@@ -118,4 +118,4 @@ array(T, Ts...) -> array<T, 1 + sizeof...(Ts)>;
 
 }  // namespace kernel::core::utils
 
-#endif  // DOOM_OS_KERNEL_CORE_ARRAY_HPP_
+#endif  // DOOM_OS_KERNEL_CORE_UTILS_ARRAY_HPP_
